@@ -1,0 +1,26 @@
+# Secrets — NEVER commit
+.streamlit/secrets.toml
+
+# SQLite local database
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude internal
+.claude/
