@@ -123,12 +123,14 @@ class DatabaseManager:
 
     def __init__(self, database_url: str):
         self.database_url = database_url
-        self._pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
-            dsn=database_url,
-        )
-        logger.info("DatabaseManager PostgreSQL initialisé — pool prêt")
+        # Test connection at startup to fail fast with a clear error
+        try:
+            test = psycopg2.connect(database_url)
+            test.close()
+        except Exception as e:
+            logger.error(f"❌ Connexion PostgreSQL échouée : {e}")
+            raise
+        logger.info("DatabaseManager PostgreSQL initialisé")
 
     # ─────────────────────────────────────────────────────────────────────────
     # CONNEXION
@@ -137,10 +139,10 @@ class DatabaseManager:
     @contextmanager
     def connexion(self):
         """
-        Context manager thread-safe — yield un _ConnProxy.
-        Auto-commit si pas d'exception, rollback sinon.
+        Context manager — ouvre une connexion fraîche, commit ou rollback, puis ferme.
+        Compatible avec le transaction pooler Supabase.
         """
-        conn = self._pool.getconn()
+        conn = psycopg2.connect(self.database_url)
         proxy = _ConnProxy(conn)
         try:
             yield proxy
@@ -150,7 +152,7 @@ class DatabaseManager:
             logger.error(f"Transaction rollback : {e}")
             raise
         finally:
-            self._pool.putconn(conn)
+            conn.close()
 
     # ─────────────────────────────────────────────────────────────────────────
     # SCHÉMA — TABLES
