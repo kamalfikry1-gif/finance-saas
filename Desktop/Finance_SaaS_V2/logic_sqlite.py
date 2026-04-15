@@ -1337,10 +1337,10 @@ class MoteurAnalyse:
             df = pd.read_sql_query(
                 """
                 SELECT
-                    CAST(strftime('%w', Date_Valeur) AS INTEGER) AS Jour_Semaine,
+                    EXTRACT(DOW FROM Date_Valeur::date)::INTEGER AS Jour_Semaine,
                     COUNT(*) AS Nb_Transactions,
-                    ROUND(SUM(ABS(Montant)), 2) AS Total_DH,
-                    ROUND(AVG(ABS(Montant)), 2) AS Moyenne_DH
+                    ROUND(SUM(ABS(Montant))::numeric, 2) AS Total_DH,
+                    ROUND(AVG(ABS(Montant))::numeric, 2) AS Moyenne_DH
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND user_id = ? AND Sens = 'OUT'
                   AND Source != 'ONBOARDING'
@@ -1368,7 +1368,7 @@ class MoteurAnalyse:
             df = pd.read_sql_query(
                 f"""
                 SELECT
-                    substr({dv}, 1, 7) AS Mois,
+                    substring({dv}, 1, 7) AS Mois,
                     ROUND(SUM(CASE WHEN Sens = 'IN'  THEN  ABS(Montant) ELSE 0 END), 2) AS Revenus,
                     ROUND(SUM(CASE WHEN Sens = 'OUT' THEN  ABS(Montant) ELSE 0 END), 2) AS Depenses,
                     ROUND(SUM(Montant), 2) AS Solde
@@ -1398,10 +1398,10 @@ class MoteurAnalyse:
         """
         dv = self._dv_iso()
         periode_expr = {
-            "mois":         f"substr({dv}, 1, 7)",
-            "jour_semaine": "strftime('%w', Date_Saisie)",
-            "heure":        "strftime('%H', Date_Saisie)",
-        }.get(groupby, f"substr({dv}, 1, 7)")
+            "mois":         f"substring({dv}, 1, 7)",
+            "jour_semaine": "EXTRACT(DOW FROM Date_Saisie::timestamp)::INTEGER",
+            "heure":        "EXTRACT(HOUR FROM Date_Saisie::timestamp)::INTEGER",
+        }.get(groupby, f"substring({dv}, 1, 7)")
 
         params: list = [self.user_id]
         filtre_mois = ""
@@ -1555,13 +1555,13 @@ class MoteurAnalyse:
                 f"""
                 SELECT
                     Libelle,
-                    COUNT(DISTINCT substr({dv}, 1, 7)) AS Nb_Mois,
-                    ROUND(AVG(ABS(Montant)), 2) AS Montant_Moyen,
+                    COUNT(DISTINCT substring({dv}, 1, 7)) AS Nb_Mois,
+                    ROUND(AVG(ABS(Montant))::numeric, 2) AS Montant_Moyen,
                     Categorie, Sous_Categorie
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND user_id = ? AND Sens = 'OUT'
                 GROUP BY Libelle, Categorie, Sous_Categorie
-                HAVING Nb_Mois >= ?
+                HAVING COUNT(DISTINCT substring({dv}, 1, 7)) >= ?
                 ORDER BY Montant_Moyen DESC
                 """,
                 conn, params=(self.user_id, nb_mois_min)
@@ -1752,7 +1752,7 @@ class MoteurAnalyse:
                 f"""
                 SELECT
                     Categorie, Sous_Categorie,
-                    ROUND(SUM(ABS(Montant)) / COUNT(DISTINCT substr({dv}, 1, 7)), 2)
+                    ROUND(SUM(ABS(Montant)) / COUNT(DISTINCT substring({dv}, 1, 7)), 2)
                         AS Moyenne_Ref_DH
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND user_id = ? AND Sens = 'OUT'
@@ -1970,7 +1970,7 @@ class MoteurAnalyse:
                     AND t1.Montant   = t2.Montant
                     AND t1.user_id   = t2.user_id
                     AND t1.ID_Unique != t2.ID_Unique
-                    AND ABS(julianday({dv1}) - julianday({dv2})) <= ?
+                    AND ABS(({dv1}::date - {dv2}::date)) <= ?
                 WHERE t1.Statut = 'VALIDE' AND t1.user_id = ?
                 ORDER BY t1.Libelle, t1.Date_Valeur
                 """,
@@ -1991,8 +1991,8 @@ class MoteurAnalyse:
                 SELECT SUM(Montant) AS Solde_Mois
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND user_id = ?
-                GROUP BY substr({dv}, 1, 7)
-                ORDER BY substr({dv}, 1, 7) DESC
+                GROUP BY substring({dv}, 1, 7)
+                ORDER BY substring({dv}, 1, 7) DESC
                 LIMIT ?
                 """,
                 (self.user_id, nb_mois)
@@ -2010,8 +2010,8 @@ class MoteurAnalyse:
                 SELECT SUM(ABS(Montant)) AS Dep_Mois
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND user_id = ? AND Sens = 'OUT'
-                GROUP BY substr({dv}, 1, 7)
-                ORDER BY substr({dv}, 1, 7) DESC
+                GROUP BY substring({dv}, 1, 7)
+                ORDER BY substring({dv}, 1, 7) DESC
                 LIMIT ?
                 """,
                 (self.user_id, nb_mois)
