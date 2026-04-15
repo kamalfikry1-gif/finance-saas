@@ -112,10 +112,6 @@ def _register_tab(db) -> None:
         unsafe_allow_html=True,
     )
 
-    if not _PASSLIB_OK:
-        st.warning("⚠️ passlib non installé — hashage de secours activé. "
-                   "Ajoutez `passlib[bcrypt]` à requirements.txt.")
-
     username = st.text_input(
         "Nom d'utilisateur", placeholder="votre_pseudo_unique",
         key="reg_username"
