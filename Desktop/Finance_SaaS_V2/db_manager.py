@@ -61,6 +61,7 @@ class _CursorProxy:
     def fetchall(self):     return self._cur.fetchall()
     def fetchone(self):     return self._cur.fetchone()
     def fetchmany(self, n): return self._cur.fetchmany(n)
+    def close(self):        self._cur.close()
 
     @property
     def description(self): return self._cur.description
