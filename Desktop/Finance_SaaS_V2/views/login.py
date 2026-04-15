@@ -10,22 +10,21 @@ Si login OK → stocke user_id et username dans st.session_state.
 """
 
 import streamlit as st
+import bcrypt as _bcrypt_lib
 from components.design_tokens import T
 
-try:
-    from passlib.hash import bcrypt as _bcrypt
-    _PASSLIB_OK = True
-except ImportError:
-    _PASSLIB_OK = False
-    import hashlib
-    # Fallback SHA-256 si passlib absent (moins sécurisé — installer passlib en prod)
-    class _bcrypt:  # type: ignore
-        @staticmethod
-        def hash(pwd: str) -> str:
-            return hashlib.sha256(pwd.encode()).hexdigest()
-        @staticmethod
-        def verify(pwd: str, hashed: str) -> bool:
-            return hashlib.sha256(pwd.encode()).hexdigest() == hashed
+
+class _bcrypt:
+    @staticmethod
+    def hash(pwd: str) -> str:
+        return _bcrypt_lib.hashpw(pwd.encode("utf-8"), _bcrypt_lib.gensalt()).decode("utf-8")
+
+    @staticmethod
+    def verify(pwd: str, hashed: str) -> bool:
+        try:
+            return _bcrypt_lib.checkpw(pwd.encode("utf-8"), hashed.encode("utf-8"))
+        except Exception:
+            return False
 
 
 def _card(contenu_fn):
