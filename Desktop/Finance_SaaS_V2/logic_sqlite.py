@@ -726,15 +726,14 @@ class ClassificationEngine:
         Utile pour que l'utilisateur priorise l'enrichissement.
         """
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 """
                 SELECT id, Mot_Cle_Inconnu, Sens, Categorie_Auto,
                        Sous_Categorie_Auto, Nb_Occurrences, Date_Ajout
                 FROM A_CLASSIFIER
                 WHERE Enrichi = 0
                 ORDER BY Nb_Occurrences DESC
-                """,
-                conn
+                """
             )
         logger.info(f"📋 {len(df)} mot(s)-clé(s) inconnu(s) en attente d'enrichissement")
         return df
@@ -900,9 +899,9 @@ class ClassificationEngine:
         Retourne un DataFrame vide si aucune transaction en attente.
         """
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 """
-                SELECT 
+                SELECT
                     ID_Unique,
                     Date_Valeur,
                     Libelle,
@@ -912,8 +911,7 @@ class ClassificationEngine:
                 WHERE Statut = ?
                 ORDER BY Date_Valeur DESC
                 """,
-                conn,
-                params=(STATUT_A_CLASSIFIER,)
+                (STATUT_A_CLASSIFIER,)
             )
 
         nb = len(df)
@@ -954,9 +952,9 @@ class ClassificationEngine:
         Utile pour afficher un historique ou permettre la suppression.
         """
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 """
-                SELECT 
+                SELECT
                     id,
                     Sens,
                     Mot_Cle,
@@ -965,8 +963,7 @@ class ClassificationEngine:
                     Date_Creation
                 FROM REGLES_UTILISATEUR
                 ORDER BY Date_Creation DESC
-                """,
-                conn
+                """
             )
         return df
 
@@ -976,9 +973,9 @@ class ClassificationEngine:
         Limité aux `limit` plus récentes par défaut.
         """
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 """
-                SELECT 
+                SELECT
                     ID_Unique,
                     Date_Valeur,
                     Libelle,
@@ -990,8 +987,7 @@ class ClassificationEngine:
                 ORDER BY Date_Valeur DESC
                 LIMIT ?
                 """,
-                conn,
-                params=(STATUT_VALIDE, limit)
+                (STATUT_VALIDE, limit)
             )
         return df
 
@@ -1001,9 +997,9 @@ class ClassificationEngine:
         Colonnes : Categorie, Nb_Transactions, Total_Montant
         """
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 """
-                SELECT 
+                SELECT
                     Categorie,
                     COUNT(*) AS Nb_Transactions,
                     SUM(Montant) AS Total_Montant
@@ -1012,8 +1008,7 @@ class ClassificationEngine:
                 GROUP BY Categorie
                 ORDER BY Total_Montant ASC
                 """,
-                conn,
-                params=(STATUT_VALIDE,)
+                (STATUT_VALIDE,)
             )
         return df
 
@@ -1166,7 +1161,7 @@ class MoteurAnalyse:
         dv = self._dv_iso()
 
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT Categorie, SUM(ABS(Montant)) AS Total_DH
                 FROM TRANSACTIONS
@@ -1175,7 +1170,7 @@ class MoteurAnalyse:
                 GROUP BY Categorie
                 ORDER BY Total_DH DESC
                 """,
-                conn, params=(self.user_id, d_deb, d_fin)
+                (self.user_id, d_deb, d_fin)
             )
 
         total = df["Total_DH"].sum()
@@ -1208,7 +1203,7 @@ class MoteurAnalyse:
             params.append(categorie)
 
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT
                     Categorie, Sous_Categorie,
@@ -1221,7 +1216,7 @@ class MoteurAnalyse:
                 GROUP BY Categorie, Sous_Categorie
                 ORDER BY Total_DH DESC
                 """,
-                conn, params=params
+                params
             )
 
         total = df["Total_DH"].sum()
@@ -1261,7 +1256,7 @@ class MoteurAnalyse:
                 (self.user_id, d_deb, d_fin)
             ).fetchone()
 
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT Date_Valeur, Libelle, ABS(Montant) AS Montant,
                        Categorie, Sous_Categorie
@@ -1271,7 +1266,7 @@ class MoteurAnalyse:
                 ORDER BY Montant DESC
                 LIMIT ?
                 """,
-                conn, params=(self.user_id, d_deb, d_fin, top_n)
+                (self.user_id, d_deb, d_fin, top_n)
             )
 
         revenus       = float(row_totaux[0] or 0)
@@ -1309,7 +1304,7 @@ class MoteurAnalyse:
             params.append(sens.upper())
 
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT ID_Unique, Date_Valeur, Libelle, Montant, Sens, Categorie, Sous_Categorie
                 FROM TRANSACTIONS
@@ -1318,7 +1313,7 @@ class MoteurAnalyse:
                   {filtre_sens}
                 ORDER BY {dv} DESC
                 """,
-                conn, params=params
+                params
             )
         return df
 
@@ -1334,7 +1329,7 @@ class MoteurAnalyse:
         d_deb, d_fin = self._mois_to_date_range(mois)
 
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 """
                 SELECT
                     EXTRACT(DOW FROM Date_Valeur::date)::INTEGER AS Jour_Semaine,
@@ -1348,7 +1343,7 @@ class MoteurAnalyse:
                 GROUP BY Jour_Semaine
                 ORDER BY Jour_Semaine
                 """,
-                conn, params=(self.user_id, d_deb, d_fin)
+                (self.user_id, d_deb, d_fin)
             )
 
         jours = {0: "Dimanche", 1: "Lundi", 2: "Mardi", 3: "Mercredi",
@@ -1365,7 +1360,7 @@ class MoteurAnalyse:
         """
         dv = self._dv_iso()
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT
                     substring({dv}, 1, 7) AS Mois,
@@ -1378,7 +1373,7 @@ class MoteurAnalyse:
                 GROUP BY Mois
                 ORDER BY Mois ASC
                 """,
-                conn, params=(self.user_id,)
+                (self.user_id,)
             )
         return df
 
@@ -1411,7 +1406,7 @@ class MoteurAnalyse:
             params.extend([d_deb, d_fin])
 
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT {periode_expr} AS Periode, Categorie, ROUND(SUM(ABS(Montant)), 2) AS Total_DH
                 FROM TRANSACTIONS
@@ -1420,7 +1415,7 @@ class MoteurAnalyse:
                 GROUP BY Periode, Categorie
                 ORDER BY Periode
                 """,
-                conn, params=params
+                params
             )
 
         if df.empty:
@@ -1448,11 +1443,10 @@ class MoteurAnalyse:
         dv = self._dv_iso()
 
         with self.db.connexion() as conn:
-            df_budget = pd.read_sql_query(
-                "SELECT Categorie, Sous_Categorie, Plafond AS Budget_DH FROM CATEGORIES WHERE Plafond > 0",
-                conn
+            df_budget = conn.read_sql(
+                "SELECT Categorie, Sous_Categorie, Plafond AS Budget_DH FROM CATEGORIES WHERE Plafond > 0"
             )
-            df_reel = pd.read_sql_query(
+            df_reel = conn.read_sql(
                 f"""
                 SELECT Categorie, Sous_Categorie, ROUND(SUM(ABS(Montant)), 2) AS Reel_DH
                 FROM TRANSACTIONS
@@ -1460,7 +1454,7 @@ class MoteurAnalyse:
                   AND {dv} BETWEEN ? AND ?
                 GROUP BY Categorie, Sous_Categorie
                 """,
-                conn, params=(self.user_id, d_deb, d_fin)
+                (self.user_id, d_deb, d_fin)
             )
 
         df = df_budget.merge(df_reel, on=["Categorie", "Sous_Categorie"], how="left")
@@ -1551,7 +1545,7 @@ class MoteurAnalyse:
         """
         dv = self._dv_iso()
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT
                     Libelle,
@@ -1564,7 +1558,7 @@ class MoteurAnalyse:
                 HAVING COUNT(DISTINCT substring({dv}, 1, 7)) >= ?
                 ORDER BY Montant_Moyen DESC
                 """,
-                conn, params=(self.user_id, nb_mois_min)
+                (self.user_id, nb_mois_min)
             )
         return df
 
@@ -1735,7 +1729,7 @@ class MoteurAnalyse:
 
         with self.db.connexion() as conn:
             # Dépenses du mois courant par sous-catégorie
-            df_courant = pd.read_sql_query(
+            df_courant = conn.read_sql(
                 f"""
                 SELECT Categorie, Sous_Categorie,
                        ROUND(SUM(ABS(Montant)), 2) AS Mois_Courant_DH
@@ -1744,11 +1738,11 @@ class MoteurAnalyse:
                   AND {dv} BETWEEN ? AND ?
                 GROUP BY Categorie, Sous_Categorie
                 """,
-                conn, params=(self.user_id, d_deb, d_fin)
+                (self.user_id, d_deb, d_fin)
             )
 
             # Moyenne mensuelle sur la période de référence
-            df_ref = pd.read_sql_query(
+            df_ref = conn.read_sql(
                 f"""
                 SELECT
                     Categorie, Sous_Categorie,
@@ -1759,7 +1753,7 @@ class MoteurAnalyse:
                   AND {dv} BETWEEN ? AND ?
                 GROUP BY Categorie, Sous_Categorie
                 """,
-                conn, params=(self.user_id, ref_deb, ref_fin)
+                (self.user_id, ref_deb, ref_fin)
             )
 
         # Fusion outer pour capturer "NOUVEAU" (présent ce mois, absent historique)
@@ -1823,7 +1817,7 @@ class MoteurAnalyse:
 
         with self.db.connexion() as conn:
             # Stats historiques par catégorie
-            df_stats = pd.read_sql_query(
+            df_stats = conn.read_sql(
                 """
                 SELECT
                     Categorie,
@@ -1833,17 +1827,17 @@ class MoteurAnalyse:
                 WHERE Statut = 'VALIDE' AND user_id = ? AND Sens = 'OUT'
                 GROUP BY Categorie
                 """,
-                conn, params=(self.user_id,)
+                (self.user_id,)
             )
             # Transactions du mois analysé
-            df_mois = pd.read_sql_query(
+            df_mois = conn.read_sql(
                 f"""
                 SELECT Date_Valeur, Libelle, ABS(Montant) AS Montant, Categorie
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND user_id = ? AND Sens = 'OUT'
                   AND {dv} BETWEEN ? AND ?
                 """,
-                conn, params=(self.user_id, d_deb, d_fin)
+                (self.user_id, d_deb, d_fin)
             )
 
         if df_mois.empty or df_stats.empty:
@@ -1961,7 +1955,7 @@ class MoteurAnalyse:
         dv2 = self._dv_iso("t2.Date_Valeur")
 
         with self.db.connexion() as conn:
-            df = pd.read_sql_query(
+            df = conn.read_sql(
                 f"""
                 SELECT DISTINCT t1.ID_Unique, t1.Date_Valeur, t1.Libelle, t1.Montant, t1.Categorie
                 FROM TRANSACTIONS t1
@@ -1974,7 +1968,7 @@ class MoteurAnalyse:
                 WHERE t1.Statut = 'VALIDE' AND t1.user_id = ?
                 ORDER BY t1.Libelle, t1.Date_Valeur
                 """,
-                conn, params=(fenetre_jours, self.user_id)
+                (fenetre_jours, self.user_id)
             )
         return df
 
