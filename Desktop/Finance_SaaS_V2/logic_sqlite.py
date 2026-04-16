@@ -40,6 +40,58 @@ logger = logging.getLogger("LOGIC_ENGINE")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HELPER — SQL → DataFrame (contourne le proxy DBAPI2 et la casse PostgreSQL)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _sql_col_names(sql: str) -> list:
+    """
+    Extrait les noms de colonnes du SELECT en préservant la casse originale
+    (PostgreSQL retourne tout en minuscules pour les identifiants non quotés).
+    """
+    s = re.sub(r'\s+', ' ', sql.strip())
+    m = re.search(r'(?i)\bSELECT\b\s+(?:DISTINCT\s+)?(.*?)\s+\bFROM\b', s)
+    if not m:
+        return []
+    select_part = m.group(1)
+    parts, depth, buf = [], 0, ""
+    for ch in select_part:
+        if ch == "(":
+            depth += 1; buf += ch
+        elif ch == ")":
+            depth -= 1; buf += ch
+        elif ch == "," and depth == 0:
+            parts.append(buf.strip()); buf = ""
+        else:
+            buf += ch
+    if buf.strip():
+        parts.append(buf.strip())
+    cols = []
+    for part in parts:
+        a = re.search(r'(?i)\bAS\s+"?(\w+)"?\s*$', part)
+        if a:
+            cols.append(a.group(1))
+        else:
+            bare = part.split(".")[-1].strip().strip('"')
+            bare = re.split(r'[\s(]', bare)[0]
+            cols.append(bare)
+    return cols
+
+
+def _read_sql(conn, sql: str, params=None) -> pd.DataFrame:
+    """
+    Exécute un SELECT via conn.execute() et retourne un DataFrame pandas.
+    · N'utilise PAS conn.read_sql() — fonctionne avec toute version de _ConnProxy.
+    · Restaure la casse originale des colonnes depuis la chaîne SQL.
+    """
+    intended = _sql_col_names(sql)
+    cur = conn.execute(sql, params)
+    rows = cur.fetchall()
+    pg_cols = [d[0] for d in cur.description] if cur.description else []
+    cols = intended if (intended and len(intended) == len(pg_cols)) else pg_cols
+    return pd.DataFrame([[v for v in row] for row in rows], columns=cols)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # BLOC 0 : DATACLASSES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -726,7 +778,7 @@ class ClassificationEngine:
         Utile pour que l'utilisateur priorise l'enrichissement.
         """
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 """
                 SELECT id, Mot_Cle_Inconnu, Sens, Categorie_Auto,
                        Sous_Categorie_Auto, Nb_Occurrences, Date_Ajout
@@ -899,7 +951,7 @@ class ClassificationEngine:
         Retourne un DataFrame vide si aucune transaction en attente.
         """
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 """
                 SELECT
                     ID_Unique,
@@ -952,7 +1004,7 @@ class ClassificationEngine:
         Utile pour afficher un historique ou permettre la suppression.
         """
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 """
                 SELECT
                     id,
@@ -973,7 +1025,7 @@ class ClassificationEngine:
         Limité aux `limit` plus récentes par défaut.
         """
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 """
                 SELECT
                     ID_Unique,
@@ -997,7 +1049,7 @@ class ClassificationEngine:
         Colonnes : Categorie, Nb_Transactions, Total_Montant
         """
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 """
                 SELECT
                     Categorie,
@@ -1161,7 +1213,7 @@ class MoteurAnalyse:
         dv = self._dv_iso()
 
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT Categorie, SUM(ABS(Montant)) AS Total_DH
                 FROM TRANSACTIONS
@@ -1203,7 +1255,7 @@ class MoteurAnalyse:
             params.append(categorie)
 
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT
                     Categorie, Sous_Categorie,
@@ -1256,7 +1308,7 @@ class MoteurAnalyse:
                 (self.user_id, d_deb, d_fin)
             ).fetchone()
 
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT Date_Valeur, Libelle, ABS(Montant) AS Montant,
                        Categorie, Sous_Categorie
@@ -1304,7 +1356,7 @@ class MoteurAnalyse:
             params.append(sens.upper())
 
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT ID_Unique, Date_Valeur, Libelle, Montant, Sens, Categorie, Sous_Categorie
                 FROM TRANSACTIONS
@@ -1329,7 +1381,7 @@ class MoteurAnalyse:
         d_deb, d_fin = self._mois_to_date_range(mois)
 
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 """
                 SELECT
                     EXTRACT(DOW FROM Date_Valeur::date)::INTEGER AS Jour_Semaine,
@@ -1360,7 +1412,7 @@ class MoteurAnalyse:
         """
         dv = self._dv_iso()
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT
                     substring({dv}, 1, 7) AS Mois,
@@ -1406,7 +1458,7 @@ class MoteurAnalyse:
             params.extend([d_deb, d_fin])
 
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT {periode_expr} AS Periode, Categorie, ROUND(SUM(ABS(Montant)), 2) AS Total_DH
                 FROM TRANSACTIONS
@@ -1443,10 +1495,10 @@ class MoteurAnalyse:
         dv = self._dv_iso()
 
         with self.db.connexion() as conn:
-            df_budget = conn.read_sql(
+            df_budget = _read_sql(conn, 
                 "SELECT Categorie, Sous_Categorie, Plafond AS Budget_DH FROM CATEGORIES WHERE Plafond > 0"
             )
-            df_reel = conn.read_sql(
+            df_reel = _read_sql(conn, 
                 f"""
                 SELECT Categorie, Sous_Categorie, ROUND(SUM(ABS(Montant)), 2) AS Reel_DH
                 FROM TRANSACTIONS
@@ -1545,7 +1597,7 @@ class MoteurAnalyse:
         """
         dv = self._dv_iso()
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT
                     Libelle,
@@ -1729,7 +1781,7 @@ class MoteurAnalyse:
 
         with self.db.connexion() as conn:
             # Dépenses du mois courant par sous-catégorie
-            df_courant = conn.read_sql(
+            df_courant = _read_sql(conn, 
                 f"""
                 SELECT Categorie, Sous_Categorie,
                        ROUND(SUM(ABS(Montant)), 2) AS Mois_Courant_DH
@@ -1742,7 +1794,7 @@ class MoteurAnalyse:
             )
 
             # Moyenne mensuelle sur la période de référence
-            df_ref = conn.read_sql(
+            df_ref = _read_sql(conn, 
                 f"""
                 SELECT
                     Categorie, Sous_Categorie,
@@ -1817,7 +1869,7 @@ class MoteurAnalyse:
 
         with self.db.connexion() as conn:
             # Stats historiques par catégorie
-            df_stats = conn.read_sql(
+            df_stats = _read_sql(conn, 
                 """
                 SELECT
                     Categorie,
@@ -1830,7 +1882,7 @@ class MoteurAnalyse:
                 (self.user_id,)
             )
             # Transactions du mois analysé
-            df_mois = conn.read_sql(
+            df_mois = _read_sql(conn, 
                 f"""
                 SELECT Date_Valeur, Libelle, ABS(Montant) AS Montant, Categorie
                 FROM TRANSACTIONS
@@ -1955,7 +2007,7 @@ class MoteurAnalyse:
         dv2 = self._dv_iso("t2.Date_Valeur")
 
         with self.db.connexion() as conn:
-            df = conn.read_sql(
+            df = _read_sql(conn, 
                 f"""
                 SELECT DISTINCT t1.ID_Unique, t1.Date_Valeur, t1.Libelle, t1.Montant, t1.Categorie
                 FROM TRANSACTIONS t1
