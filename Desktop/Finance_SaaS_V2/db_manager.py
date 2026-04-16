@@ -108,6 +108,18 @@ class _ConnProxy:
         cur.executemany(pg_sql, seq)
         return cur
 
+    # ── read_sql : remplace pd.read_sql_query — contourne les proxy DBAPI2 ───
+    def read_sql(self, sql: str, params=None) -> "pd.DataFrame":
+        """Exécute une SELECT et retourne un DataFrame pandas. Convertit ? → %s."""
+        import pandas as pd
+        pg_sql = sql.replace("?", "%s")
+        cur = self._c.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(pg_sql, params or ())
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description] if cur.description else []
+        cur.close()
+        return pd.DataFrame([dict(r) for r in rows], columns=cols)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GESTIONNAIRE PRINCIPAL
