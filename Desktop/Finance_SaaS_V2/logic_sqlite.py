@@ -518,15 +518,17 @@ class ComptableBudget:
             ).fetchone()
 
             if row:
+                compteur = int(row[0] or 0) + 1
+                cumul    = round(float(row[1] or 0) + montant_abs, 2)
                 conn.execute(
                     """
                     UPDATE REFERENTIEL
                     SET Compteur_N = ?, Montant_Cumule = ?
                     WHERE Sous_Categorie = ?
                     """,
-                    (row[0] + 1, round(row[1] + montant_abs, 2), sous_categorie)
+                    (compteur, cumul, sous_categorie)
                 )
-                logger.info(f"REFERENTIEL — '{sous_categorie}' : Compteur={row[0]+1} | Cumul={round(row[1]+montant_abs,2)}")
+                logger.info(f"REFERENTIEL — '{sous_categorie}' : Compteur={compteur} | Cumul={cumul}")
             else:
                 logger.warning(f"REFERENTIEL — '{sous_categorie}' absente, aucune modification effectuee")
 
