@@ -43,6 +43,56 @@ STATUT_VALIDE        = "VALIDE"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HELPER — Extract SELECT column names preserving original SQL case
+# ─────────────────────────────────────────────────────────────────────────────
+
+import re as _re
+
+def _extract_col_names(sql: str) -> list:
+    """
+    Extract SELECT column names/aliases from a SQL string, preserving the
+    original case as written in the query (before PostgreSQL lowercases them).
+
+    Handles: bare col, table.col, func() AS alias, expr AS alias.
+    Returns [] if parsing fails (read_sql falls back to PG column names).
+    """
+    # Normalize whitespace so multi-line SQL becomes one line
+    s = _re.sub(r'\s+', ' ', sql.strip())
+    # Match the outermost SELECT ... FROM block (non-greedy, case-insensitive)
+    m = _re.search(r'(?i)\bSELECT\b\s+(?:DISTINCT\s+)?(.*?)\s+\bFROM\b', s)
+    if not m:
+        return []
+    select_part = m.group(1)
+
+    # Split by top-level commas (depth-aware, respects parentheses)
+    parts, depth, buf = [], 0, ""
+    for ch in select_part:
+        if ch == "(":
+            depth += 1; buf += ch
+        elif ch == ")":
+            depth -= 1; buf += ch
+        elif ch == "," and depth == 0:
+            parts.append(buf.strip()); buf = ""
+        else:
+            buf += ch
+    if buf.strip():
+        parts.append(buf.strip())
+
+    cols = []
+    for part in parts:
+        # Prefer explicit AS alias (quoted or unquoted)
+        a = _re.search(r'(?i)\bAS\s+"?(\w+)"?\s*$', part)
+        if a:
+            cols.append(a.group(1))
+        else:
+            # Bare column reference: last segment after dot, first token only
+            bare = part.split(".")[-1].strip().strip('"')
+            bare = _re.split(r'[\s(]', bare)[0]
+            cols.append(bare)
+    return cols
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # PROXY — API COMPATIBLE sqlite3
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -110,15 +160,24 @@ class _ConnProxy:
 
     # ── read_sql : remplace pd.read_sql_query — contourne les proxy DBAPI2 ───
     def read_sql(self, sql: str, params=None) -> "pd.DataFrame":
-        """Exécute une SELECT et retourne un DataFrame pandas. Convertit ? → %s."""
+        """
+        Exécute une SELECT et retourne un DataFrame pandas.
+        · Convertit ? → %s pour psycopg2.
+        · Restaure la casse originale des colonnes depuis la chaîne SQL
+          (PostgreSQL renvoie tout en minuscules pour les identifiants non quotés).
+        """
         import pandas as pd
         pg_sql = sql.replace("?", "%s")
-        cur = self._c.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        # Extract intended column names BEFORE PostgreSQL lowercases them
+        intended = _extract_col_names(sql)
+        cur = self._c.cursor()
         cur.execute(pg_sql, params or ())
         rows = cur.fetchall()
-        cols = [d[0] for d in cur.description] if cur.description else []
+        pg_cols = [d[0] for d in cur.description] if cur.description else []
         cur.close()
-        return pd.DataFrame([dict(r) for r in rows], columns=cols)
+        # Use intended names if count matches, else fall back to PG names
+        cols = intended if (intended and len(intended) == len(pg_cols)) else pg_cols
+        return pd.DataFrame(rows, columns=cols)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
