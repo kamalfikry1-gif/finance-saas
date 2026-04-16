@@ -158,7 +158,7 @@ ctx: Dict = {
     "rept":           state["repartition"],
     "proj":           state["projection"],
     "anticipation":   anticipation,
-    "_q":             _q,
+    "_q":             lambda demande, **kw: _q(demande, user_id, **kw),
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
