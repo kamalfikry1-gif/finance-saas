@@ -881,17 +881,19 @@ class DatabaseManager:
     def get_plafonds_categories(self) -> List[Dict]:
         with self.connexion() as conn:
             cur = conn.execute(
-                """SELECT c.Categorie, c.Sous_Categorie, c.Plafond
+                """SELECT c.Categorie AS categorie,
+                          c.Sous_Categorie AS sous_categorie,
+                          c.Plafond AS plafond
                    FROM CATEGORIES c
                    JOIN REFERENTIEL r ON c.Categorie=r.Categorie AND c.Sous_Categorie=r.Sous_Categorie
                    WHERE r.Sens='OUT'
                    ORDER BY c.Categorie, c.Sous_Categorie"""
             )
             rows = cur.fetchall()
-        # Postgres lowercases unquoted identifiers; rebuild dicts with the
-        # canonical casing that views expect.
         return [
-            {"Categorie": r[0], "Sous_Categorie": r[1], "Plafond": r[2]}
+            {"Categorie": r["categorie"],
+             "Sous_Categorie": r["sous_categorie"],
+             "Plafond": r["plafond"]}
             for r in rows
         ]
 
