@@ -32,8 +32,9 @@ def _section(titre: str) -> None:
 
 
 def render(ctx: dict) -> None:
-    audit = ctx["audit"]
-    db    = audit.db
+    audit   = ctx["audit"]
+    db      = audit.db
+    user_id = audit.user_id
 
     st.markdown(
         f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
@@ -87,6 +88,7 @@ def render(ctx: dict) -> None:
                 db.ajouter_note_journal(
                     date_entree=str(note_date),
                     note=note_txt.strip(),
+                    user_id=user_id,
                     tags=tags_str,
                     humeur=humeur_val,
                 )
@@ -97,7 +99,7 @@ def render(ctx: dict) -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Liste des notes ───────────────────────────────────────────────────────
-    notes = db.get_journal(limit=200)
+    notes = db.get_journal(user_id=user_id, limit=200)
 
     if not notes:
         st.markdown(
@@ -129,7 +131,7 @@ def render(ctx: dict) -> None:
             dc1, dc2 = st.columns(2)
             with dc1:
                 if st.button("✅ Confirmer", key=f"jdok_{nid}", type="primary", use_container_width=True):
-                    db.supprimer_note_journal(nid)
+                    db.supprimer_note_journal(nid, user_id)
                     st.session_state.j_del_id = None
                     st.rerun()
             with dc2:

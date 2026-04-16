@@ -301,8 +301,10 @@ class Trieur:
       Repli           — IN=Revenu/Autre, OUT=Divers/Divers_Autre + A_CLASSIFIER
     """
 
-    def __init__(self, db: DatabaseManager, seuil_auto: int = SEUIL_AUTO, seuil_fuzzy_min: int = SEUIL_FUZZY_MIN):
+    def __init__(self, db: DatabaseManager, user_id: int,
+                 seuil_auto: int = SEUIL_AUTO, seuil_fuzzy_min: int = SEUIL_FUZZY_MIN):
         self.db = db
+        self.user_id = user_id
         self.seuil_auto = seuil_auto
         self.seuil_fuzzy_min = seuil_fuzzy_min
         self._dico: Dict[Tuple[str, str], Tuple[str, str]] = {}
@@ -435,7 +437,7 @@ class Trieur:
     def _enregistrer_inconnu(self, mot_cle: str, sens: str):
         """Double écriture dans A_CLASSIFIER."""
         cat, scat = FALLBACK_IN if sens == "IN" else FALLBACK_OUT
-        self.db.enregistrer_mot_cle_inconnu(mot_cle, sens, cat, scat)
+        self.db.enregistrer_mot_cle_inconnu(mot_cle, sens, cat, scat, self.user_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1213,9 +1215,9 @@ class MoteurAnalyse:
         dv = self._dv_iso()
 
         with self.db.connexion() as conn:
-            df = _read_sql(conn, 
+            df = _read_sql(conn,
                 f"""
-                SELECT Categorie, SUM(ABS(Montant)) AS Total_DH
+                SELECT Categorie, COALESCE(SUM(ABS(Montant)), 0) AS Total_DH
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND Sens = 'OUT' AND user_id = ?
                   AND {dv} BETWEEN ? AND ?
@@ -1225,6 +1227,7 @@ class MoteurAnalyse:
                 (self.user_id, d_deb, d_fin)
             )
 
+        df["Total_DH"] = pd.to_numeric(df["Total_DH"], errors="coerce").fillna(0.0)
         total = df["Total_DH"].sum()
         df["Poids_Pct"] = (df["Total_DH"] / total * 100).round(1) if total > 0 else 0.0
         return df
@@ -1255,12 +1258,12 @@ class MoteurAnalyse:
             params.append(categorie)
 
         with self.db.connexion() as conn:
-            df = _read_sql(conn, 
+            df = _read_sql(conn,
                 f"""
                 SELECT
                     Categorie, Sous_Categorie,
                     COUNT(*) AS Nb_Transactions,
-                    SUM(ABS(Montant)) AS Total_DH
+                    COALESCE(SUM(ABS(Montant)), 0) AS Total_DH
                 FROM TRANSACTIONS
                 WHERE Statut = 'VALIDE' AND Sens = 'OUT' AND user_id = ?
                   AND {dv} BETWEEN ? AND ?
@@ -1271,6 +1274,7 @@ class MoteurAnalyse:
                 params
             )
 
+        df["Total_DH"] = pd.to_numeric(df["Total_DH"], errors="coerce").fillna(0.0)
         total = df["Total_DH"].sum()
         df["Poids_Pct"] = (df["Total_DH"] / total * 100).round(1) if total > 0 else 0.0
         return df

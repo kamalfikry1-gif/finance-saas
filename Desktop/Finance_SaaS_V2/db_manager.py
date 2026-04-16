@@ -43,6 +43,37 @@ STATUT_VALIDE        = "VALIDE"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HELPER — Canonical column casing
+# ─────────────────────────────────────────────────────────────────────────────
+# Postgres folds unquoted identifiers to lowercase, so DictCursor rows come
+# back as {"categorie": ..., "sous_categorie": ...}. Views were written
+# against the original mixed-case schema names. _canon_dict() rebuilds the
+# dict using the canonical casing declared in CREATE TABLE.
+
+_CANONICAL_COLS = {c.lower(): c for c in (
+    # TRANSACTIONS
+    "ID_Unique", "Date_Saisie", "Date_Valeur", "Libelle", "Montant", "Sens",
+    "Categorie", "Sous_Categorie", "Statut", "Source",
+    # OBJECTIFS
+    "Nom", "Type", "Montant_Cible", "Montant_Actuel", "Date_Cible",
+    "Date_Creation", "Icone", "Couleur",
+    # JOURNAL
+    "Date_Entree", "Note", "Tags", "Humeur", "ID_Transaction",
+    # CATEGORIES / BUDGETS
+    "Plafond", "Mois",
+    # REFERENTIEL / DICO_MATCHING
+    "Frequence", "Compteur_N", "Montant_Cumule", "Mot_Cle",
+    # AUDIT_LOG
+    "Timestamp", "Role", "Action", "Input_Raw", "Output_Raw",
+)}
+
+
+def _canon_dict(row) -> Dict:
+    """Convert a DictRow (lowercased keys) to a dict with canonical casing."""
+    return {_CANONICAL_COLS.get(k, k): v for k, v in dict(row).items()}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HELPER — Extract SELECT column names preserving original SQL case
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -747,7 +778,7 @@ class DatabaseManager:
                     (user_id,)
                 )
             rows = cur.fetchall()
-        return [dict(r) for r in rows]
+        return [_canon_dict(r) for r in rows]
 
     def get_objectifs_v2(self, user_id: int, type_obj: Optional[str] = None) -> List[Dict]:
         with self.connexion() as conn:
@@ -762,7 +793,7 @@ class DatabaseManager:
                     (user_id,)
                 )
             rows = cur.fetchall()
-        return [dict(r) for r in rows]
+        return [_canon_dict(r) for r in rows]
 
     def abandonner_objectif(self, objectif_id: int, user_id: int) -> None:
         with self.connexion() as conn:
@@ -834,7 +865,7 @@ class DatabaseManager:
                 (user_id, limit)
             )
             rows = cur.fetchall()
-        return [dict(r) for r in rows]
+        return [_canon_dict(r) for r in rows]
 
     def supprimer_note_journal(self, note_id: int, user_id: int) -> None:
         with self.connexion() as conn:
@@ -857,7 +888,12 @@ class DatabaseManager:
                    ORDER BY c.Categorie, c.Sous_Categorie"""
             )
             rows = cur.fetchall()
-        return [dict(r) for r in rows]
+        # Postgres lowercases unquoted identifiers; rebuild dicts with the
+        # canonical casing that views expect.
+        return [
+            {"Categorie": r[0], "Sous_Categorie": r[1], "Plafond": r[2]}
+            for r in rows
+        ]
 
     def set_plafond_categorie(self, categorie: str, sous_categorie: str,
                                plafond: float) -> None:

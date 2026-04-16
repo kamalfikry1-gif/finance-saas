@@ -61,7 +61,8 @@ def fs_card(label: str, value: str, sub: str = "", accent: str = None) -> None:
     )
 
 
-def alerte_box(msg: str, couleur: str = "#ef4444") -> None:
+def alerte_box(msg: str, couleur: str = None) -> None:
+    couleur = couleur or T.DANGER
     st.markdown(
         f'<div class="fs-alert" style="color:{couleur};'
         f'border-color:{couleur};background:{couleur}15">⚠️ {msg}</div>',
@@ -103,7 +104,7 @@ def afficher_coach(message: str, humeur: str, identite: str) -> None:
         f'<span style="font-size:18px">{icone}</span>'
         f'<span style="color:{couleur};font-weight:700;font-size:12px;'
         f'text-transform:uppercase;letter-spacing:1px">{humeur}</span>'
-        f'<span style="color:#334155;font-size:11px">· {lbl}</span>'
+        f'<span style="color:{T.TEXT_MUTED};font-size:11px">· {lbl}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )

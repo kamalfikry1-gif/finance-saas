@@ -12,10 +12,11 @@ from components.design_tokens import T
 # ── Palette icônes prédéfinis pour les objectifs épargne ──────────────────────
 _ICONES_EPARGNE = ["🏖️", "🚗", "🏠", "📱", "🎓", "💍", "✈️", "🏋️", "🎸", "💼", "🛡️", "🎯"]
 _COULEURS       = [T.PRIMARY, T.SUCCESS, T.WARNING, T.DANGER,
-                   T.BLUE, T.PURPLE, "#f97316", "#14b8a6"]
+                   T.BLUE, T.PURPLE, T.CAT_PALETTE[6], T.CAT_PALETTE[7]]
 
 
-def _dh(v: float) -> str:
+def _dh(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{v:,.0f} DH".replace(",", " ")
 
 
@@ -63,7 +64,8 @@ def _get_categories_out(audit) -> list:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
-    db = audit.db
+    db      = audit.db
+    user_id = audit.user_id
     st.markdown(
         f'<p style="color:{T.TEXT_MED};font-size:13px;margin-bottom:20px">'
         f'Fixez un plafond aspirationnel pour une catégorie. '
@@ -101,13 +103,14 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
                 db.creer_objectif_v2(
                     nom=nom_dep.strip(), type_obj="DEPENSE",
                     montant_cible=cible_dep, date_cible=str(date_cible_dep),
+                    user_id=user_id,
                     categorie=cat_dep or "", icone=icone_dep, couleur=T.WARNING,
                 )
                 st.success("✅ Objectif créé")
                 st.rerun()
 
     # ── Liste objectifs dépense ───────────────────────────────────────────────
-    objectifs = db.get_objectifs_v2("DEPENSE")
+    objectifs = db.get_objectifs_v2(user_id=user_id, type_obj="DEPENSE")
     if not objectifs:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
@@ -159,7 +162,7 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
         )
 
         if st.button("🗑️ Supprimer", key=f"od_del_{oid}"):
-            db.supprimer_objectif(oid)
+            db.supprimer_objectif(oid, user_id)
             st.rerun()
 
 
@@ -168,7 +171,8 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _tab_epargne(audit) -> None:
-    db = audit.db
+    db      = audit.db
+    user_id = audit.user_id
     st.markdown(
         f'<p style="color:{T.TEXT_MED};font-size:13px;margin-bottom:20px">'
         f'Suivez vos projets d\'épargne : vacances, voiture, urgence, … '
@@ -205,13 +209,14 @@ def _tab_epargne(audit) -> None:
                 db.creer_objectif_v2(
                     nom=nom_ep.strip(), type_obj="EPARGNE",
                     montant_cible=cible_ep, date_cible=str(date_ep),
+                    user_id=user_id,
                     icone=icone_ep, couleur=couleur_ep,
                 )
                 st.success("✅ Projet créé")
                 st.rerun()
 
     # ── Liste objectifs épargne ───────────────────────────────────────────────
-    objectifs = db.get_objectifs_v2("EPARGNE")
+    objectifs = db.get_objectifs_v2(user_id=user_id, type_obj="EPARGNE")
     if not objectifs:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
@@ -288,7 +293,7 @@ def _tab_epargne(audit) -> None:
         with ub:
             if update_id == oid:
                 if st.button("💾 OK", key=f"oe_save_{oid}", type="primary", use_container_width=True):
-                    audit.db.maj_objectif_actuel(oid, new_actuel)
+                    audit.db.maj_objectif_actuel(oid, new_actuel, user_id)
                     st.session_state.oe_update_id = None
                     st.rerun()
             else:
@@ -297,7 +302,7 @@ def _tab_epargne(audit) -> None:
                     st.rerun()
         with uc:
             if st.button("🗑️ Supprimer", key=f"oe_del_{oid}", use_container_width=True):
-                db.supprimer_objectif(oid)
+                db.supprimer_objectif(oid, user_id)
                 st.rerun()
 
 

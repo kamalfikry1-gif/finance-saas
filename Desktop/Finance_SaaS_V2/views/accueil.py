@@ -12,14 +12,17 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from config import COLOR_WARNING, COLOR_DANGER, SCORE_SEUIL_ORANGE
+from config import SCORE_SEUIL_ORANGE
 from components.cards import fs_card, alerte_box, cat_row, afficher_coach, CAT_COLORS
+from components.design_tokens import T
 
 
-def _dh(v: float) -> str:
+def _dh(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{abs(v):,.0f} DH".replace(",", " ")
 
-def _pct(v: float) -> str:
+def _pct(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{v:.1f}%"
 
 
@@ -36,7 +39,7 @@ def render(ctx: dict) -> None:
     identite = ctx["identite_active"]
 
     solde     = bilan["solde"]
-    col_solde = "#22c55e" if solde >= 0 else "#ef4444"
+    col_solde = T.SUCCESS if solde >= 0 else T.DANGER
     signe     = "+" if solde >= 0 else "-"
 
     # ── Hero solde ────────────────────────────────────────────────────────────
@@ -58,18 +61,18 @@ def render(ctx: dict) -> None:
     # ── KPIs ──────────────────────────────────────────────────────────────────
     k1, k2, k3, k4 = st.columns(4)
     with k1:
-        fs_card("Revenus", _dh(bilan["revenus"]), mois_lbl, "#22c55e")
+        fs_card("Revenus", _dh(bilan["revenus"]), mois_lbl, T.SUCCESS)
     with k2:
-        fs_card("Dépenses", _dh(bilan["depenses"]), mois_lbl, "#ef4444")
+        fs_card("Dépenses", _dh(bilan["depenses"]), mois_lbl, T.DANGER)
     with k3:
         pdh   = proj.get("projection_fin_mois", 0)
-        col_p = "#f59e0b" if pdh <= bilan["revenus"] else "#ef4444"
+        col_p = T.WARNING if pdh <= bilan["revenus"] else T.DANGER
         fs_card("Projection", _dh(pdh),
                 f"J{proj.get('jours_ecoules','?')}/{proj.get('jours_total','?')}",
                 col_p)
     with k4:
         fs_card("Épargne cumulée", _dh(bilan["epargne_cumul"]),
-                "historique total", "#6366f1")
+                "historique total", T.PRIMARY)
 
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
@@ -78,9 +81,9 @@ def render(ctx: dict) -> None:
 
     with col_cats:
         st.markdown(
-            "<div style='color:#64748b;font-size:11px;font-weight:700;"
-            "text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
-            "Dépenses par catégorie</div>",
+            f"<div style='color:{T.TEXT_MED};font-size:11px;font-weight:700;"
+            f"text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
+            f"Dépenses par catégorie</div>",
             unsafe_allow_html=True,
         )
         if rept:
@@ -92,52 +95,55 @@ def render(ctx: dict) -> None:
                 sous_par_cat.setdefault(sc["Categorie"], []).append(sc)
 
             for i, row in enumerate(rept):
-                cat     = row["Categorie"]
+                cat     = row["Categorie"] or "Non classé"
                 couleur = CAT_COLORS[i % len(CAT_COLORS)]
-                amt_str = f"{abs(row['Total_DH']):,.0f} DH".replace(",", " ")
-                bar_w   = min(row["Poids_Pct"], 100)
+                total   = float(row.get("Total_DH") or 0)
+                poids   = float(row.get("Poids_Pct") or 0)
+                amt_str = f"{abs(total):,.0f} DH".replace(",", " ")
+                bar_w   = min(poids, 100)
                 sous    = sous_par_cat.get(cat, [])
                 nb_sous = len(sous)
 
                 with st.expander(
-                    f"**{cat}** &nbsp;·&nbsp; {amt_str} &nbsp;·&nbsp; {row['Poids_Pct']:.1f}%",
+                    f"**{cat}** &nbsp;·&nbsp; {amt_str} &nbsp;·&nbsp; {poids:.1f}%",
                     expanded=False,
                 ):
                     # Barre catégorie
                     st.markdown(
-                        f"<div style='background:#0a0a14;border-radius:99px;"
+                        f"<div style='background:{T.BG_PAGE};border-radius:{T.RADIUS_PILL};"
                         f"height:5px;overflow:hidden;margin-bottom:14px'>"
                         f"<div style='width:{bar_w:.1f}%;height:5px;background:{couleur};"
-                        f"border-radius:99px'></div></div>",
+                        f"border-radius:{T.RADIUS_PILL}'></div></div>",
                         unsafe_allow_html=True,
                     )
                     if sous:
-                        total_cat = row["Total_DH"] or 1
+                        total_cat = total or 1
                         for sc in sous:
-                            sc_pct  = sc["Total_DH"] / total_cat * 100
+                            sc_total = float(sc.get("Total_DH") or 0)
+                            sc_pct  = sc_total / total_cat * 100
                             sc_bar  = min(sc_pct, 100)
-                            sc_amt  = f"{abs(sc['Total_DH']):,.0f} DH".replace(",", " ")
+                            sc_amt  = f"{abs(sc_total):,.0f} DH".replace(",", " ")
                             st.markdown(
                                 f"<div style='display:flex;align-items:center;gap:10px;"
                                 f"margin-bottom:9px'>"
-                                f"<div style='color:#94a3b8;font-size:12px;min-width:160px;"
+                                f"<div style='color:{T.TEXT_MED};font-size:12px;min-width:160px;"
                                 f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
                                 f"{sc['Sous_Categorie']}</div>"
-                                f"<div style='flex:1;background:#0a0a14;border-radius:99px;"
+                                f"<div style='flex:1;background:{T.BG_PAGE};border-radius:{T.RADIUS_PILL};"
                                 f"height:4px;overflow:hidden'>"
                                 f"<div style='width:{sc_bar:.1f}%;height:4px;background:{couleur};"
-                                f"border-radius:99px'></div></div>"
+                                f"border-radius:{T.RADIUS_PILL}'></div></div>"
                                 f"<div style='color:{couleur};font-size:12px;font-weight:700;"
                                 f"min-width:85px;text-align:right'>{sc_amt}</div>"
-                                f"<div style='color:#475569;font-size:11px;min-width:36px;"
+                                f"<div style='color:{T.TEXT_LOW};font-size:11px;min-width:36px;"
                                 f"text-align:right'>{sc_pct:.0f}%</div>"
                                 f"</div>",
                                 unsafe_allow_html=True,
                             )
                     else:
                         st.markdown(
-                            "<div style='color:#334155;font-size:12px;padding:4px 0'>"
-                            "Aucun détail disponible.</div>",
+                            f"<div style='color:{T.TEXT_MUTED};font-size:12px;padding:4px 0'>"
+                            f"Aucun détail disponible.</div>",
                             unsafe_allow_html=True,
                         )
         else:
@@ -145,24 +151,24 @@ def render(ctx: dict) -> None:
 
     with col_right:
         st.markdown(
-            "<div style='color:#64748b;font-size:11px;font-weight:700;"
-            "text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
-            "Coach</div>",
+            f"<div style='color:{T.TEXT_MED};font-size:11px;font-weight:700;"
+            f"text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
+            f"Coach</div>",
             unsafe_allow_html=True,
         )
         afficher_coach(message, humeur, identite)
 
         # Score santé
         score_val = score.get("score", 0)
-        col_sc    = ("#22c55e" if score_val >= 70 else
-                     COLOR_WARNING if score_val >= SCORE_SEUIL_ORANGE else COLOR_DANGER)
+        col_sc    = (T.SUCCESS if score_val >= 70 else
+                     T.WARNING if score_val >= SCORE_SEUIL_ORANGE else T.DANGER)
         st.markdown(
             f'<div class="fs-card" style="--accent:{col_sc};margin-top:10px">'
             f'<div class="lbl">Score santé</div>'
             f'<div style="display:flex;align-items:baseline;gap:6px;margin:6px 0 4px">'
             f'<span style="font-size:38px;font-weight:900;color:{col_sc}">'
             f'{score_val:.0f}</span>'
-            f'<span style="color:#334155;font-size:16px">/100</span>'
+            f'<span style="color:{T.TEXT_MUTED};font-size:16px">/100</span>'
             f'<span style="margin-left:8px;color:{col_sc};font-size:12px;'
             f'font-weight:700">{score.get("niveau","")}</span>'
             f'</div>'
@@ -176,23 +182,23 @@ def render(ctx: dict) -> None:
         # Plan 50/30/20 compact
         if badges:
             st.markdown(
-                "<div style='color:#64748b;font-size:11px;font-weight:700;"
-                "text-transform:uppercase;letter-spacing:1px;"
-                "margin:14px 0 8px'>Plan 50/30/20</div>",
+                f"<div style='color:{T.TEXT_MED};font-size:11px;font-weight:700;"
+                f"text-transform:uppercase;letter-spacing:1px;"
+                f"margin:14px 0 8px'>Plan 50/30/20</div>",
                 unsafe_allow_html=True,
             )
             for bucket, info in badges.items():
                 rp  = info.get("reel_pct", 0)
                 cp  = info.get("cible_pct", 0)
                 ep  = info.get("ecart_pct", 0)
-                cb  = ("#22c55e" if abs(ep) <= 5 else
-                       "#f59e0b" if abs(ep) <= 15 else "#ef4444")
+                cb  = (T.SUCCESS if abs(ep) <= 5 else
+                       T.WARNING if abs(ep) <= 15 else T.DANGER)
                 st.markdown(
                     f'<div style="display:flex;justify-content:space-between;'
                     f'align-items:center;margin:3px 0">'
-                    f'<span style="color:#94a3b8;font-size:12px">{bucket}</span>'
+                    f'<span style="color:{T.TEXT_MED};font-size:12px">{bucket}</span>'
                     f'<span style="color:{cb};font-weight:700;font-size:13px">{rp:.1f}%</span>'
-                    f'<span style="color:#334155;font-size:11px">/ {cp:.0f}%</span>'
+                    f'<span style="color:{T.TEXT_MUTED};font-size:11px">/ {cp:.0f}%</span>'
                     f'</div>'
                     f'<div class="fs-bar-bg" style="margin-bottom:5px">'
                     f'<div class="fs-bar" style="width:{min(rp,100):.1f}%;'
@@ -223,16 +229,16 @@ def render(ctx: dict) -> None:
         fig.update_layout(
             showlegend=True,
             legend=dict(bgcolor="rgba(0,0,0,0)",
-                        font=dict(color="#94a3b8", size=11)),
-            paper_bgcolor="#0a0a14", plot_bgcolor="#0a0a14",
-            font_color="#f1f5f9",
+                        font=dict(color=T.TEXT_MED, size=11)),
+            paper_bgcolor=T.BG_PAGE, plot_bgcolor=T.BG_PAGE,
+            font_color=T.TEXT_HIGH,
             margin=dict(t=20, b=20, l=0, r=0),
             height=280,
             annotations=[dict(
                 text=f"<b>{_dh(total_dep)}</b><br>"
                      f"<span style='font-size:11px'>dépenses</span>",
                 x=0.5, y=0.5, font_size=14,
-                showarrow=False, font_color="#f1f5f9",
+                showarrow=False, font_color=T.TEXT_HIGH,
             )],
         )
         st.plotly_chart(fig, use_container_width=True)

@@ -86,7 +86,7 @@ class AuditMiddleware:
     def __init__(self, db: DatabaseManager, user_id: int):
         self.db        = db
         self.user_id   = user_id
-        self.trieur    = Trieur(self.db)
+        self.trieur    = Trieur(self.db, user_id)
         self.comptable = ComptableBudget(self.db, user_id)
         self.moteur    = MoteurAnalyse(self.db, user_id)
         logger.info(f"AuditMiddleware initialisé — user_id={user_id}")
@@ -302,7 +302,8 @@ class AuditMiddleware:
                     "SELECT * FROM AUDIT_LOG WHERE user_id = ? ORDER BY Timestamp DESC LIMIT ?",
                     (self.user_id, limit)
                 ).fetchall()
-        return [dict(r) for r in rows]
+        from db_manager import _canon_dict
+        return [_canon_dict(r) for r in rows]
 
     # =========================================================================
     # ROLE 4 — SNAPSHOT MANAGER  (privé)
@@ -983,7 +984,7 @@ class AuditMiddleware:
         # STRATEGE — orienté objectif, trajectoire
         # ══════════════════════════════════════════════════════════════════════
         if identite == "STRATEGE":
-            objectifs = self.db.get_objectifs("EN_COURS")
+            objectifs = self.get_objectifs("EN_COURS")
             obj_str   = (
                 f"Objectif '{objectifs[0]['Nom']}' : {objectifs[0].get('progression_pct', '?')}%."
                 if objectifs else "Aucun objectif actif."

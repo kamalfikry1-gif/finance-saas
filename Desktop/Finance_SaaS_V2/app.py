@@ -167,8 +167,9 @@ ctx: Dict = {
 
 with st.sidebar:
     st.divider()
+    from components.design_tokens import T as _T
     st.markdown(
-        f"<div style='color:#7a9bc4;font-size:11px;margin-bottom:4px'>"
+        f"<div style='color:{_T.TEXT_MED};font-size:11px;margin-bottom:4px'>"
         f"Connecté : <strong>{st.session_state.username}</strong></div>",
         unsafe_allow_html=True,
     )

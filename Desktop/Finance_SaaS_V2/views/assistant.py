@@ -52,10 +52,12 @@ def _playout(**kwargs) -> dict:
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _dh(v: float) -> str:
+def _dh(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{abs(v):,.0f} DH".replace(",", " ")
 
-def _pct(v: float) -> str:
+def _pct(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{v:.1f}%"
 
 _THEME_COLORS = {
@@ -300,12 +302,12 @@ def _render_repartition(result: dict, ctx: dict) -> None:
                     sc_pct = sc["Total_DH"] / (row["Total_DH"] or 1) * 100
                     st.markdown(
                         f"<div style='display:flex;justify-content:space-between;"
-                        f"padding:4px 0;border-bottom:1px solid #1e1e3a'>"
-                        f"<span style='color:#94a3b8;font-size:12px'>"
+                        f"padding:4px 0;border-bottom:1px solid {T.BORDER_MED}'>"
+                        f"<span style='color:{T.TEXT_MED};font-size:12px'>"
                         f"{sc['Sous_Categorie']}</span>"
                         f"<span style='color:{couleur};font-size:12px;font-weight:700'>"
                         f"{_dh(sc['Total_DH'])} "
-                        f"<span style='color:#475569;font-weight:400'>"
+                        f"<span style='color:{T.TEXT_LOW};font-weight:400'>"
                         f"({sc_pct:.0f}%)</span></span>"
                         f"</div>",
                         unsafe_allow_html=True,
@@ -738,9 +740,9 @@ def _render_sim_crash(result: dict, ctx: dict) -> None:
             "threshold": {"line": {"color": T.PRIMARY, "width": 2},
                           "value": nb_c},
             "steps": [
-                {"range": [0, 3],  "color": "#0f0810"},
-                {"range": [3, 6],  "color": "#0f0f08"},
-                {"range": [6, 24], "color": "#080f0a"},
+                {"range": [0, 3],  "color": T.DANGER_GLO},
+                {"range": [3, 6],  "color": T.WARNING_GLO},
+                {"range": [6, 24], "color": T.SUCCESS_GLO},
             ],
         },
     ))

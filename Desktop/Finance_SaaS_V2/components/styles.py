@@ -73,7 +73,7 @@ section[data-testid="stSidebar"] {{
 
 /* ── Hero Solde ─────────────────────────────────────────────────────────────── */
 .fs-hero {{
-    background: linear-gradient(135deg, #0f0f2e 0%, var(--bg-page) 100%);
+    background: linear-gradient(135deg, var(--bg-card-alt) 0%, var(--bg-page) 100%);
     border-radius: var(--radius-xl);
     padding: 36px 32px;
     margin-bottom: 16px;

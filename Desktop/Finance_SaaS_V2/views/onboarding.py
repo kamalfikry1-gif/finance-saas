@@ -21,20 +21,22 @@ from core.data_input import (
     enregistrer_transaction,
     enregistrer_transaction_categorisee,
 )
+from components.design_tokens import T
 
 COULEURS_CAT = {
-    "Logement":           "#6366f1",
-    "Vie Quotidienne":    "#22c55e",
-    "Transport":          "#f59e0b",
-    "Loisirs":            "#ec4899",
-    "Santé":              "#06b6d4",
-    "Abonnements":        "#14b8a6",
-    "Finances & Crédits": "#a855f7",
-    "Divers":             "#94a3b8",
+    "Logement":           T.PRIMARY,
+    "Vie Quotidienne":    T.SUCCESS,
+    "Transport":          T.WARNING,
+    "Loisirs":            T.DANGER,
+    "Santé":              T.BLUE,
+    "Abonnements":        T.CAT_PALETTE[7],   # Teal vert
+    "Finances & Crédits": T.PURPLE,
+    "Divers":             T.TEXT_MED,
 }
 
 
-def _dh(v: float) -> str:
+def _dh(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{abs(v):,.0f} DH".replace(",", " ")
 
 
@@ -48,8 +50,8 @@ def _barre_etapes(etape: int) -> None:
     for i, (col, lbl) in enumerate(zip(cols, labels)):
         actif   = (i + 1 == etape)
         fait    = (i + 1 < etape)
-        couleur = "#6366f1" if actif else ("#22c55e" if fait else "#1e1e3a")
-        texte   = "#f1f5f9" if actif else ("#22c55e" if fait else "#475569")
+        couleur = T.PRIMARY if actif else (T.SUCCESS if fait else T.BORDER_MED)
+        texte   = T.TEXT_HIGH if actif else (T.SUCCESS if fait else T.TEXT_LOW)
         with col:
             st.markdown(
                 f"<div style='text-align:center;padding:10px 0;"
@@ -67,18 +69,18 @@ def _barre_etapes(etape: int) -> None:
 
 def _etape_revenus() -> None:
     st.markdown(
-        "<h2 style='color:#f1f5f9;margin:24px 0 4px'>Vos revenus mensuels 💼</h2>"
-        "<p style='color:#475569;font-size:13px;margin-bottom:24px'>"
-        "Ces informations permettent au Coach de calibrer vos budgets "
-        "et de calculer votre taux d'épargne réel."
-        "</p>",
+        f"<h2 style='color:{T.TEXT_HIGH};margin:24px 0 4px'>Vos revenus mensuels 💼</h2>"
+        f"<p style='color:{T.TEXT_LOW};font-size:13px;margin-bottom:24px'>"
+        f"Ces informations permettent au Coach de calibrer vos budgets "
+        f"et de calculer votre taux d'épargne réel."
+        f"</p>",
         unsafe_allow_html=True,
     )
 
     st.markdown(
-        "<div style='color:#94a3b8;font-size:11px;font-weight:700;"
-        "text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>"
-        "Salaire / Revenu principal</div>",
+        f"<div style='color:{T.TEXT_MED};font-size:11px;font-weight:700;"
+        f"text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>"
+        f"Salaire / Revenu principal</div>",
         unsafe_allow_html=True,
     )
     salaire = st.number_input(
@@ -93,9 +95,9 @@ def _etape_revenus() -> None:
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
     st.markdown(
-        "<div style='color:#94a3b8;font-size:11px;font-weight:700;"
-        "text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
-        "Autres sources de revenus (optionnel)</div>",
+        f"<div style='color:{T.TEXT_MED};font-size:11px;font-weight:700;"
+        f"text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
+        f"Autres sources de revenus (optionnel)</div>",
         unsafe_allow_html=True,
     )
 
@@ -136,18 +138,18 @@ def _etape_revenus() -> None:
     total_revenus = salaire + sum(float(e["montant"]) for e in extras)
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
-    couleur_total = "#22c55e" if total_revenus > 0 else "#475569"
+    couleur_total = T.SUCCESS if total_revenus > 0 else T.TEXT_LOW
     st.markdown(
-        f"<div style='background:linear-gradient(135deg,#13132a,#1a1a35);"
-        f"border-radius:16px;padding:20px 24px;border:1px solid #1e1e3a;"
+        f"<div style='background:linear-gradient(135deg,{T.BG_CARD},{T.BG_CARD_ALT});"
+        f"border-radius:{T.RADIUS_LG};padding:20px 24px;border:1px solid {T.BORDER_MED};"
         f"display:flex;justify-content:space-between;align-items:center'>"
         f"<div>"
-        f"<div style='color:#64748b;font-size:11px;font-weight:700;"
+        f"<div style='color:{T.TEXT_MED};font-size:11px;font-weight:700;"
         f"text-transform:uppercase;letter-spacing:1px'>Revenus mensuels totaux</div>"
         f"<div style='color:{couleur_total};font-size:32px;font-weight:900;margin-top:4px'>"
         f"{_dh(total_revenus)}</div>"
         f"</div>"
-        f"<div style='color:#334155;font-size:12px;text-align:right'>"
+        f"<div style='color:{T.TEXT_MUTED};font-size:12px;text-align:right'>"
         f"Salaire : {_dh(salaire)}<br>"
         + (f"Autres : {_dh(total_revenus - salaire)}" if total_revenus - salaire > 0 else "") +
         f"</div>"
@@ -183,14 +185,14 @@ def _etape_depenses(categories: list) -> None:
     mois_label = now.strftime("%B %Y").capitalize()
 
     st.markdown(
-        f"<h2 style='color:#f1f5f9;margin:24px 0 4px'>"
+        f"<h2 style='color:{T.TEXT_HIGH};margin:24px 0 4px'>"
         f"Vos dépenses de {mois_label} 📋</h2>"
-        f"<p style='color:#475569;font-size:13px;margin-bottom:6px'>"
+        f"<p style='color:{T.TEXT_LOW};font-size:13px;margin-bottom:6px'>"
         f"Renseignez ce dont vous vous souvenez — laissez à 0 ce que vous ne savez plus."
         f"</p>"
-        f"<div style='background:#1a1a35;border-radius:8px;padding:8px 14px;"
-        f"border-left:3px solid #6366f1;margin-bottom:24px'>"
-        f"<span style='color:#64748b;font-size:12px'>"
+        f"<div style='background:{T.BG_CARD_ALT};border-radius:{T.RADIUS_SM};padding:8px 14px;"
+        f"border-left:3px solid {T.PRIMARY};margin-bottom:24px'>"
+        f"<span style='color:{T.TEXT_MED};font-size:12px'>"
         f"Chaque montant renseigné crée une transaction dans la bonne catégorie. "
         f"Vous pourrez affiner et ajouter d'autres opérations depuis l'app.</span>"
         f"</div>",
@@ -215,7 +217,7 @@ def _etape_depenses(categories: list) -> None:
     total_saisi = 0.0
 
     for cat, items in cats_groupees.items():
-        couleur = COULEURS_CAT.get(cat, "#94a3b8")
+        couleur = COULEURS_CAT.get(cat, T.TEXT_MED)
 
         # Total de la catégorie
         total_cat = sum(montants.get(f"{cat}|{it['sous_categorie']}", 0.0) for it in items)
@@ -225,7 +227,7 @@ def _etape_depenses(categories: list) -> None:
             f"margin:20px 0 0'>"
             f"<div style='display:flex;align-items:center;gap:10px'>"
             f"<div style='width:4px;height:22px;background:{couleur};border-radius:2px'></div>"
-            f"<span style='color:#f1f5f9;font-weight:700;font-size:16px'>{cat}</span>"
+            f"<span style='color:{T.TEXT_HIGH};font-weight:700;font-size:16px'>{cat}</span>"
             f"</div>"
             + (f"<span style='color:{couleur};font-size:13px;font-weight:700'>{_dh(total_cat)}</span>"
                if total_cat > 0 else "") +
@@ -244,7 +246,7 @@ def _etape_depenses(categories: list) -> None:
                 c_label, c_input = st.columns([3, 2])
                 with c_label:
                     st.markdown(
-                        f"<div style='color:#94a3b8;font-size:13px;padding-top:10px'>"
+                        f"<div style='color:{T.TEXT_MED};font-size:13px;padding-top:10px'>"
                         f"{sous}</div>",
                         unsafe_allow_html=True,
                     )
@@ -267,12 +269,12 @@ def _etape_depenses(categories: list) -> None:
     if nb_postes > 0:
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
         st.markdown(
-            f"<div style='background:linear-gradient(135deg,#13132a,#1a1a35);"
-            f"border-radius:14px;padding:18px 22px;border:1px solid #1e1e3a;"
+            f"<div style='background:linear-gradient(135deg,{T.BG_CARD},{T.BG_CARD_ALT});"
+            f"border-radius:{T.RADIUS_LG};padding:18px 22px;border:1px solid {T.BORDER_MED};"
             f"display:flex;justify-content:space-between;align-items:center'>"
-            f"<div style='color:#64748b;font-size:12px'>"
+            f"<div style='color:{T.TEXT_MED};font-size:12px'>"
             f"{nb_postes} poste{'s' if nb_postes > 1 else ''} renseigné{'s' if nb_postes > 1 else ''}</div>"
-            f"<div style='color:#ef4444;font-size:24px;font-weight:900'>{_dh(total_saisi)}</div>"
+            f"<div style='color:{T.DANGER};font-size:24px;font-weight:900'>{_dh(total_saisi)}</div>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -379,13 +381,13 @@ def render(audit) -> None:
     _, col_center, _ = st.columns([1, 3, 1])
     with col_center:
         st.markdown(
-            "<div style='text-align:center;padding:28px 0 4px'>"
-            "<div style='color:#6366f1;font-size:12px;font-weight:700;"
-            "text-transform:uppercase;letter-spacing:2px;margin-bottom:8px'>"
-            "Bienvenue sur Finance SaaS</div>"
-            "<h1 style='color:#f1f5f9;font-size:30px;margin:0'>"
-            "Configurons votre profil 🚀</h1>"
-            "</div>",
+            f"<div style='text-align:center;padding:28px 0 4px'>"
+            f"<div style='color:{T.PRIMARY};font-size:12px;font-weight:700;"
+            f"text-transform:uppercase;letter-spacing:2px;margin-bottom:8px'>"
+            f"Bienvenue sur Finance SaaS</div>"
+            f"<h1 style='color:{T.TEXT_HIGH};font-size:30px;margin:0'>"
+            f"Configurons votre profil 🚀</h1>"
+            f"</div>",
             unsafe_allow_html=True,
         )
 

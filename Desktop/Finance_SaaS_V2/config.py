@@ -158,15 +158,6 @@ SCORE_NIVEAU_MOYEN:     float = 40.0
 APP_TITLE: str = "Finance SaaS"
 APP_ICON:  str = "💰"
 
-# Couleurs thème sombre (reprises dans le CSS injecté par app.py)
-COLOR_BG:       str = "#0f0f23"
-COLOR_CARD:     str = "#1a1a4a"
-COLOR_ACCENT:   str = "#6366f1"
-COLOR_SUCCESS:  str = "#10b981"
-COLOR_WARNING:  str = "#f59e0b"
-COLOR_DANGER:   str = "#ef4444"
-COLOR_TEXT:     str = "#f1f5f9"
-COLOR_MUTED:    str = "#94a3b8"
-
-# Seuil score pour colorier la jauge (app.py)
+# Seuil score pour colorier la jauge (accueil.py)
+# Les couleurs de l'UI vivent dans components/design_tokens.py (classe T).
 SCORE_SEUIL_ORANGE: float = 50.0

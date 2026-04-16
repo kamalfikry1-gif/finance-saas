@@ -7,7 +7,8 @@ import streamlit as st
 from components.design_tokens import T
 
 
-def _dh(v: float) -> str:
+def _dh(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{abs(v):,.0f} DH".replace(",", " ")
 
 
@@ -50,7 +51,8 @@ def _get_transactions(audit, mois: str, sens: str, categorie: str) -> list:
                 f"SELECT * FROM TRANSACTIONS WHERE {where} ORDER BY Date_Valeur DESC, Date_Saisie DESC",
                 params
             ).fetchall()
-        return [dict(r) for r in rows]
+        from db_manager import _canon_dict
+        return [_canon_dict(r) for r in rows]
     except Exception:
         return []
 

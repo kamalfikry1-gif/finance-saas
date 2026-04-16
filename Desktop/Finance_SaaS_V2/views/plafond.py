@@ -7,7 +7,8 @@ import streamlit as st
 from components.design_tokens import T
 
 
-def _dh(v: float) -> str:
+def _dh(v) -> str:
+    v = 0.0 if v is None else float(v)
     return f"{v:,.0f} DH".replace(",", " ")
 
 
@@ -24,7 +25,7 @@ def _get_depenses_mois(audit, mois: str) -> dict:
                    GROUP BY Categorie, Sous_Categorie""",
                 (audit.user_id, f"{mois_db}%")
             ).fetchall()
-        return {(r[0], r[1]): float(r[2]) for r in rows}
+        return {(r[0], r[1]): float(r[2] or 0) for r in rows}
     except Exception:
         return {}
 
