@@ -4,20 +4,18 @@ Tab 1 — Dépense : réduire une catégorie sous un seuil cible.
 Tab 2 — Épargne : accumuler un montant d'ici une deadline (vacances, voiture…).
 """
 
+import logging
 from datetime import date, datetime
 import streamlit as st
 from components.design_tokens import T
+from components.helpers import dh as _dh
 
+logger = logging.getLogger(__name__)
 
 # ── Palette icônes prédéfinis pour les objectifs épargne ──────────────────────
 _ICONES_EPARGNE = ["🏖️", "🚗", "🏠", "📱", "🎓", "💍", "✈️", "🏋️", "🎸", "💼", "🛡️", "🎯"]
 _COULEURS       = [T.PRIMARY, T.SUCCESS, T.WARNING, T.DANGER,
                    T.BLUE, T.PURPLE, T.CAT_PALETTE[6], T.CAT_PALETTE[7]]
-
-
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{v:,.0f} DH".replace(",", " ")
 
 
 def _progress_bar(pct: float, couleur: str) -> str:
@@ -32,31 +30,18 @@ def _progress_bar(pct: float, couleur: str) -> str:
 
 
 def _get_depenses_cat_mois(audit, categorie: str, mois: str) -> float:
-    try:
-        parts   = mois.split("/")
-        mois_db = f"{parts[1]}-{parts[0]}"
-        with audit.db.connexion() as conn:
-            row = conn.execute(
-                """SELECT COALESCE(SUM(Montant),0) FROM TRANSACTIONS
-                   WHERE Sens='OUT' AND user_id=? AND Categorie=? AND Date_Valeur LIKE ?""",
-                (audit.user_id, categorie, f"{mois_db}%")
-            ).fetchone()
-        return float(row[0])
-    except Exception:
-        return 0.0
+    depenses = audit.get_depenses_mois(mois)
+    return sum(v for (cat, _), v in depenses.items() if cat == categorie)
 
 
 def _get_categories_out(audit) -> list:
-    try:
-        with audit.db.connexion() as conn:
-            rows = conn.execute(
-                """SELECT DISTINCT c.Categorie FROM CATEGORIES c
-                   JOIN REFERENTIEL r ON c.Categorie=r.Categorie
-                   WHERE r.Sens='OUT' ORDER BY c.Categorie"""
-            ).fetchall()
-        return [r[0] for r in rows]
-    except Exception:
-        return []
+    with audit.db.connexion() as conn:
+        rows = conn.execute(
+            """SELECT DISTINCT c.Categorie FROM CATEGORIES c
+               JOIN REFERENTIEL r ON c.Categorie=r.Categorie
+               WHERE r.Sens='OUT' ORDER BY c.Categorie"""
+        ).fetchall()
+    return [r[0] for r in rows]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -64,8 +49,6 @@ def _get_categories_out(audit) -> list:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
-    db      = audit.db
-    user_id = audit.user_id
     st.markdown(
         f'<p style="color:{T.TEXT_MED};font-size:13px;margin-bottom:20px">'
         f'Fixez un plafond aspirationnel pour une catégorie. '
@@ -100,17 +83,16 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
             elif cible_dep <= 0:
                 st.warning("Cible > 0 DH requise")
             else:
-                db.creer_objectif_v2(
+                audit.creer_objectif_v2(
                     nom=nom_dep.strip(), type_obj="DEPENSE",
                     montant_cible=cible_dep, date_cible=str(date_cible_dep),
-                    user_id=user_id,
                     categorie=cat_dep or "", icone=icone_dep, couleur=T.WARNING,
                 )
                 st.success("✅ Objectif créé")
                 st.rerun()
 
     # ── Liste objectifs dépense ───────────────────────────────────────────────
-    objectifs = db.get_objectifs_v2(user_id=user_id, type_obj="DEPENSE")
+    objectifs = audit.get_objectifs_v2("DEPENSE")
     if not objectifs:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
@@ -132,9 +114,7 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
         date_c   = obj.get("Date_Cible", "")[:10]
         couleur  = obj.get("Couleur") or T.WARNING
 
-        # Dépense réelle ce mois dans la catégorie
         depense_actuelle = _get_depenses_cat_mois(audit, cat, mois_sel) if cat else 0.0
-        # Pour un objectif dépense : succès si dépensé < cible
         ecart = cible - depense_actuelle
         pct   = (depense_actuelle / cible * 100) if cible > 0 else 0
         ok    = depense_actuelle <= cible
@@ -162,7 +142,7 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
         )
 
         if st.button("🗑️ Supprimer", key=f"od_del_{oid}"):
-            db.supprimer_objectif(oid, user_id)
+            audit.supprimer_objectif(oid)
             st.rerun()
 
 
@@ -171,8 +151,6 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _tab_epargne(audit) -> None:
-    db      = audit.db
-    user_id = audit.user_id
     st.markdown(
         f'<p style="color:{T.TEXT_MED};font-size:13px;margin-bottom:20px">'
         f'Suivez vos projets d\'épargne : vacances, voiture, urgence, … '
@@ -206,17 +184,16 @@ def _tab_epargne(audit) -> None:
             elif cible_ep <= 0:
                 st.warning("Montant cible > 0 requis")
             else:
-                db.creer_objectif_v2(
+                audit.creer_objectif_v2(
                     nom=nom_ep.strip(), type_obj="EPARGNE",
                     montant_cible=cible_ep, date_cible=str(date_ep),
-                    user_id=user_id,
                     icone=icone_ep, couleur=couleur_ep,
                 )
                 st.success("✅ Projet créé")
                 st.rerun()
 
     # ── Liste objectifs épargne ───────────────────────────────────────────────
-    objectifs = db.get_objectifs_v2(user_id=user_id, type_obj="EPARGNE")
+    objectifs = audit.get_objectifs_v2("EPARGNE")
     if not objectifs:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
@@ -241,15 +218,14 @@ def _tab_epargne(audit) -> None:
         couleur = obj.get("Couleur") or T.PRIMARY
         statut  = obj.get("Statut", "EN_COURS")
 
-        pct      = min(actuel / cible * 100, 100) if cible > 0 else 0
+        pct_val  = min(actuel / cible * 100, 100) if cible > 0 else 0
         restant  = max(cible - actuel, 0)
         atteint  = statut == "ATTEINT" or actuel >= cible
 
-        # Jours restants
         try:
             delta = (datetime.strptime(date_c, "%Y-%m-%d").date() - date.today()).days
             delai_txt = f"{delta} jours restants" if delta >= 0 else "Date dépassée"
-        except Exception:
+        except ValueError:
             delai_txt = ""
 
         st.markdown(
@@ -263,11 +239,11 @@ def _tab_epargne(audit) -> None:
             f'<div style="color:{T.TEXT_LOW};font-size:11px">{delai_txt} · avant {date_c}</div>'
             f'</div>'
             f'<div style="text-align:right">'
-            f'<div style="color:{couleur};font-weight:900;font-size:18px">{pct:.0f}%</div>'
+            f'<div style="color:{couleur};font-weight:900;font-size:18px">{pct_val:.0f}%</div>'
             f'<div style="color:{T.TEXT_LOW};font-size:11px">'
             f'{_dh(actuel)} / {_dh(cible)}</div>'
             f'</div></div>'
-            f'{_progress_bar(pct, couleur)}'
+            f'{_progress_bar(pct_val, couleur)}'
             f'<div style="color:{T.TEXT_MED};font-size:11px;margin-top:4px">'
             f'Encore {_dh(restant)} à épargner</div>'
             f'</div>',
@@ -281,7 +257,6 @@ def _tab_epargne(audit) -> None:
                 unsafe_allow_html=True,
             )
 
-        # Mise à jour montant
         ua, ub, uc = st.columns([2, 1, 1])
         with ua:
             if update_id == oid:
@@ -293,7 +268,7 @@ def _tab_epargne(audit) -> None:
         with ub:
             if update_id == oid:
                 if st.button("💾 OK", key=f"oe_save_{oid}", type="primary", use_container_width=True):
-                    audit.db.maj_objectif_actuel(oid, new_actuel, user_id)
+                    audit.maj_objectif_actuel(oid, new_actuel)
                     st.session_state.oe_update_id = None
                     st.rerun()
             else:
@@ -302,7 +277,7 @@ def _tab_epargne(audit) -> None:
                     st.rerun()
         with uc:
             if st.button("🗑️ Supprimer", key=f"oe_del_{oid}", use_container_width=True):
-                db.supprimer_objectif(oid, user_id)
+                audit.supprimer_objectif(oid)
                 st.rerun()
 
 

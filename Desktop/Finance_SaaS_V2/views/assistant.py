@@ -52,13 +52,7 @@ def _playout(**kwargs) -> dict:
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{abs(v):,.0f} DH".replace(",", " ")
-
-def _pct(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{v:.1f}%"
+from components.helpers import dh as _dh, pct as _pct
 
 _THEME_COLORS = {
     "A": T.PRIMARY,   # Teal — Analyse

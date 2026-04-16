@@ -2,98 +2,13 @@
 views/historique.py — Historique des transactions avec filtres, édition et suppression.
 """
 
+import logging
 from datetime import datetime
 import streamlit as st
 from components.design_tokens import T
+from components.helpers import dh as _dh, section as _section
 
-
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{abs(v):,.0f} DH".replace(",", " ")
-
-
-def _section(titre: str) -> None:
-    st.markdown(
-        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:2px;'
-        f'margin:0 0 12px;padding-bottom:6px;'
-        f'border-bottom:1px solid {T.BORDER}">{titre}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def _get_categories(audit) -> list:
-    try:
-        with audit.db.connexion() as conn:
-            rows = conn.execute(
-                "SELECT DISTINCT Categorie FROM CATEGORIES ORDER BY Categorie"
-            ).fetchall()
-        return ["Toutes"] + [r[0] for r in rows]
-    except Exception:
-        return ["Toutes"]
-
-
-def _get_transactions(audit, mois: str, sens: str, categorie: str) -> list:
-    try:
-        parts = mois.split("/")
-        mois_db = f"{parts[1]}-{parts[0]}"  # YYYY-MM pour LIKE
-        conditions = [f"Date_Valeur LIKE '{mois_db}%'", "user_id = ?"]
-        params: list = [audit.user_id]
-        if sens != "Tous":
-            conditions.append("Sens = ?")
-            params.append(sens)
-        if categorie != "Toutes":
-            conditions.append("Categorie = ?")
-            params.append(categorie)
-        where = " AND ".join(conditions)
-        with audit.db.connexion() as conn:
-            rows = conn.execute(
-                f"SELECT * FROM TRANSACTIONS WHERE {where} ORDER BY Date_Valeur DESC, Date_Saisie DESC",
-                params
-            ).fetchall()
-        from db_manager import _canon_dict
-        return [_canon_dict(r) for r in rows]
-    except Exception:
-        return []
-
-
-def _supprimer_transaction(audit, tx_id: str) -> None:
-    try:
-        with audit.db.connexion() as conn:
-            conn.execute(
-                "DELETE FROM TRANSACTIONS WHERE ID_Unique = ? AND user_id = ?",
-                (tx_id, audit.user_id)
-            )
-        st.cache_data.clear()
-    except Exception as e:
-        st.error(f"Erreur suppression : {e}")
-
-
-def _modifier_transaction(audit, tx_id: str, libelle: str, montant: float,
-                           categorie: str, sous_categorie: str, date_valeur: str) -> None:
-    try:
-        with audit.db.connexion() as conn:
-            conn.execute(
-                """UPDATE TRANSACTIONS
-                   SET Libelle=?, Montant=?, Categorie=?, Sous_Categorie=?, Date_Valeur=?
-                   WHERE ID_Unique=? AND user_id=?""",
-                (libelle, montant, categorie, sous_categorie, date_valeur, tx_id, audit.user_id)
-            )
-        st.cache_data.clear()
-    except Exception as e:
-        st.error(f"Erreur modification : {e}")
-
-
-def _get_sous_categories(audit, categorie: str) -> list:
-    try:
-        with audit.db.connexion() as conn:
-            rows = conn.execute(
-                "SELECT Sous_Categorie FROM CATEGORIES WHERE Categorie=? ORDER BY Sous_Categorie",
-                (categorie,)
-            ).fetchall()
-        return [r[0] for r in rows]
-    except Exception:
-        return []
+logger = logging.getLogger(__name__)
 
 
 def render(ctx: dict) -> None:
@@ -112,7 +27,7 @@ def render(ctx: dict) -> None:
     # ── Filtres ───────────────────────────────────────────────────────────────
     f1, f2, f3 = st.columns([2, 1, 1])
     with f1:
-        cats = _get_categories(audit)
+        cats = ["Toutes"] + audit.get_categories()
         cat_sel = st.selectbox("Catégorie", cats, key="hist_cat")
     with f2:
         sens_sel = st.selectbox("Sens", ["Tous", "OUT", "IN"], key="hist_sens")
@@ -122,7 +37,7 @@ def render(ctx: dict) -> None:
             st.rerun()
 
     # ── Données ───────────────────────────────────────────────────────────────
-    rows = _get_transactions(audit, mois_sel, sens_sel, cat_sel)
+    rows = audit.get_transactions(mois_sel, sens_sel, cat_sel)
 
     if not rows:
         st.markdown(
@@ -195,8 +110,9 @@ def render(ctx: dict) -> None:
             cc1, cc2 = st.columns(2)
             with cc1:
                 if st.button("✅ Confirmer", key=f"del_ok_{tid}", type="primary", use_container_width=True):
-                    _supprimer_transaction(audit, tid)
+                    audit.supprimer_transaction(tid)
                     st.session_state.hist_del_id = None
+                    st.cache_data.clear()
                     st.success("Transaction supprimée")
                     st.rerun()
             with cc2:
@@ -222,17 +138,17 @@ def render(ctx: dict) -> None:
                     )
                 e3, e4 = st.columns(2)
                 with e3:
-                    all_cats = [c for c in _get_categories(audit) if c != "Toutes"]
+                    all_cats = audit.get_categories()
                     cat_idx  = all_cats.index(cat) if cat in all_cats else 0
                     new_cat  = st.selectbox("Catégorie", all_cats, index=cat_idx, key=f"ecat_{tid}")
                 with e4:
-                    scats    = _get_sous_categories(audit, new_cat)
+                    scats    = audit.get_sous_categories(new_cat)
                     scat_idx = scats.index(scat) if scat in scats else 0
                     new_scat = st.selectbox("Sous-catégorie", scats or ["—"],
                                             index=scat_idx, key=f"escat_{tid}")
                 try:
                     date_def = datetime.strptime(date_v, "%Y-%m-%d").date()
-                except Exception:
+                except ValueError:
                     from datetime import date as dt_date
                     date_def = dt_date.today()
                 new_date = st.date_input("Date", value=date_def, key=f"edate_{tid}")
@@ -240,11 +156,12 @@ def render(ctx: dict) -> None:
                 ea, eb = st.columns(2)
                 with ea:
                     if st.button("💾 Enregistrer", key=f"esave_{tid}", type="primary", use_container_width=True):
-                        _modifier_transaction(
-                            audit, tid, new_lib.strip(), new_mnt,
+                        audit.modifier_transaction(
+                            tid, new_lib.strip(), new_mnt,
                             new_cat, new_scat, str(new_date)
                         )
                         st.session_state.hist_edit_id = None
+                        st.cache_data.clear()
                         st.success("Transaction modifiée")
                         st.rerun()
                 with eb:

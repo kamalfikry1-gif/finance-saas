@@ -22,6 +22,7 @@ from core.data_input import (
     enregistrer_transaction_categorisee,
 )
 from components.design_tokens import T
+from components.helpers import dh as _dh
 
 COULEURS_CAT = {
     "Logement":           T.PRIMARY,
@@ -35,9 +36,6 @@ COULEURS_CAT = {
 }
 
 
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{abs(v):,.0f} DH".replace(",", " ")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

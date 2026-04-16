@@ -9,9 +9,12 @@ Hashage : passlib[bcrypt] — standard industrie.
 Si login OK → stocke user_id et username dans st.session_state.
 """
 
+import logging
 import streamlit as st
 import bcrypt as _bcrypt_lib
 from components.design_tokens import T
+
+logger = logging.getLogger(__name__)
 
 
 class _bcrypt:
@@ -24,6 +27,7 @@ class _bcrypt:
         try:
             return _bcrypt_lib.checkpw(pwd.encode("utf-8"), hashed.encode("utf-8"))
         except Exception:
+            logger.exception("bcrypt verify failed")
             return False
 
 

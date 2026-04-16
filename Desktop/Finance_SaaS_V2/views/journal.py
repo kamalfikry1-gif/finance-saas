@@ -3,10 +3,13 @@ views/journal.py — Journal financier : notes contextuelles par date.
 Permet d'expliquer les anomalies de dépenses (ex: "J'ai acheté un frigo ce mois").
 """
 
+import logging
 from datetime import date
 import streamlit as st
 from components.design_tokens import T
+from components.helpers import section as _section
 
+logger = logging.getLogger(__name__)
 
 _HUMEURS = {"": "—", "BIEN": "😊 Bien", "NEUTRE": "😐 Neutre", "STRESSE": "😰 Stressé"}
 _HUMEUR_COULEUR = {
@@ -21,20 +24,8 @@ _TAGS_SUGGERES = [
 ]
 
 
-def _section(titre: str) -> None:
-    st.markdown(
-        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:2px;'
-        f'margin:0 0 12px;padding-bottom:6px;'
-        f'border-bottom:1px solid {T.BORDER}">{titre}</div>',
-        unsafe_allow_html=True,
-    )
-
-
 def render(ctx: dict) -> None:
-    audit   = ctx["audit"]
-    db      = audit.db
-    user_id = audit.user_id
+    audit = ctx["audit"]
 
     st.markdown(
         f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
@@ -85,10 +76,9 @@ def render(ctx: dict) -> None:
             if not note_txt.strip():
                 st.warning("La note ne peut pas être vide.")
             else:
-                db.ajouter_note_journal(
+                audit.ajouter_note_journal(
                     date_entree=str(note_date),
                     note=note_txt.strip(),
-                    user_id=user_id,
                     tags=tags_str,
                     humeur=humeur_val,
                 )
@@ -99,7 +89,7 @@ def render(ctx: dict) -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Liste des notes ───────────────────────────────────────────────────────
-    notes = db.get_journal(user_id=user_id, limit=200)
+    notes = audit.get_journal(limit=200)
 
     if not notes:
         st.markdown(
@@ -131,7 +121,7 @@ def render(ctx: dict) -> None:
             dc1, dc2 = st.columns(2)
             with dc1:
                 if st.button("✅ Confirmer", key=f"jdok_{nid}", type="primary", use_container_width=True):
-                    db.supprimer_note_journal(nid, user_id)
+                    audit.supprimer_note_journal(nid)
                     st.session_state.j_del_id = None
                     st.rerun()
             with dc2:

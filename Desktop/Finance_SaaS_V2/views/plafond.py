@@ -3,38 +3,18 @@ views/plafond.py — Gestion des plafonds budgétaires par catégorie.
 Plafond permanent (CATEGORIES.Plafond) — le système alerte quand dépassé.
 """
 
+import logging
 import streamlit as st
 from components.design_tokens import T
+from components.helpers import dh as _dh
 
-
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{v:,.0f} DH".replace(",", " ")
-
-
-def _get_depenses_mois(audit, mois: str) -> dict:
-    """Retourne {(Categorie, Sous_Categorie): montant_depense} pour le mois."""
-    try:
-        parts   = mois.split("/")
-        mois_db = f"{parts[1]}-{parts[0]}"
-        with audit.db.connexion() as conn:
-            rows = conn.execute(
-                """SELECT Categorie, Sous_Categorie, SUM(Montant) as total
-                   FROM TRANSACTIONS
-                   WHERE Sens='OUT' AND user_id=? AND Date_Valeur LIKE ? AND Statut='VALIDE'
-                   GROUP BY Categorie, Sous_Categorie""",
-                (audit.user_id, f"{mois_db}%")
-            ).fetchall()
-        return {(r[0], r[1]): float(r[2] or 0) for r in rows}
-    except Exception:
-        return {}
+logger = logging.getLogger(__name__)
 
 
 def render(ctx: dict) -> None:
     audit    = ctx["audit"]
     mois_sel = ctx["mois_sel"]
     mois_lbl = ctx["mois_lbl"]
-    db       = audit.db
 
     st.markdown(
         f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
@@ -46,8 +26,8 @@ def render(ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    cats        = db.get_plafonds_categories()
-    depenses    = _get_depenses_mois(audit, mois_sel)
+    cats        = audit.get_plafonds_categories()
+    depenses    = audit.get_depenses_mois(mois_sel)
     categories  = {}
 
     for row in cats:
@@ -65,12 +45,10 @@ def render(ctx: dict) -> None:
         st.info("Aucune catégorie de dépense trouvée. Commencez par saisir des transactions.")
         return
 
-    # Modifications en attente
     if "plafond_changes" not in st.session_state:
         st.session_state.plafond_changes = {}
 
     for cat, items in categories.items():
-        # En-tête catégorie
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
             f'border-radius:{T.RADIUS_LG};padding:20px;margin-bottom:12px">',
@@ -127,7 +105,7 @@ def render(ctx: dict) -> None:
             with col_c:
                 if (cat, scat) in st.session_state.plafond_changes:
                     if st.button("💾 Sauv.", key=f"psave_{cat}_{scat}", use_container_width=True, type="primary"):
-                        db.set_plafond_categorie(cat, scat, new_val)
+                        audit.set_plafond_categorie(cat, scat, new_val)
                         del st.session_state.plafond_changes[(cat, scat)]
                         st.cache_data.clear()
                         st.success(f"✅ {scat} — plafond : {_dh(new_val)}")
@@ -154,7 +132,6 @@ def render(ctx: dict) -> None:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Bouton global
     st.divider()
     n_changes = len(st.session_state.plafond_changes)
     if n_changes > 0:

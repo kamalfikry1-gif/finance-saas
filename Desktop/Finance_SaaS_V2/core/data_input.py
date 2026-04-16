@@ -12,8 +12,11 @@ Exports principaux :
     lister_categories()         → lit toutes les catégories OUT de la BDD
 """
 
+import logging
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -217,6 +220,7 @@ def lister_categories(audit) -> List[Dict[str, Any]]:
                 for r in rows
             ]
     except Exception:
+        logger.exception("lister_categories failed")
         return []
 
 
@@ -263,7 +267,7 @@ def lire_revenus(audit) -> dict:
     salaire = float(audit.get_preference("revenu_salaire", "0") or 0)
     try:
         extras = json.loads(audit.get_preference("revenu_extras_json", "[]") or "[]")
-    except Exception:
+    except (ValueError, TypeError):
         extras = []
     total = float(audit.get_preference("revenu_total_attendu", "0") or 0)
     return {"salaire": salaire, "extras": extras, "total": total}

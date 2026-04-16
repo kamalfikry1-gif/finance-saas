@@ -282,9 +282,7 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
 # un dict standardisé que le renderer UI sait afficher.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{abs(v):,.0f} DH".replace(",", " ")
+from components.helpers import dh as _dh
 
 
 def _resolve_burn_rate(ctx: Dict, inputs: Dict) -> Dict:

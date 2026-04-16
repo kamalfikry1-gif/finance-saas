@@ -4,19 +4,13 @@ Revenus, identité coach, ratios 50/30/20, seuil d'alerte.
 """
 
 import json
+import logging
 import streamlit as st
 from components.design_tokens import T
 from components.cards import IDENTITE_LABEL, IDENTITE_DESC
+from components.helpers import section as _section
 
-
-def _section(titre: str) -> None:
-    st.markdown(
-        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:2px;'
-        f'margin:28px 0 12px;padding-bottom:6px;'
-        f'border-bottom:1px solid {T.BORDER}">{titre}</div>',
-        unsafe_allow_html=True,
-    )
+logger = logging.getLogger(__name__)
 
 
 def render(ctx: dict) -> None:
@@ -43,7 +37,8 @@ def render(ctx: dict) -> None:
     try:
         extras_list = json.loads(extras_str)
         extras_total = sum(float(e.get("montant", 0)) for e in extras_list if isinstance(e, dict))
-    except Exception:
+    except (ValueError, TypeError, json.JSONDecodeError):
+        logger.warning("Could not parse revenu_extras_json")
         extras_total = 0.0
 
     c1, c2 = st.columns(2)

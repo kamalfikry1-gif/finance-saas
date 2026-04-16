@@ -15,15 +15,7 @@ import plotly.express as px
 from config import SCORE_SEUIL_ORANGE
 from components.cards import fs_card, alerte_box, cat_row, afficher_coach, CAT_COLORS
 from components.design_tokens import T
-
-
-def _dh(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{abs(v):,.0f} DH".replace(",", " ")
-
-def _pct(v) -> str:
-    v = 0.0 if v is None else float(v)
-    return f"{v:.1f}%"
+from components.helpers import dh as _dh, pct as _pct
 
 
 def render(ctx: dict) -> None:

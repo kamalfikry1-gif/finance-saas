@@ -5,10 +5,13 @@ Export principal :
     render(audit) → str   (retourne mois_sel sélectionné)
 """
 
+import logging
 from datetime import date, datetime
 from typing import Dict, List
 
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 from components.design_tokens import T
 
@@ -276,7 +279,7 @@ def _reset_donnees(audit) -> None:
             )
             conn.execute("UPDATE CATEGORIES SET Plafond = 0.0")
     except Exception:
-        pass
+        logger.exception("_reset_onboarding_data DB cleanup failed")
 
     st.cache_data.clear()
     for key in list(st.session_state.keys()):
@@ -305,7 +308,7 @@ def _restart_onboarding(audit) -> None:
             )
             conn.execute("UPDATE CATEGORIES SET Plafond = 0.0")
     except Exception:
-        pass
+        logger.exception("_restart_onboarding DB cleanup failed")
 
     st.cache_data.clear()
     for key in list(st.session_state.keys()):
@@ -337,5 +340,5 @@ def _suggestions_live(audit, prefix: str, sens: str) -> List[str]:
                     if r[0] not in seen:
                         results.append(r[0])
     except Exception:
-        pass
+        logger.exception("_suggestions_live query failed")
     return results

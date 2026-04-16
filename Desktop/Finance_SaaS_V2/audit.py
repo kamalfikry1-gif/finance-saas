@@ -259,6 +259,137 @@ class AuditMiddleware:
             return 12
 
     # =========================================================================
+    # OBJECTIFS V2 (views/objectif.py)
+    # =========================================================================
+
+    def creer_objectif_v2(self, nom: str, type_obj: str, montant_cible: float,
+                          date_cible: str, **kwargs) -> int:
+        oid = self.db.creer_objectif_v2(
+            nom, type_obj, montant_cible, date_cible,
+            self.user_id, **kwargs,
+        )
+        self.invalider_snapshots()
+        self._log("OBJECTIF", "CREE_V2", {"nom": nom, "type": type_obj, "cible": montant_cible})
+        return oid
+
+    def get_objectifs_v2(self, type_obj: Optional[str] = None) -> List[Dict]:
+        return self.db.get_objectifs_v2(self.user_id, type_obj)
+
+    def maj_objectif_actuel(self, objectif_id: int, montant_actuel: float) -> None:
+        self.db.maj_objectif_actuel(objectif_id, montant_actuel, self.user_id)
+        self.invalider_snapshots()
+        self._log("OBJECTIF", "MAJ_ACTUEL", {"id": objectif_id, "montant": montant_actuel})
+
+    def supprimer_objectif(self, objectif_id: int) -> None:
+        self.db.supprimer_objectif(objectif_id, self.user_id)
+        self.invalider_snapshots()
+        self._log("OBJECTIF", "SUPPRIME", {"id": objectif_id})
+
+    # =========================================================================
+    # JOURNAL (views/journal.py)
+    # =========================================================================
+
+    def ajouter_note_journal(self, date_entree: str, note: str,
+                              tags: str = "", humeur: str = "") -> int:
+        nid = self.db.ajouter_note_journal(date_entree, note, self.user_id, tags, humeur)
+        self._log("JOURNAL", "AJOUT", {"date": date_entree, "note": note[:80]})
+        return nid
+
+    def get_journal(self, limit: int = 200) -> List[Dict]:
+        return self.db.get_journal(self.user_id, limit)
+
+    def supprimer_note_journal(self, note_id: int) -> None:
+        self.db.supprimer_note_journal(note_id, self.user_id)
+        self._log("JOURNAL", "SUPPRIME", {"id": note_id})
+
+    # =========================================================================
+    # TRANSACTIONS (views/historique.py)
+    # =========================================================================
+
+    def get_categories(self) -> List[str]:
+        with self.db.connexion() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT Categorie FROM CATEGORIES ORDER BY Categorie"
+            ).fetchall()
+        return [r[0] for r in rows]
+
+    def get_sous_categories(self, categorie: str) -> List[str]:
+        with self.db.connexion() as conn:
+            rows = conn.execute(
+                "SELECT Sous_Categorie FROM CATEGORIES WHERE Categorie=%s ORDER BY Sous_Categorie",
+                (categorie,)
+            ).fetchall()
+        return [r[0] for r in rows]
+
+    def get_transactions(self, mois: str, sens: str = "Tous",
+                         categorie: str = "Toutes") -> List[Dict]:
+        from db_manager import _canon_dict
+        parts = mois.split("/")
+        mois_db = f"{parts[1]}-{parts[0]}"
+        conditions = ["Date_Valeur LIKE %s", "user_id = %s"]
+        params: list = [f"{mois_db}%", self.user_id]
+        if sens != "Tous":
+            conditions.append("Sens = %s")
+            params.append(sens)
+        if categorie != "Toutes":
+            conditions.append("Categorie = %s")
+            params.append(categorie)
+        where = " AND ".join(conditions)
+        with self.db.connexion() as conn:
+            rows = conn.execute(
+                f"SELECT * FROM TRANSACTIONS WHERE {where} ORDER BY Date_Valeur DESC, Date_Saisie DESC",
+                params,
+            ).fetchall()
+        return [_canon_dict(r) for r in rows]
+
+    def supprimer_transaction(self, tx_id: str) -> None:
+        with self.db.connexion() as conn:
+            conn.execute(
+                "DELETE FROM TRANSACTIONS WHERE ID_Unique = %s AND user_id = %s",
+                (tx_id, self.user_id),
+            )
+        self.invalider_snapshots()
+        self._log("TRANSACTION", "SUPPRIME", {"id": tx_id})
+
+    def modifier_transaction(self, tx_id: str, libelle: str, montant: float,
+                              categorie: str, sous_categorie: str, date_valeur: str) -> None:
+        with self.db.connexion() as conn:
+            conn.execute(
+                """UPDATE TRANSACTIONS
+                   SET Libelle=%s, Montant=%s, Categorie=%s, Sous_Categorie=%s, Date_Valeur=%s
+                   WHERE ID_Unique=%s AND user_id=%s""",
+                (libelle, montant, categorie, sous_categorie, date_valeur, tx_id, self.user_id),
+            )
+        self.invalider_snapshots()
+        self._log("TRANSACTION", "MODIFIE", {"id": tx_id, "libelle": libelle})
+
+    # =========================================================================
+    # PLAFONDS (views/plafond.py)
+    # =========================================================================
+
+    def get_plafonds_categories(self) -> List[Dict]:
+        return self.db.get_plafonds_categories()
+
+    def set_plafond_categorie(self, categorie: str, sous_categorie: str,
+                               plafond: float) -> None:
+        self.db.set_plafond_categorie(categorie, sous_categorie, plafond)
+        self.invalider_snapshots()
+        self._log("PLAFOND", "SET", {"cat": categorie, "scat": sous_categorie, "val": plafond})
+
+    def get_depenses_mois(self, mois: str) -> Dict:
+        parts = mois.split("/")
+        mois_db = f"{parts[1]}-{parts[0]}"
+        with self.db.connexion() as conn:
+            rows = conn.execute(
+                """SELECT Categorie, Sous_Categorie, COALESCE(SUM(Montant), 0) as total
+                   FROM TRANSACTIONS
+                   WHERE Sens='OUT' AND user_id=%s AND Date_Valeur LIKE %s AND Statut='VALIDE'
+                   GROUP BY Categorie, Sous_Categorie""",
+                (self.user_id, f"{mois_db}%"),
+            ).fetchall()
+        return {(r[0], r[1]): float(r[2] or 0) for r in rows}
+
+    # =========================================================================
     # ROLE 2 — AUDIT TRAIL  (privé — appelé par tous les autres rôles)
     # =========================================================================
 
