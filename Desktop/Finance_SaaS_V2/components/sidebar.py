@@ -104,6 +104,17 @@ def render(audit) -> str:
                     st.session_state.page = pid
                     st.rerun()
 
+        # ── Restart Onboarding ────────────────────────────────────────────────
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        if st.button(
+            "🔄  Refaire l'onboarding",
+            key="btn_restart_onboarding",
+            use_container_width=True,
+            type="secondary",
+        ):
+            _restart_onboarding(audit)
+            st.rerun()
+
         st.divider()
 
         # ── Période ───────────────────────────────────────────────────────────
@@ -261,6 +272,35 @@ def _reset_donnees(audit) -> None:
             conn.execute(
                 "DELETE FROM PREFERENCES WHERE user_id = ? AND Cle IN "
                 "('onboarding_done','revenu_salaire','revenu_extras_json','revenu_total_attendu')",
+                (audit.user_id,)
+            )
+            conn.execute("UPDATE CATEGORIES SET Plafond = 0.0")
+    except Exception:
+        pass
+
+    st.cache_data.clear()
+    for key in list(st.session_state.keys()):
+        if key.startswith("ob_") or key.startswith("_ob_") or key == "onboarding_budgets":
+            del st.session_state[key]
+
+
+def _restart_onboarding(audit) -> None:
+    """
+    Réinitialise l'onboarding sans supprimer les transactions manuelles.
+    · Supprime les préférences onboarding (flag + revenus saisis)
+    · Supprime uniquement les transactions Source=ONBOARDING (saisies auto)
+    · Remet les plafonds à 0
+    · Vide le cache Streamlit
+    """
+    try:
+        with audit.db.connexion() as conn:
+            conn.execute(
+                "DELETE FROM PREFERENCES WHERE user_id = ? AND Cle IN "
+                "('onboarding_done','revenu_salaire','revenu_extras_json','revenu_total_attendu')",
+                (audit.user_id,)
+            )
+            conn.execute(
+                "DELETE FROM TRANSACTIONS WHERE user_id = ? AND Source = 'ONBOARDING'",
                 (audit.user_id,)
             )
             conn.execute("UPDATE CATEGORIES SET Plafond = 0.0")
