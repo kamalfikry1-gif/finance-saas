@@ -224,16 +224,34 @@ class DatabaseManager:
         db.initialiser_schema()
     """
 
+    # Pool : évite le handshake TCP + TLS + auth Postgres à chaque requête.
+    # Sur Supabase en remote c'est 100-300ms par connexion — multipliez par
+    # 10-15 requêtes par page et vous avez les 1-4s de latence que les
+    # testeurs ressentent. Le pool réutilise les sockets.
+    _POOL_MIN = 1
+    _POOL_MAX = 10
+
     def __init__(self, database_url: str):
         self.database_url = database_url
-        # Test connection at startup to fail fast with a clear error
         try:
-            test = psycopg2.connect(database_url)
-            test.close()
+            self._pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=self._POOL_MIN,
+                maxconn=self._POOL_MAX,
+                dsn=database_url,
+                # TCP keepalives : détecte les connexions fermées côté serveur
+                # (Supabase coupe les idles), évite le premier query qui plante.
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=3,
+            )
         except Exception as e:
-            logger.error(f"❌ Connexion PostgreSQL échouée : {e}")
+            logger.error(f"❌ Pool PostgreSQL init échouée : {e}")
             raise
-        logger.info("DatabaseManager PostgreSQL initialisé")
+        logger.info(
+            f"DatabaseManager PostgreSQL initialisé "
+            f"(pool {self._POOL_MIN}-{self._POOL_MAX})"
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # CONNEXION
@@ -242,20 +260,30 @@ class DatabaseManager:
     @contextmanager
     def connexion(self):
         """
-        Context manager — ouvre une connexion fraîche, commit ou rollback, puis ferme.
-        Compatible avec le transaction pooler Supabase.
+        Context manager — emprunte une connexion au pool, commit/rollback, rend.
+
+        · Sur succès  : putconn(conn)           → remis dans le pool
+        · Sur erreur  : putconn(conn, close=1)  → détruit (peut être corrompu)
         """
-        conn = psycopg2.connect(self.database_url)
+        conn = self._pool.getconn()
         proxy = _ConnProxy(conn)
+        broken = False
         try:
             yield proxy
             conn.commit()
         except Exception as e:
-            conn.rollback()
+            broken = True
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             logger.error(f"Transaction rollback : {e}")
             raise
         finally:
-            conn.close()
+            try:
+                self._pool.putconn(conn, close=broken)
+            except Exception:
+                logger.exception("putconn failed")
 
     # ─────────────────────────────────────────────────────────────────────────
     # SCHÉMA — TABLES
