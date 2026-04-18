@@ -23,6 +23,7 @@ from core.data_input import (
 )
 from components.design_tokens import T
 from components.helpers import dh as _dh
+from core.cache import invalider as _invalider_cache
 
 COULEURS_CAT = {
     "Logement":           T.PRIMARY,
@@ -359,7 +360,7 @@ def _finaliser(enregistrer: bool) -> None:
         if key.startswith("ob_") or key.startswith("_ob_"):
             del st.session_state[key]
 
-    st.cache_data.clear()
+    _invalider_cache()
     st.success("✅ Bienvenue ! Votre tableau de bord est prêt.")
     st.balloons()
     st.rerun()

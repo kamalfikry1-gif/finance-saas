@@ -32,7 +32,9 @@ LOG_PATH: str = str(BASE_DIR / "finance_saas.log")
 SNAPSHOT_TTL: int = 300          # 5 minutes
 
 # TTL Streamlit @st.cache_data — rafraîchissement UI minimum
-STREAMLIT_CACHE_TTL: int = 60    # 1 minute
+# Les écritures invalident explicitement via core.cache.invalider(), donc
+# un TTL long est sûr : on n'attend jamais le TTL pour voir les changements.
+STREAMLIT_CACHE_TTL: int = 300   # 5 minutes
 
 # ==============================================================================
 # BASE DE DONNÉES — VALEURS PAR DÉFAUT

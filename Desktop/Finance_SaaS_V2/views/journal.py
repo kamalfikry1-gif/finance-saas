@@ -8,6 +8,7 @@ from datetime import date
 import streamlit as st
 from components.design_tokens import T
 from components.helpers import section as _section
+from core.cache import invalider as _invalider_cache
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def render(ctx: dict) -> None:
                     tags=tags_str,
                     humeur=humeur_val,
                 )
-                st.cache_data.clear()
+                _invalider_cache()
                 st.success("✅ Note ajoutée au journal")
                 st.rerun()
 

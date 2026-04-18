@@ -7,6 +7,7 @@ import logging
 import streamlit as st
 from components.design_tokens import T
 from components.helpers import dh as _dh
+from core.cache import invalider as _invalider_cache
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ def render(ctx: dict) -> None:
                     if st.button("💾 Sauv.", key=f"psave_{cat}_{scat}", use_container_width=True, type="primary"):
                         audit.set_plafond_categorie(cat, scat, new_val)
                         del st.session_state.plafond_changes[(cat, scat)]
-                        st.cache_data.clear()
+                        _invalider_cache()
                         st.success(f"✅ {scat} — plafond : {_dh(new_val)}")
                         st.rerun()
                 else:

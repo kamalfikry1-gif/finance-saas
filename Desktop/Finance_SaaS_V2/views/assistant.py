@@ -24,6 +24,7 @@ from components.cards import (
 from components.charts import _gauge
 from components.design_tokens import T
 from core.assistant_engine import AssistantEngine, RenderType
+from core.cache import invalider as _invalider_cache
 
 # Singleton engine (stateless, peut être partagé)
 _ENGINE = AssistantEngine()
@@ -432,7 +433,7 @@ def _render_epargne(result: dict, ctx: dict) -> None:
         )
         if st.button("Abandonner", key=f"ab_{obj['id']}", type="secondary"):
             result["audit"].abandonner_objectif(obj["id"])
-            st.cache_data.clear()
+            _invalider_cache()
             st.session_state.ast_result = None
             st.rerun()
 
@@ -674,7 +675,7 @@ def _render_sim_objectif(result: dict, ctx: dict) -> None:
                         f"✅ '{nom_o}' créé — "
                         f"effort {obj_r.get('effort_mensuel_requis', 0):,.0f} DH/mois"
                     )
-                    st.cache_data.clear()
+                    _invalider_cache()
                     st.rerun()
                 else:
                     st.warning("Renseigne un nom pour l'objectif.")
@@ -785,7 +786,7 @@ def _render_mes_objectifs(result: dict, ctx: dict) -> None:
                 "Abandonner", key=f"mes_ab_{obj['id']}", type="secondary",
             ):
                 audit.abandonner_objectif(obj["id"])
-                st.cache_data.clear()
+                _invalider_cache()
                 st.session_state.ast_result = None
                 st.rerun()
 

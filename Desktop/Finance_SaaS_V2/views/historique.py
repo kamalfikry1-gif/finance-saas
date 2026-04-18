@@ -1,5 +1,10 @@
 """
 views/historique.py — Historique des transactions avec filtres, édition et suppression.
+
+La liste est wrappée dans `@st.fragment` : un clic sur Modifier/Supprimer
+ne rerun que le fragment (pas la page entière, pas de refetch bilan/KPIs).
+Les écritures DB déclenchent un `st.rerun(scope="app")` pour rafraîchir
+les KPIs et invalident les caches UI via `core.cache.invalider()`.
 """
 
 import logging
@@ -7,6 +12,7 @@ from datetime import datetime
 import streamlit as st
 from components.design_tokens import T
 from components.helpers import dh as _dh, section as _section
+from core.cache import invalider as _invalider_cache
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +67,15 @@ def render(ctx: dict) -> None:
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
     _section(f"{len(rows)} transaction(s)")
 
-    # ── Liste ─────────────────────────────────────────────────────────────────
+    _render_liste(audit, rows)
+
+
+@st.fragment
+def _render_liste(audit, rows) -> None:
+    """
+    Rendu isolé de la liste : les toggles Modifier/Supprimer/Annuler ne
+    rerun que ce fragment. Les écritures DB passent en scope="app".
+    """
     edit_key = st.session_state.get("hist_edit_id")
     del_key  = st.session_state.get("hist_del_id")
 
@@ -82,9 +96,8 @@ def render(ctx: dict) -> None:
                 if st.button("✅ Confirmer", key=f"del_ok_{tid}", type="primary", use_container_width=True):
                     audit.supprimer_transaction(tid)
                     st.session_state.hist_del_id = None
-                    st.cache_data.clear()
-                    st.success("Transaction supprimée")
-                    st.rerun()
+                    _invalider_cache()
+                    st.rerun(scope="app")
             with cc2:
                 if st.button("❌ Annuler", key=f"del_no_{tid}", use_container_width=True):
                     st.session_state.hist_del_id = None
@@ -132,9 +145,8 @@ def render(ctx: dict) -> None:
                             new_cat, new_scat, str(new_date)
                         )
                         st.session_state.hist_edit_id = None
-                        st.cache_data.clear()
-                        st.success("Transaction modifiée")
-                        st.rerun()
+                        _invalider_cache()
+                        st.rerun(scope="app")
                 with eb:
                     if st.button("❌ Annuler", key=f"ecancel_{tid}", use_container_width=True):
                         st.session_state.hist_edit_id = None

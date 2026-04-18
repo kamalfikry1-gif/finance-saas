@@ -9,6 +9,7 @@ import streamlit as st
 from components.design_tokens import T
 from components.cards import IDENTITE_LABEL, IDENTITE_DESC
 from components.helpers import section as _section
+from core.cache import invalider as _invalider_cache
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def render(ctx: dict) -> None:
         total = nouveau_salaire + extras_total
         audit.set_preference("revenu_salaire", str(nouveau_salaire))
         audit.set_preference("revenu_total_attendu", str(total))
-        st.cache_data.clear()
+        _invalider_cache()
         st.success(f"✅ Salaire mis à jour — Total attendu : {total:,.0f} DH".replace(",", " "))
 
     # ── Section 2 : Identité Coach ───────────────────────────────────────────
@@ -88,7 +89,7 @@ def render(ctx: dict) -> None:
             if not is_sel:
                 if st.button(f"Choisir", key=f"id_{k}", use_container_width=True):
                     audit.set_identite(k)
-                    st.cache_data.clear()
+                    _invalider_cache()
                     st.rerun()
             else:
                 st.markdown(
@@ -149,7 +150,7 @@ def render(ctx: dict) -> None:
         audit.set_preference("needs_pct",   str(new_needs))
         audit.set_preference("wants_pct",   str(new_wants))
         audit.set_preference("savings_pct", str(new_savings))
-        st.cache_data.clear()
+        _invalider_cache()
         st.success("✅ Ratios 50/30/20 mis à jour")
 
     # ── Section 4 : Seuil d'alerte ───────────────────────────────────────────
@@ -167,5 +168,5 @@ def render(ctx: dict) -> None:
     )
     if st.button("💾 Sauvegarder le seuil", key="btn_save_seuil", type="primary"):
         audit.set_preference("seuil_alerte", str(new_seuil))
-        st.cache_data.clear()
+        _invalider_cache()
         st.success(f"✅ Seuil d'alerte : {new_seuil} %")

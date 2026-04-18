@@ -10,10 +10,11 @@ from typing import Dict
 
 from db_manager import DatabaseManager
 from audit import AuditMiddleware
-from config import APP_TITLE, APP_ICON, STREAMLIT_CACHE_TTL
+from config import APP_TITLE, APP_ICON
 
 from components.styles import inject_css
 from components.sidebar import render as render_sidebar
+from core import cache as ui_cache
 
 import views.accueil   as page_accueil
 import views.assistant as page_assistant
@@ -122,24 +123,12 @@ if not est_onboarding_fait(audit):
 mois_sel = render_sidebar(audit)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 9. CHARGEMENT DONNÉES (cache 60s — clé inclut user_id pour isolation)
+# 9. CHARGEMENT DONNÉES (cache UI centralisé — voir core/cache.py)
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=STREAMLIT_CACHE_TTL, show_spinner=False)
-def _state(mois: str, identite: str, uid: int) -> Dict:
-    return audit.get_ui_state(mois)
-
-@st.cache_data(ttl=STREAMLIT_CACHE_TTL, show_spinner=False)
-def _ant(mois: str, identite: str, uid: int) -> Dict:
-    return audit.get_anticipation(mois)
-
-@st.cache_data(ttl=STREAMLIT_CACHE_TTL, show_spinner=False)
-def _q(demande: str, uid: int, **kw) -> Dict:
-    return audit.query(demande, use_cache=True, **kw)
-
 identite_active = audit.get_identite()
-state           = _state(mois_sel, identite_active, user_id)
-anticipation    = _ant(mois_sel, identite_active, user_id)
+state           = ui_cache.get_state(audit, mois_sel, identite_active, user_id)
+anticipation    = ui_cache.get_anticipation(audit, mois_sel, identite_active, user_id)
 mois_lbl        = datetime.strptime(mois_sel, "%m/%Y").strftime("%B %Y").capitalize()
 
 ctx: Dict = {
@@ -158,7 +147,7 @@ ctx: Dict = {
     "rept":           state["repartition"],
     "proj":           state["projection"],
     "anticipation":   anticipation,
-    "_q":             lambda demande, **kw: _q(demande, user_id, **kw),
+    "_q":             lambda demande, **kw: ui_cache.query(audit, demande, user_id, **kw),
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -177,7 +166,7 @@ with st.sidebar:
         for k in ["logged_in","user_id","username","audit","_audit_user_id",
                   "page","ast_path","ast_inputs","ast_result"]:
             st.session_state.pop(k, None)
-        st.cache_data.clear()
+        ui_cache.invalider()
         st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────

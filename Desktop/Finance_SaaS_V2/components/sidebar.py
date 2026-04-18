@@ -14,6 +14,7 @@ import streamlit as st
 logger = logging.getLogger(__name__)
 
 from components.design_tokens import T
+from core.cache import invalider as _invalider_cache
 
 # ── Navigation ────────────────────────────────────────────────────────────────
 
@@ -222,7 +223,7 @@ def render(audit) -> str:
                         f"({res.get('score', 0):.0f}%)"
                     )
                     st.session_state.saisie_ctr += 1
-                    st.cache_data.clear()
+                    _invalider_cache()
                     st.rerun()
                 elif action == "CONFIRMER":
                     st.session_state.saisie_confirmer = {
@@ -241,7 +242,7 @@ def render(audit) -> str:
                 audit.recevoir(p["libelle"], p["montant"], p["sens"], p["dv"], forcer=True)
                 st.session_state.saisie_confirmer = None
                 st.session_state.saisie_ctr += 1
-                st.cache_data.clear()
+                _invalider_cache()
                 st.rerun()
 
         # ── Zone Test ─────────────────────────────────────────────────────────
@@ -281,7 +282,7 @@ def _reset_donnees(audit) -> None:
     except Exception:
         logger.exception("_reset_onboarding_data DB cleanup failed")
 
-    st.cache_data.clear()
+    _invalider_cache()
     for key in list(st.session_state.keys()):
         if key.startswith("ob_") or key.startswith("_ob_") or key == "onboarding_budgets":
             del st.session_state[key]
@@ -310,7 +311,7 @@ def _restart_onboarding(audit) -> None:
     except Exception:
         logger.exception("_restart_onboarding DB cleanup failed")
 
-    st.cache_data.clear()
+    _invalider_cache()
     for key in list(st.session_state.keys()):
         if key.startswith("ob_") or key.startswith("_ob_") or key == "onboarding_budgets":
             del st.session_state[key]
