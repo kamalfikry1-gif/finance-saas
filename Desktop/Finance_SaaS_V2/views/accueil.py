@@ -100,10 +100,6 @@ def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str) -> None:
         f'  </div>'
         f'  <div class="v1-hero-sub">'
         f'    <span class="v1-hero-pill">↑ {taux_ep:.1f}% épargne</span>'
-        f'    <span>Revenus <span class="hv">{_fmt_dh(bilan["revenus"])} DH</span></span>'
-        f'    <span class="hdot"></span>'
-        f'    <span>Dépenses <span class="hv">{_fmt_dh(bilan["depenses"])} DH</span></span>'
-        f'    <span class="hdot"></span>'
         f'    <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
         f'  </div>'
         f'</div>',
