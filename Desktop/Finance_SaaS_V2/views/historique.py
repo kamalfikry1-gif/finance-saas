@@ -74,38 +74,8 @@ def render(ctx: dict) -> None:
         scat    = tx.get("Sous_Categorie") or ""
         date_v  = tx.get("Date_Valeur", "")[:10]
 
-        # ── Affichage normal ──────────────────────────────────────────────────
-        if edit_key != tid:
-            row_html = (
-                f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-                f'border-radius:{T.RADIUS_MD};padding:12px 16px;'
-                f'display:flex;align-items:center;gap:12px;margin-bottom:6px">'
-                f'<div style="width:8px;height:8px;border-radius:50%;'
-                f'background:{couleur};flex-shrink:0"></div>'
-                f'<div style="flex:1;min-width:0">'
-                f'<div style="color:{T.TEXT_HIGH};font-weight:600;font-size:13px">{tx["Libelle"]}</div>'
-                f'<div style="color:{T.TEXT_LOW};font-size:11px">{cat} · {scat} · {date_v}</div>'
-                f'</div>'
-                f'<div style="color:{couleur};font-weight:700;font-size:15px;white-space:nowrap">'
-                f'{signe} {_dh(tx["Montant"])}</div>'
-                f'</div>'
-            )
-            st.markdown(row_html, unsafe_allow_html=True)
-
-            ca, cb = st.columns([1, 1])
-            with ca:
-                if st.button("✏️ Modifier", key=f"edit_{tid}", use_container_width=True):
-                    st.session_state.hist_edit_id = tid
-                    st.session_state.hist_del_id  = None
-                    st.rerun()
-            with cb:
-                if st.button("🗑️ Supprimer", key=f"del_{tid}", use_container_width=True):
-                    st.session_state.hist_del_id  = tid
-                    st.session_state.hist_edit_id = None
-                    st.rerun()
-
         # ── Confirmation suppression ──────────────────────────────────────────
-        elif del_key == tid:
+        if del_key == tid:
             st.warning(f"Supprimer **{tx['Libelle']}** — {signe}{_dh(tx['Montant'])} ?")
             cc1, cc2 = st.columns(2)
             with cc1:
@@ -119,9 +89,10 @@ def render(ctx: dict) -> None:
                 if st.button("❌ Annuler", key=f"del_no_{tid}", use_container_width=True):
                     st.session_state.hist_del_id = None
                     st.rerun()
+            continue
 
         # ── Formulaire modification ───────────────────────────────────────────
-        elif edit_key == tid:
+        if edit_key == tid:
             with st.container():
                 st.markdown(
                     f'<div style="background:{T.BG_CARD_ALT};border:1px solid {T.BORDER_MED};'
@@ -169,3 +140,33 @@ def render(ctx: dict) -> None:
                         st.session_state.hist_edit_id = None
                         st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
+            continue
+
+        # ── Affichage normal ──────────────────────────────────────────────────
+        row_html = (
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:12px 16px;'
+            f'display:flex;align-items:center;gap:12px;margin-bottom:6px">'
+            f'<div style="width:8px;height:8px;border-radius:50%;'
+            f'background:{couleur};flex-shrink:0"></div>'
+            f'<div style="flex:1;min-width:0">'
+            f'<div style="color:{T.TEXT_HIGH};font-weight:600;font-size:13px">{tx["Libelle"]}</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px">{cat} · {scat} · {date_v}</div>'
+            f'</div>'
+            f'<div style="color:{couleur};font-weight:700;font-size:15px;white-space:nowrap">'
+            f'{signe} {_dh(tx["Montant"])}</div>'
+            f'</div>'
+        )
+        st.markdown(row_html, unsafe_allow_html=True)
+
+        ca, cb = st.columns([1, 1])
+        with ca:
+            if st.button("✏️ Modifier", key=f"edit_{tid}", use_container_width=True):
+                st.session_state.hist_edit_id = tid
+                st.session_state.hist_del_id  = None
+                st.rerun()
+        with cb:
+            if st.button("🗑️ Supprimer", key=f"del_{tid}", use_container_width=True):
+                st.session_state.hist_del_id  = tid
+                st.session_state.hist_edit_id = None
+                st.rerun()
