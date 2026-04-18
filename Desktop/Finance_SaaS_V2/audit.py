@@ -745,12 +745,12 @@ class AuditMiddleware:
                 "anomalies": [],
             }
 
-        # ── Étape 5 : Anticipation (arrière-plan) ────────────────────────────
-        try:
-            anticipation = self._anticiper()
-        except Exception as e:
-            anticipation = {}
-            logger.warning(f"Anticipation non calculee : {e}")
+        # ── Étape 5 : (supprimée) ─────────────────────────────────────────────
+        # _anticiper() faisait 7+ requêtes lourdes dont le résultat était
+        # immédiatement invalidé par l'étape 7. Pur gâchis (3-8s par write).
+        # L'anticipation est recalculée à la demande par get_anticipation(),
+        # avec Streamlit cache @st.cache_data en front (voir core/cache.py).
+        anticipation: Dict[str, Any] = {}
 
         # ── Étape 6 : Log Audit Trail ─────────────────────────────────────────
         output_data = {
