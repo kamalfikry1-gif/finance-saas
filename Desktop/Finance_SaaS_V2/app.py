@@ -128,7 +128,6 @@ mois_sel = render_sidebar(audit)
 
 identite_active = audit.get_identite()
 state           = ui_cache.get_state(audit, mois_sel, identite_active, user_id)
-anticipation    = ui_cache.get_anticipation(audit, mois_sel, identite_active, user_id)
 mois_lbl        = datetime.strptime(mois_sel, "%m/%Y").strftime("%B %Y").capitalize()
 
 ctx: Dict = {
@@ -146,7 +145,6 @@ ctx: Dict = {
     "alertes":        state["alertes"],
     "rept":           state["repartition"],
     "proj":           state["projection"],
-    "anticipation":   anticipation,
     "_q":             lambda demande, **kw: ui_cache.query(audit, demande, user_id, **kw),
 }
 
