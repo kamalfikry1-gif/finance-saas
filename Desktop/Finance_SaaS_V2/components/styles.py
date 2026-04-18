@@ -275,5 +275,303 @@ summary {{
     margin: 20px 0 10px;
     padding-left: 2px;
 }}
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   ACCUEIL — CALME VARIATION (design handoff 2026-04-18)
+   Editorial hero + 4 KPIs + categories list + coach/score/goals right rail.
+   Palette maps teal accent to --primary, warn to --warning, etc.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+.v1-hero {{
+    padding: 44px 40px 40px;
+    background:
+        radial-gradient(circle at 85% 20%, var(--primary-glo), transparent 55%),
+        radial-gradient(circle at 10% 90%, rgba(139,92,246,0.07), transparent 55%),
+        var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 18px;
+}}
+.v1-hero-label {{
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--text-med);
+    text-transform: uppercase;
+}}
+.v1-hero-amount {{
+    font-size: 84px;
+    line-height: 1;
+    font-weight: 300;
+    letter-spacing: -0.035em;
+    margin: 14px 0 14px;
+    color: var(--text-high);
+    font-variant-numeric: tabular-nums;
+}}
+.v1-hero-amount .sign.pos {{ color: var(--success); }}
+.v1-hero-amount .sign.neg {{ color: var(--danger); }}
+.v1-hero-amount .unit {{
+    font-size: 24px;
+    color: var(--text-med);
+    font-weight: 400;
+    margin-left: 8px;
+    letter-spacing: 0.02em;
+}}
+.v1-hero-sub {{
+    color: var(--text-med);
+    font-size: 13.5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 20px;
+    align-items: center;
+}}
+.v1-hero-sub .hv {{ color: var(--text-high); font-variant-numeric: tabular-nums; }}
+.v1-hero-sub .hv.warn {{ color: var(--warning); }}
+.v1-hero-sub .hdot {{
+    width: 3px; height: 3px;
+    background: var(--text-low);
+    border-radius: 50%;
+}}
+.v1-hero-pill {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    font-size: 12px;
+    background: var(--success-glo);
+    color: var(--success);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 99px;
+}}
+
+/* KPI cards (override the plain fs-card inside Accueil) */
+.v1-kpi {{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}}
+.v1-kpi-accent {{
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--primary);
+}}
+.v1-kpi-accent.warn    {{ background: var(--warning); }}
+.v1-kpi-accent.danger  {{ background: var(--danger); }}
+.v1-kpi-accent.violet  {{ background: var(--purple, #8b5cf6); }}
+.v1-kpi-accent.success {{ background: var(--success); }}
+.v1-kpi .lbl {{
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--text-med);
+    text-transform: uppercase;
+}}
+.v1-kpi .val {{
+    font-size: 26px;
+    font-weight: 500;
+    margin-top: 8px;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-high);
+}}
+.v1-kpi .val .u {{
+    font-size: 13px;
+    color: var(--text-med);
+    font-weight: 400;
+    margin-left: 3px;
+}}
+.v1-kpi .delta {{
+    font-size: 12px;
+    margin-top: 10px;
+    color: var(--text-med);
+}}
+.v1-kpi .delta.up   {{ color: var(--success); }}
+.v1-kpi .delta.down {{ color: var(--danger); }}
+.v1-kpi .delta.warn {{ color: var(--warning); }}
+
+/* Section header (title + muted kicker) */
+.v1-sec-head {{
+    color: var(--text-med);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin: 18px 0 10px;
+}}
+
+/* Category rows (Calme style — flat list with inline bar, expander body) */
+.cat-row-head {{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 0 10px;
+}}
+.cat-swatch {{
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}}
+.cat-name {{ font-weight: 500; font-size: 14px; flex: 1; color: var(--text-high); }}
+.cat-amt  {{ font-weight: 500; font-size: 14px; color: var(--text-high); font-variant-numeric: tabular-nums; }}
+.cat-pct  {{ color: var(--text-med); font-size: 12px; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }}
+.cat-bar {{
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}}
+.cat-bar-fill {{
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}}
+.cat-sub-row {{
+    display: grid;
+    grid-template-columns: 150px 1fr 85px 38px;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+    margin: 8px 0;
+}}
+.cat-sub-row .n {{ color: var(--text-med); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.cat-sub-row .b {{ height: 3px; background: var(--bg-input); border-radius: 99px; overflow: hidden; }}
+.cat-sub-row .bf {{ height: 100%; border-radius: 99px; }}
+.cat-sub-row .a {{ text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }}
+.cat-sub-row .p {{ text-align: right; color: var(--text-low); font-variant-numeric: tabular-nums; }}
+
+/* Coach card (Calme) */
+.coach-card-v1 {{
+    padding: 20px;
+    border-radius: var(--radius-xl);
+    background:
+        linear-gradient(180deg, var(--primary-glo), transparent 50%),
+        var(--bg-card);
+    border: 1px solid var(--border);
+}}
+.coach-head-v1 {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}}
+.coach-avatar-v1 {{
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--purple, #8b5cf6));
+    display: grid; place-items: center;
+    color: #0a1020;
+    font-weight: 700;
+    font-size: 15px;
+}}
+.coach-meta-v1 .name {{ font-size: 13.5px; font-weight: 600; color: var(--text-high); }}
+.coach-meta-v1 .role {{ font-size: 11px; color: var(--text-med); letter-spacing: 0.04em; }}
+.mood-pill-v1 {{
+    margin-left: auto;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+    text-transform: uppercase;
+}}
+.mood-pill-v1.cool    {{ background: var(--success-glo); color: var(--success); }}
+.mood-pill-v1.neutre  {{ background: var(--warning-glo); color: var(--warning); }}
+.mood-pill-v1.serieux {{ background: var(--danger-glo);  color: var(--danger); }}
+.coach-quote-v1 {{
+    font-size: 14px;
+    color: var(--text-high);
+    line-height: 1.55;
+    opacity: 0.92;
+}}
+
+/* Gauge (Score Santé) — SVG-based 270° arc */
+.gauge-card {{
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+}}
+.gauge-title {{
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--text-med);
+    text-transform: uppercase;
+    font-weight: 600;
+}}
+.gauge-wrap {{
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 8px 0 2px;
+}}
+.gauge-text {{
+    position: absolute;
+    top: 38px;
+    left: 0; right: 0;
+    text-align: center;
+    pointer-events: none;
+}}
+.gauge-num   {{ font-size: 42px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }}
+.gauge-total {{ color: var(--text-med); font-size: 12px; margin-top: 4px; }}
+.gauge-label {{ font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; margin-top: 8px; }}
+
+/* Plan 50/30/20 rows */
+.plan-row-v1 {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12.5px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+}}
+.plan-row-v1:last-child {{ border-bottom: 0; }}
+.plan-row-v1 .k {{ color: var(--text-high); display: flex; align-items: center; gap: 8px; }}
+.plan-row-v1 .k .dot {{ width: 8px; height: 8px; border-radius: 2px; }}
+.plan-row-v1 .v {{ display: flex; gap: 10px; align-items: baseline; }}
+.plan-row-v1 .v .pct {{ color: var(--text-med); font-variant-numeric: tabular-nums; }}
+.plan-row-v1 .v .amt {{ font-weight: 600; font-variant-numeric: tabular-nums; }}
+
+/* Goals card */
+.goal-card-v1 {{
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    margin-top: 10px;
+}}
+.goal-head-v1 {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}}
+.goal-title-v1 {{ font-size: 13px; font-weight: 600; color: var(--text-high); }}
+.goal-date-v1  {{ font-size: 11px; color: var(--text-med); }}
+.goal-bar-v1 {{
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 6px 0;
+}}
+.goal-bar-fill-v1 {{
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}}
+.goal-foot-v1 {{
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-med);
+}}
+.goal-foot-v1 .cur {{ color: var(--text-high); font-weight: 600; font-variant-numeric: tabular-nums; }}
 </style>
 """, unsafe_allow_html=True)
