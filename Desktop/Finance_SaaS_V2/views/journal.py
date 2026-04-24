@@ -8,7 +8,7 @@ from datetime import date
 import streamlit as st
 from components.design_tokens import T
 from components.helpers import section as _section
-from core.cache import invalider as _invalider_cache
+from core.cache import invalider as _invalider_cache, get_journal as _get_journal
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +37,8 @@ def render(ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Formulaire nouvelle note ──────────────────────────────────────────────
-    _section("Nouvelle Note")
-
-    with st.container():
-        st.markdown(
-            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-            f'border-radius:{T.RADIUS_LG};padding:20px;margin-bottom:20px">',
-            unsafe_allow_html=True,
-        )
-
+    # ── Formulaire nouvelle note (caché par défaut) ───────────────────────────
+    with st.expander("📝 Nouvelle note", expanded=st.session_state.get("j_form_open", False)):
         j1, j2 = st.columns([2, 1])
         with j1:
             note_date = st.date_input(
@@ -83,25 +75,33 @@ def render(ctx: dict) -> None:
                     tags=tags_str,
                     humeur=humeur_val,
                 )
+                st.session_state.j_form_open = False
                 _invalider_cache()
                 st.success("✅ Note ajoutée au journal")
                 st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
     # ── Liste des notes ───────────────────────────────────────────────────────
-    notes = audit.get_journal(limit=200)
+    try:
+        notes = _get_journal(audit, audit.user_id)
+    except Exception:
+        st.warning("Impossible de charger le journal — réessayez dans quelques secondes.")
+        return
 
     if not notes:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-            f'border-radius:{T.RADIUS_LG};padding:40px;text-align:center">'
+            f'border-radius:{T.RADIUS_LG};padding:32px;text-align:center;margin-top:8px">'
             f'<div style="font-size:32px;margin-bottom:10px">📭</div>'
-            f'<div style="color:{T.TEXT_MED};font-size:14px">'
-            f'Aucune note pour l\'instant. Commencez à contextualiser vos dépenses !</div>'
+            f'<div style="color:{T.TEXT_MED};font-size:14px;margin-bottom:4px">'
+            f'Aucune note pour l\'instant.</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:12px">'
+            f'Notez le contexte de vos dépenses inhabituelles — le coach s\'en souviendra.</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
+        if st.button("📝 Écrire ma première note", key="j_empty_cta", use_container_width=True):
+            st.session_state.j_form_open = True
+            st.rerun()
         return
 
     _section(f"{len(notes)} note(s)")

@@ -12,7 +12,7 @@ from datetime import datetime
 import streamlit as st
 from components.design_tokens import T
 from components.helpers import dh as _dh, section as _section
-from core.cache import invalider as _invalider_cache
+from core.cache import invalider as _invalider_cache, get_categories as _get_cats, get_sous_categories as _get_scats
 
 logger = logging.getLogger(__name__)
 
@@ -30,44 +30,51 @@ def render(ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Filtres ───────────────────────────────────────────────────────────────
-    f1, f2, f3 = st.columns([2, 1, 1])
-    with f1:
-        cats = ["Toutes"] + audit.get_categories()
-        cat_sel = st.selectbox("Catégorie", cats, key="hist_cat")
-    with f2:
-        sens_sel = st.selectbox("Sens", ["Tous", "OUT", "IN"], key="hist_sens")
-    with f3:
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        if st.button("🔄 Rafraîchir", key="hist_refresh", use_container_width=True):
-            st.rerun()
+    # ── Tabs ──────────────────────────────────────────────────────────────────
+    tab_hist, tab_carnet = st.tabs(["📋 Transactions", "💳 Carnet de Crédit"])
 
-    # ── Données ───────────────────────────────────────────────────────────────
-    rows = audit.get_transactions(mois_sel, sens_sel, cat_sel)
+    with tab_carnet:
+        _render_carnet(audit)
 
-    if not rows:
-        st.markdown(
-            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-            f'border-radius:{T.RADIUS_LG};padding:40px;text-align:center;margin-top:20px">'
-            f'<div style="font-size:32px;margin-bottom:10px">📭</div>'
-            f'<div style="color:{T.TEXT_MED};font-size:14px">Aucune transaction pour cette période</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-        return
+    with tab_hist:
+        # ── Filtres ───────────────────────────────────────────────────────────
+        f1, f2, f3 = st.columns([2, 1, 1])
+        with f1:
+            cats = ["Toutes"] + _get_cats(audit, audit.user_id)
+            cat_sel = st.selectbox("Catégorie", cats, key="hist_cat")
+        with f2:
+            sens_sel = st.selectbox("Sens", ["Tous", "OUT", "IN"], key="hist_sens")
+        with f3:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            if st.button("🔄 Rafraîchir", key="hist_refresh", use_container_width=True):
+                st.rerun()
 
-    # KPI ligne
-    total_out = sum(r["Montant"] for r in rows if r["Sens"] == "OUT")
-    total_in  = sum(r["Montant"] for r in rows if r["Sens"] == "IN")
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Transactions", len(rows))
-    k2.metric("Dépenses", _dh(total_out))
-    k3.metric("Revenus", _dh(total_in))
+        # ── Données ───────────────────────────────────────────────────────────
+        rows = audit.get_transactions(mois_sel, sens_sel, cat_sel)
 
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-    _section(f"{len(rows)} transaction(s)")
+        if not rows:
+            st.markdown(
+                f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+                f'border-radius:{T.RADIUS_LG};padding:40px;text-align:center;margin-top:20px">'
+                f'<div style="font-size:32px;margin-bottom:10px">📭</div>'
+                f'<div style="color:{T.TEXT_MED};font-size:14px">Aucune transaction pour cette période</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            return
 
-    _render_liste(audit, rows)
+        # KPI ligne
+        total_out = sum(r["Montant"] for r in rows if r["Sens"] == "OUT")
+        total_in  = sum(r["Montant"] for r in rows if r["Sens"] == "IN")
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Transactions", len(rows))
+        k2.metric("Dépenses", _dh(total_out))
+        k3.metric("Revenus", _dh(total_in))
+
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        _section(f"{len(rows)} transaction(s)")
+
+        _render_liste(audit, rows)
 
 
 @st.fragment
@@ -117,19 +124,30 @@ def _render_liste(audit, rows) -> None:
                     new_lib = st.text_input("Libellé", value=tx["Libelle"], key=f"elib_{tid}")
                 with e2:
                     new_mnt = st.number_input(
-                        "Montant (DH)", value=float(tx["Montant"]),
+                        "Montant (DH)", value=abs(float(tx["Montant"])),
                         min_value=0.01, step=1.0, key=f"emnt_{tid}"
                     )
                 e3, e4 = st.columns(2)
                 with e3:
-                    all_cats = audit.get_categories()
+                    all_cats = _get_cats(audit, audit.user_id)
                     cat_idx  = all_cats.index(cat) if cat in all_cats else 0
                     new_cat  = st.selectbox("Catégorie", all_cats, index=cat_idx, key=f"ecat_{tid}")
                 with e4:
-                    scats    = audit.get_sous_categories(new_cat)
+                    scats    = _get_scats(audit, new_cat, audit.user_id)
                     scat_idx = scats.index(scat) if scat in scats else 0
                     new_scat = st.selectbox("Sous-catégorie", scats or ["—"],
                                             index=scat_idx, key=f"escat_{tid}")
+                e5, e6 = st.columns(2)
+                with e5:
+                    new_tags = st.text_input(
+                        "🏷️ Tags", value=tx.get("Tags", "") or "",
+                        placeholder="hanout, famille…", key=f"etags_{tid}",
+                    )
+                with e6:
+                    new_contact = st.text_input(
+                        "👤 Contact", value=tx.get("Contact", "") or "",
+                        placeholder="ex: Karim", key=f"econtact_{tid}",
+                    )
                 try:
                     date_def = datetime.strptime(date_v, "%Y-%m-%d").date()
                 except ValueError:
@@ -142,7 +160,8 @@ def _render_liste(audit, rows) -> None:
                     if st.button("💾 Enregistrer", key=f"esave_{tid}", type="primary", use_container_width=True):
                         audit.modifier_transaction(
                             tid, new_lib.strip(), new_mnt,
-                            new_cat, new_scat, str(new_date)
+                            new_cat, new_scat, str(new_date),
+                            tags=new_tags, contact=new_contact,
                         )
                         st.session_state.hist_edit_id = None
                         _invalider_cache()
@@ -155,6 +174,27 @@ def _render_liste(audit, rows) -> None:
             continue
 
         # ── Affichage normal ──────────────────────────────────────────────────
+        tags_str    = (tx.get("Tags", "") or "").strip()
+        contact_str = (tx.get("Contact", "") or "").strip()
+
+        tags_html = ""
+        if tags_str:
+            tags_html += "".join(
+                f'<span style="background:{T.BG_CARD_ALT};color:{T.TEXT_MED};'
+                f'font-size:10px;padding:2px 7px;border-radius:{T.RADIUS_PILL};'
+                f'margin-right:4px;border:1px solid {T.BORDER}">🏷 {t.strip()}</span>'
+                for t in tags_str.split(",") if t.strip()
+            )
+        if contact_str:
+            tags_html += (
+                f'<span style="background:{T.PRIMARY}15;color:{T.PRIMARY};'
+                f'font-size:10px;padding:2px 7px;border-radius:{T.RADIUS_PILL};'
+                f'margin-right:4px;border:1px solid {T.PRIMARY}30">👤 {contact_str}</span>'
+            )
+
+        meta_line = f"{cat} · {scat} · {date_v}"
+        tags_row  = f'<div style="margin-top:4px">{tags_html}</div>' if tags_html else ""
+
         row_html = (
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
             f'border-radius:{T.RADIUS_MD};padding:12px 16px;'
@@ -163,7 +203,8 @@ def _render_liste(audit, rows) -> None:
             f'background:{couleur};flex-shrink:0"></div>'
             f'<div style="flex:1;min-width:0">'
             f'<div style="color:{T.TEXT_HIGH};font-weight:600;font-size:13px">{tx["Libelle"]}</div>'
-            f'<div style="color:{T.TEXT_LOW};font-size:11px">{cat} · {scat} · {date_v}</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px">{meta_line}</div>'
+            f'{tags_row}'
             f'</div>'
             f'<div style="color:{couleur};font-weight:700;font-size:15px;white-space:nowrap">'
             f'{signe} {_dh(tx["Montant"])}</div>'
@@ -182,3 +223,85 @@ def _render_liste(audit, rows) -> None:
                 st.session_state.hist_del_id  = tid
                 st.session_state.hist_edit_id = None
                 st.rerun()
+
+
+def _render_carnet(audit) -> None:
+    """
+    💳 Carnet de Crédit — soldes par contact (hanout, amis, famille).
+    Toutes les transactions avec un Contact renseigné, groupées par contact.
+    """
+    st.markdown(
+        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:16px">'
+        f'Suivi des dettes et créances — tout ce qui est tagué avec un Contact.</p>',
+        unsafe_allow_html=True,
+    )
+
+    # Fetch all transactions with a contact across all time
+    try:
+        with audit.db.connexion() as conn:
+            rows = conn.execute(
+                """SELECT Contact, Sens, SUM(ABS(Montant)) AS Total
+                   FROM TRANSACTIONS
+                   WHERE user_id=%s AND Contact IS NOT NULL AND Contact != ''
+                     AND Statut='VALIDE'
+                   GROUP BY Contact, Sens
+                   ORDER BY Contact""",
+                (audit.user_id,),
+            ).fetchall()
+    except Exception:
+        st.info("Aucun contact enregistré pour l'instant.")
+        return
+
+    if not rows:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_LG};padding:32px;text-align:center">'
+            f'<div style="font-size:28px;margin-bottom:8px">📒</div>'
+            f'<div style="color:{T.TEXT_MED};font-size:13px">'
+            f'Aucun contact enregistré.<br>Ajoutez un Contact lors de la saisie d\'une transaction.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    # Aggregate per contact
+    from collections import defaultdict
+    balances: dict = defaultdict(lambda: {"out": 0.0, "in": 0.0})
+    for r in rows:
+        contact = r[0] if hasattr(r, "__getitem__") else r["Contact"]
+        sens    = r[1] if hasattr(r, "__getitem__") else r["Sens"]
+        total   = float(r[2] if hasattr(r, "__getitem__") else r["Total"])
+        if sens == "OUT":
+            balances[contact]["out"] += total
+        else:
+            balances[contact]["in"] += total
+
+    for contact, data in sorted(balances.items()):
+        net = data["out"] - data["in"]
+        if net > 0:
+            color  = T.DANGER
+            status = f"Tu as dépensé {_dh(net)} (hanout / avance)"
+        elif net < 0:
+            color  = T.SUCCESS
+            status = f"Tu as reçu {_dh(abs(net))} de plus que dépensé"
+        else:
+            color  = T.TEXT_LOW
+            status = "Soldé"
+
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-left:3px solid {color};border-radius:{T.RADIUS_MD};'
+            f'padding:14px 16px;margin-bottom:8px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<div>'
+            f'<div style="color:{T.TEXT_HIGH};font-weight:700;font-size:14px">👤 {contact}</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">{status}</div>'
+            f'</div>'
+            f'<div style="text-align:right">'
+            f'<div style="color:{color};font-weight:900;font-size:18px">{_dh(abs(net))}</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:10px">'
+            f'Sorti : {_dh(data["out"])} · Entré : {_dh(data["in"])}</div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )

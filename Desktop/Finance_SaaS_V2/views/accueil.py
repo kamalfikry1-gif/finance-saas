@@ -24,6 +24,8 @@ from config import SCORE_SEUIL_ORANGE, HUMEUR_COOL, HUMEUR_NEUTRE, HUMEUR_SERIEU
 from components.cards import CAT_COLORS, alerte_box
 from components.design_tokens import T
 from components.helpers import dh as _dh
+from core import cache as ui_cache
+from core.cache import invalider as _invalider_cache
 
 
 # Plan 50/30/20 display colours (match the Calme design)
@@ -84,6 +86,121 @@ def _gauge_svg(score_val: float, color: str) -> str:
 
 # ── Sections ──────────────────────────────────────────────────────────────────
 
+def _render_quick_transaction(audit) -> None:
+    """Collapsed quick-entry form on the dashboard — minimal 3 fields."""
+    from datetime import date as _date
+
+    if "dash_sens" not in st.session_state:
+        st.session_state.dash_sens = "OUT"
+    if "dash_ctr" not in st.session_state:
+        st.session_state.dash_ctr = 0
+    if "dash_confirmer" not in st.session_state:
+        st.session_state.dash_confirmer = None
+
+    with st.expander("➕ Nouvelle transaction", expanded=False):
+        _k = st.session_state.dash_ctr
+        d1, d2 = st.columns([3, 1])
+        with d1:
+            libelle = st.text_input(
+                "Libellé", placeholder="ex: CARREFOUR, Loyer…",
+                key=f"dash_lib_{_k}", label_visibility="collapsed",
+            )
+        with d2:
+            montant_str = st.text_input(
+                "Montant", placeholder="0.00",
+                key=f"dash_mnt_{_k}", label_visibility="collapsed",
+            )
+
+        c1, c2, c3 = st.columns([1, 1, 2])
+        with c1:
+            if st.button(
+                "💸 Dépense", use_container_width=True,
+                type="primary" if st.session_state.dash_sens == "OUT" else "secondary",
+                key="dash_btn_dep",
+            ):
+                st.session_state.dash_sens = "OUT"
+                st.rerun()
+        with c2:
+            if st.button(
+                "💰 Revenu", use_container_width=True,
+                type="primary" if st.session_state.dash_sens == "IN" else "secondary",
+                key="dash_btn_rev",
+            ):
+                st.session_state.dash_sens = "IN"
+                st.rerun()
+        with c3:
+            dv = st.date_input(
+                "Date", value=_date.today(),
+                label_visibility="collapsed",
+                key=f"dash_date_{_k}",
+            )
+
+        # ── Tags & Contact (optionnel, caché) ─────────────────────────────────
+        with st.expander("🏷️ Tags & Contact", expanded=False):
+            dash_tags = st.text_input(
+                "Tags", placeholder="hanout, famille, boulot…",
+                key=f"dash_tags_{_k}", label_visibility="collapsed",
+            )
+            dash_contact = st.text_input(
+                "Contact", placeholder="ex: Karim, Hanout Derb Omar…",
+                key=f"dash_contact_{_k}", label_visibility="collapsed",
+            )
+
+        if st.session_state.dash_confirmer:
+            p = st.session_state.dash_confirmer
+            if st.button("Confirmer quand même", key="dash_btn_forcer", type="secondary",
+                         use_container_width=True):
+                res2 = audit.recevoir(p["libelle"], p["montant"], p["sens"], p["dv"], forcer=True)
+                if res2.get("action") == "OK":
+                    tx_id = res2.get("id_unique")
+                    if tx_id and (p.get("tags", "").strip() or p.get("contact", "").strip()):
+                        audit.update_tags_contact(tx_id, p.get("tags", ""), p.get("contact", ""))
+                    st.success(f"✅ **{res2.get('categorie')}** · {res2.get('sous_categorie')}")
+                    st.session_state.dash_confirmer = None
+                    st.session_state.dash_ctr += 1
+                    _invalider_cache()
+                    st.rerun()
+
+        if st.button("Enregistrer ↵", use_container_width=True,
+                     type="primary", key="dash_btn_enreg"):
+            try:
+                montant = float(montant_str.replace(",", ".").replace(" ", "")) if montant_str.strip() else 0.0
+            except ValueError:
+                montant = 0.0
+
+            if not libelle.strip():
+                st.warning("Libellé requis.")
+            elif montant <= 0:
+                st.warning("Montant > 0 requis.")
+            else:
+                with st.spinner("Traitement…"):
+                    res = audit.recevoir(libelle.strip(), montant,
+                                         st.session_state.dash_sens, dv)
+                action = res.get("action")
+                if action == "OK":
+                    tx_id = res.get("id_unique")
+                    if tx_id and (dash_tags.strip() or dash_contact.strip()):
+                        audit.update_tags_contact(tx_id, dash_tags, dash_contact)
+                    st.success(
+                        f"✅ **{res.get('categorie')}** · {res.get('sous_categorie')}"
+                    )
+                    st.session_state.dash_ctr += 1
+                    _invalider_cache()
+                    st.rerun()
+                elif action == "CONFIRMER":
+                    st.session_state.dash_confirmer = {
+                        "libelle": libelle.strip(), "montant": montant,
+                        "sens": st.session_state.dash_sens, "dv": dv,
+                        "tags": dash_tags, "contact": dash_contact,
+                    }
+                    st.warning(f"⚠️ {res.get('message', '')}")
+                elif action == "BLOQUER":
+                    st.session_state.dash_confirmer = None
+                    st.error(f"🚫 {res.get('message', 'Doublon détecté')}")
+                else:
+                    st.error(res.get("erreur", "Erreur inconnue"))
+
+
 def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str) -> None:
     solde  = bilan["solde"]
     sign   = "+" if solde >= 0 else "−"
@@ -129,29 +246,32 @@ def _render_kpis(bilan: dict, proj: dict) -> None:
             f'</div>'
         )
 
+    je         = int(proj.get("jours_ecoules", 0) or 0)
+    jours_total = int(proj.get("jours_total", 30) or 30)
+
     k1, k2, k3, k4 = st.columns(4, gap="small")
     with k1:
         st.markdown(
-            _card("success", "Revenus", revenus,
-                  f'<span class="up">ce mois · {proj.get("jours_ecoules", "?")} j</span>'),
+            _card("success", "Revenus du mois", revenus,
+                  f'<span class="up">Total encaissé ce mois</span>'),
             unsafe_allow_html=True,
         )
     with k2:
         st.markdown(
             _card("warn", "Dépenses", depenses,
-                  f'<span class="warn">↑ {jours_rest} j restants</span>'),
+                  f'<span class="warn">Dépensé sur {je}j — {jours_rest}j restants</span>'),
             unsafe_allow_html=True,
         )
     with k3:
         st.markdown(
             _card("", "Reste à vivre", reste_a_vivre,
-                  f'pour {jours_rest} jours restants'),
+                  f'Projection fin de mois : {_fmt_dh(proj_v)} DH dépensé'),
             unsafe_allow_html=True,
         )
     with k4:
         st.markdown(
             _card("violet", "Épargne cumulée", epargne_cumul,
-                  f'<span class="up">+{_fmt_dh(epargne_mois)} ce mois</span>'),
+                  f'<span class="up">+{_fmt_dh(epargne_mois)} DH ce mois</span>'),
             unsafe_allow_html=True,
         )
 
@@ -283,18 +403,32 @@ def _render_score_plan(score: dict, badges: dict) -> None:
     )
 
 
-def _render_goals(audit) -> None:
+def _render_goals(audit, user_id: int) -> None:
     try:
-        goals = audit.get_objectifs_v2() or []
+        goals = ui_cache.get_objectifs(audit, user_id)
     except Exception:
         goals = []
-    if not goals:
-        return
 
     st.markdown(
         '<div class="v1-sec-head" style="margin-top:18px">Objectifs d\'épargne</div>',
         unsafe_allow_html=True,
     )
+
+    if not goals:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:16px;text-align:center;margin-bottom:6px">'
+            f'<div style="color:{T.TEXT_LOW};font-size:12px">'
+            f'Aucun objectif d\'épargne défini.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("🎯 Créer mon premier objectif →", key="acc_goal_cta",
+                     use_container_width=True):
+            st.session_state.page = "Objectif"
+            st.rerun()
+        return
+
     for g in goals[:2]:
         target = float(g.get("montant_cible") or g.get("Montant_Cible") or 0)
         current = float(g.get("montant_actuel") or g.get("Montant_Actuel") or 0)
@@ -319,6 +453,111 @@ def _render_goals(audit) -> None:
             f'</div>',
             unsafe_allow_html=True,
         )
+
+    if len(goals) > 2:
+        if st.button(f"Voir les {len(goals)} objectifs →", key="acc_goal_all",
+                     use_container_width=True):
+            st.session_state.page = "Objectif"
+            st.rerun()
+
+
+def _render_radar(audit, proj: dict) -> None:
+    """⚡ Radar — upcoming recurring bills in the next 7 days."""
+    import calendar
+    from datetime import date, timedelta
+
+    today     = date.today()
+    days_left = int(proj.get("jours_total", 30) or 30) - int(proj.get("jours_ecoules", 0) or 0)
+    if days_left <= 0:
+        return
+
+    try:
+        res = audit.query("radar_factures", nb_mois_min=2)
+        charges = res.get("resultat", [])
+    except Exception:
+        return
+
+    if not charges:
+        return
+
+    upcoming = []
+    for c in charges:
+        jour = c.get("Jour_Habituel")
+        if jour is None:
+            continue
+        jour = int(round(float(jour)))
+        # Days until next occurrence
+        if jour >= today.day:
+            delta = jour - today.day
+        else:
+            # Next month
+            nm = today.month + 1 if today.month < 12 else 1
+            ny = today.year if today.month < 12 else today.year + 1
+            jour_clamp = min(jour, calendar.monthrange(ny, nm)[1])
+            delta = (date(ny, nm, jour_clamp) - today).days
+
+        if delta <= 7:
+            upcoming.append({**c, "delta": delta})
+
+    if not upcoming:
+        return
+
+    st.markdown(
+        f'<div style="background:{T.WARNING}10;border:1px solid {T.WARNING}40;'
+        f'border-radius:{T.RADIUS_MD};padding:14px 16px;margin-top:14px">'
+        f'<div style="color:{T.WARNING};font-size:11px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">'
+        f'⚡ Radar — Factures dans les 7 prochains jours</div>',
+        unsafe_allow_html=True,
+    )
+    for item in upcoming:
+        label  = item.get("Libelle", "")[:28]
+        mnt    = float(item.get("Montant_Moyen", 0))
+        delta  = item["delta"]
+        urgence = T.DANGER if delta <= 2 else T.WARNING
+        timing  = "demain" if delta == 1 else ("aujourd'hui" if delta == 0 else f"dans {delta}j")
+        st.markdown(
+            f'<div style="display:flex;justify-content:space-between;'
+            f'align-items:center;padding:4px 0;border-bottom:1px solid {T.BORDER_MED}">'
+            f'<span style="color:{T.TEXT_MED};font-size:12px">{label}</span>'
+            f'<span style="display:flex;gap:12px;align-items:center">'
+            f'<span style="color:{T.TEXT_HIGH};font-size:12px;font-weight:600">{_dh(mnt)}</span>'
+            f'<span style="color:{urgence};font-size:11px;font-weight:700">{timing}</span>'
+            f'</span></div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_age_of_money(audit, bilan: dict, proj: dict) -> None:
+    """⏱ Age of Money — how long money sits before being spent."""
+    solde = bilan.get("solde", 0)
+    burn  = float(proj.get("taux_journalier", 0) or 0)
+    age   = audit.age_of_money(solde, burn)
+
+    if age is None:
+        return
+
+    if age >= 30:
+        color, label = T.SUCCESS, "Excellent — tu vis sur le mois précédent"
+    elif age >= 15:
+        color, label = T.WARNING, "Bien — vise 30 jours pour plus de sérénité"
+    else:
+        color, label = T.DANGER, "Fragile — tu vis au jour le jour"
+
+    st.markdown(
+        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+        f'border-radius:{T.RADIUS_MD};padding:14px 16px;margin-top:14px">'
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⏱ Âge de ton argent</div>'
+        f'<div style="display:flex;align-items:baseline;gap:6px">'
+        f'<span style="color:{color};font-size:28px;font-weight:900">{age}</span>'
+        f'<span style="color:{T.TEXT_LOW};font-size:13px">jours</span>'
+        f'</div>'
+        f'<div style="color:{color};font-size:11px;margin-top:4px">{label}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_donut(rept: list) -> None:
@@ -368,6 +607,7 @@ def render(ctx: dict) -> None:
     identite = ctx["identite_active"]
     audit    = ctx["audit"]
 
+    _render_quick_transaction(audit)
     _render_hero(bilan, proj, score, mois_lbl)
     _render_kpis(bilan, proj)
 
@@ -377,9 +617,11 @@ def render(ctx: dict) -> None:
     with col_cats:
         _render_categories(rept, ctx)
     with col_right:
+        _render_radar(audit, proj)
         _render_coach(message, humeur, identite)
         _render_score_plan(score, badges)
-        _render_goals(audit)
+        _render_age_of_money(audit, bilan, proj)
+        _render_goals(audit, ctx["user_id"])
         if alertes:
             st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
             for a in alertes[:3]:

@@ -36,8 +36,6 @@ from logic_sqlite import (
     ResultatClassification,
 )
 from config import (
-    DB_PATH,
-    SNAPSHOT_TTL,
     MOT_CLE_MIN_LEN,
     MOT_CLE_MAX_LEN,
     SEUIL_ANOMALIE_SIGMA,
@@ -60,7 +58,6 @@ logger = logging.getLogger("AUDIT")
 # CONSTANTES LOCALES (non exportées dans config car internes à audit)
 # ─────────────────────────────────────────────────────────────────────────────
 
-SNAPSHOT_TTL_SECONDES  = SNAPSHOT_TTL
 MONTANT_MIN            = 0.01
 MONTANT_MAX            = 999_999.0
 
@@ -68,7 +65,7 @@ MONTANT_MAX            = 999_999.0
 _CATEGORIES_NEEDS   = {"Logement", "Alimentation", "Transport",
                         "Sante", "Santé", "Vie Quotidienne"}
 _CATEGORIES_WANTS   = {"Loisirs", "Abonnements", "Divers"}
-_CATEGORIES_SAVINGS = {"Finances Credits", "Epargne"}
+_CATEGORIES_SAVINGS = {"Finances Credits", "Finances & Crédits", "Epargne", "Épargne"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -89,6 +86,7 @@ class AuditMiddleware:
         self.trieur    = Trieur(self.db, user_id)
         self.comptable = ComptableBudget(self.db, user_id)
         self.moteur    = MoteurAnalyse(self.db, user_id)
+        self._identite_cache: Optional[str] = None
         logger.info(f"AuditMiddleware initialisé — user_id={user_id}")
 
     # =========================================================================
@@ -106,13 +104,21 @@ class AuditMiddleware:
     def set_preference(self, cle: str, valeur: str) -> None:
         """Modifie une préférence et invalide les snapshots UI."""
         self.db.set_preference(cle, valeur, self.user_id)
+        if cle == "coach_identite":
+            self._identite_cache = None
         self.invalider_snapshots()
         self._log("PREFS", "SET_PREFERENCE", {"cle": cle, "valeur": valeur})
 
     def get_identite(self) -> str:
-        """Retourne l'identité active du coach (défaut : EQUILIBRE)."""
+        """Retourne l'identité active du coach (défaut : EQUILIBRE).
+        Mémoïsé sur l'instance — invalidé par set_identite/set_preference."""
+        if self._identite_cache is not None:
+            return self._identite_cache
         identite = self.get_preference("coach_identite", "EQUILIBRE").upper()
-        return identite if identite in IDENTITES_COACH else "EQUILIBRE"
+        if identite not in IDENTITES_COACH:
+            identite = "EQUILIBRE"
+        self._identite_cache = identite
+        return identite
 
     def set_identite(self, identite: str) -> None:
         """
@@ -352,16 +358,85 @@ class AuditMiddleware:
         self._log("TRANSACTION", "SUPPRIME", {"id": tx_id})
 
     def modifier_transaction(self, tx_id: str, libelle: str, montant: float,
-                              categorie: str, sous_categorie: str, date_valeur: str) -> None:
+                              categorie: str, sous_categorie: str, date_valeur: str,
+                              tags: str = "", contact: str = "") -> None:
         with self.db.connexion() as conn:
             conn.execute(
                 """UPDATE TRANSACTIONS
-                   SET Libelle=%s, Montant=%s, Categorie=%s, Sous_Categorie=%s, Date_Valeur=%s
+                   SET Libelle=%s, Montant=%s, Categorie=%s, Sous_Categorie=%s,
+                       Date_Valeur=%s, Tags=%s, Contact=%s
                    WHERE ID_Unique=%s AND user_id=%s""",
-                (libelle, montant, categorie, sous_categorie, date_valeur, tx_id, self.user_id),
+                (libelle, montant, categorie, sous_categorie, date_valeur,
+                 tags.strip(), contact.strip(), tx_id, self.user_id),
             )
         self.invalider_snapshots()
         self._log("TRANSACTION", "MODIFIE", {"id": tx_id, "libelle": libelle})
+
+    def update_tags_contact(self, tx_id: str, tags: str, contact: str) -> None:
+        """Attaches tags and contact to an existing transaction (post-save enrichment)."""
+        if not tags.strip() and not contact.strip():
+            return
+        with self.db.connexion() as conn:
+            conn.execute(
+                "UPDATE TRANSACTIONS SET Tags=%s, Contact=%s WHERE ID_Unique=%s AND user_id=%s",
+                (tags.strip(), contact.strip(), tx_id, self.user_id),
+            )
+
+    # =========================================================================
+    # AGE OF MONEY
+    # =========================================================================
+
+    def age_of_money(self, solde: float, burn_rate_journalier: float) -> Optional[int]:
+        """
+        Âge moyen de l'argent en jours (inspiré de YNAB).
+        solde / burn_rate = combien de jours ton solde peut couvrir.
+        """
+        if burn_rate_journalier <= 0 or solde <= 0:
+            return None
+        return int(solde / burn_rate_journalier)
+
+    # =========================================================================
+    # DARET TRACKER
+    # =========================================================================
+
+    def get_darets(self) -> List[Dict]:
+        from db_manager import _canon_dict
+        with self.db.connexion() as conn:
+            rows = conn.execute(
+                "SELECT * FROM DARETS WHERE user_id=%s AND Statut='ACTIF' ORDER BY id DESC",
+                (self.user_id,),
+            ).fetchall()
+        return [_canon_dict(r) for r in rows]
+
+    def creer_daret(self, nom: str, montant_mensuel: float, membres: list,
+                    date_debut: str, notes: str = "") -> None:
+        import json
+        with self.db.connexion() as conn:
+            conn.execute(
+                """INSERT INTO DARETS
+                   (Nom, Montant_Mensuel, Nb_Membres, Membres_JSON,
+                    Tour_Actuel, Date_Debut, Statut, Notes, user_id)
+                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s)""",
+                (nom.strip(), montant_mensuel, len(membres),
+                 json.dumps(membres, ensure_ascii=False),
+                 date_debut, notes.strip(), self.user_id),
+            )
+
+    def avancer_tour_daret(self, daret_id: int) -> None:
+        with self.db.connexion() as conn:
+            conn.execute(
+                """UPDATE DARETS SET Tour_Actuel = Tour_Actuel + 1
+                   WHERE id=%s AND user_id=%s""",
+                (daret_id, self.user_id),
+            )
+
+    def cloturer_daret(self, daret_id: int) -> None:
+        with self.db.connexion() as conn:
+            conn.execute(
+                "UPDATE DARETS SET Statut='CLOTURE' WHERE id=%s AND user_id=%s",
+                (daret_id, self.user_id),
+            )
+        self._log("DARET", "CLOTURE", {"id": daret_id})
 
     # =========================================================================
     # PLAFONDS (views/plafond.py)
@@ -425,12 +500,12 @@ class AuditMiddleware:
         with self.db.connexion() as conn:
             if role:
                 rows = conn.execute(
-                    "SELECT * FROM AUDIT_LOG WHERE user_id = ? AND Role = ? ORDER BY Timestamp DESC LIMIT ?",
+                    "SELECT * FROM AUDIT_LOG WHERE user_id = %s AND Role = %s ORDER BY Timestamp DESC LIMIT %s",
                     (self.user_id, role.upper(), limit)
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT * FROM AUDIT_LOG WHERE user_id = ? ORDER BY Timestamp DESC LIMIT ?",
+                    "SELECT * FROM AUDIT_LOG WHERE user_id = %s ORDER BY Timestamp DESC LIMIT %s",
                     (self.user_id, limit)
                 ).fetchall()
         from db_manager import _canon_dict
@@ -440,82 +515,15 @@ class AuditMiddleware:
     # ROLE 4 — SNAPSHOT MANAGER  (privé)
     # =========================================================================
 
-    def _nb_transactions(self) -> int:
-        with self.db.connexion() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM TRANSACTIONS WHERE Statut = 'VALIDE' AND user_id = ?",
-                (self.user_id,)
-            ).fetchone()
-        return int(row[0] or 0)
-
-    def _get_snapshot(self, cle: str, ttl: int = SNAPSHOT_TTL_SECONDES) -> Optional[Dict]:
-        """
-        Retourne le payload du cache si :
-          - Le snapshot existe
-          - TTL non expiré
-          - Le nb de transactions n'a pas changé (nouvelles données → invalide)
-        """
-        try:
-            with self.db.connexion() as conn:
-                row = conn.execute(
-                    "SELECT Timestamp, Payload, Nb_Trans FROM SNAPSHOTS WHERE Cle = ? AND user_id = ?",
-                    (cle, self.user_id)
-                ).fetchone()
-
-            if not row:
-                return None
-
-            ts_snap = datetime.strptime(str(row[0]), "%Y-%m-%d %H:%M:%S")
-            if (datetime.now() - ts_snap).total_seconds() > ttl:
-                return None                           # TTL expiré
-
-            if int(row[2]) != self._nb_transactions():
-                return None                           # Nouvelles données → invalide
-
-            return json.loads(row[1])
-        except Exception:
-            return None
-
-    def _set_snapshot(self, cle: str, payload: Dict) -> None:
-        """Sauvegarde un snapshot horodaté avec le nb de transactions courant."""
-        try:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with self.db.connexion() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO SNAPSHOTS (Cle, Timestamp, Payload, Nb_Trans, user_id)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (Cle, user_id) DO UPDATE
-                    SET Timestamp = EXCLUDED.Timestamp,
-                        Payload   = EXCLUDED.Payload,
-                        Nb_Trans  = EXCLUDED.Nb_Trans
-                    """,
-                    (cle, ts, json.dumps(payload, ensure_ascii=False, default=str),
-                     self._nb_transactions(), self.user_id),
-                )
-            logger.debug(f"Snapshot '{cle}' sauvegarde")
-        except Exception as e:
-            logger.warning(f"Snapshot '{cle}' non sauvegarde : {e}")
-
     def invalider_snapshots(self, prefixe: Optional[str] = None) -> None:
         """
-        Invalide les snapshots.
+        No-op conservé pour compatibilité.
 
-        Paramètre :
-          prefixe — Invalide uniquement les clés commençant par ce préfixe.
-                    None → invalide tout (ex: après import en masse).
+        L'ancien cache DB SNAPSHOTS est remplacé par @st.cache_data
+        (core/cache.py). L'invalidation se fait côté UI via
+        core.cache.invalider() après chaque écriture.
         """
-        with self.db.connexion() as conn:
-            if prefixe:
-                conn.execute(
-                    "DELETE FROM SNAPSHOTS WHERE Cle LIKE ? AND user_id = ?",
-                    (f"{prefixe}%", self.user_id)
-                )
-            else:
-                conn.execute("DELETE FROM SNAPSHOTS WHERE user_id = ?", (self.user_id,))
-        self._log("SNAPSHOT", "INVALIDATION",
-                  {"prefixe": prefixe or "GLOBAL"}, statut="OK")
-        logger.info(f"Snapshots invalides (prefixe={prefixe or 'GLOBAL'})")
+        return
 
     # =========================================================================
     # ROLE 6 — ANOMALY DETECTOR  (avant logic)
@@ -552,7 +560,7 @@ class AuditMiddleware:
             recents = conn.execute(
                 """
                 SELECT Libelle, Montant FROM TRANSACTIONS
-                WHERE Date_Saisie >= ? AND Statut = 'VALIDE' AND user_id = ?
+                WHERE Date_Saisie >= %s AND Statut = 'VALIDE' AND user_id = %s
                 """,
                 (fenetre, self.user_id)
             ).fetchall()
@@ -575,7 +583,7 @@ class AuditMiddleware:
                     AVG(ABS(Montant)),
                     AVG(ABS(Montant) * ABS(Montant)) - AVG(ABS(Montant)) * AVG(ABS(Montant))
                 FROM TRANSACTIONS
-                WHERE Sens = ? AND Statut = 'VALIDE' AND ABS(Montant) > 0 AND user_id = ?
+                WHERE Sens = %s AND Statut = 'VALIDE' AND ABS(Montant) > 0 AND user_id = %s
                 """,
                 (sens, self.user_id)
             ).fetchone()
@@ -669,7 +677,7 @@ class AuditMiddleware:
 
         Retourne un dict avec les clés :
           OK      → { id_unique, montant, categorie, sous_categorie, methode,
-                      score, action:'OK', anomalies, anticipation }
+                      score, action:'OK', anomalies }
           BLOQUER → { id_unique:None, action:'BLOQUER', message, anomalies }
           CONFIRMER→ { id_unique:None, action:'CONFIRMER', message, anomalies }
           REJETE  → { id_unique:None, action:'REJETE', erreur }
@@ -745,14 +753,7 @@ class AuditMiddleware:
                 "anomalies": [],
             }
 
-        # ── Étape 5 : (supprimée) ─────────────────────────────────────────────
-        # _anticiper() faisait 7+ requêtes lourdes dont le résultat était
-        # immédiatement invalidé par l'étape 7. Pur gâchis (3-8s par write).
-        # L'anticipation est recalculée à la demande par get_anticipation(),
-        # avec Streamlit cache @st.cache_data en front (voir core/cache.py).
-        anticipation: Dict[str, Any] = {}
-
-        # ── Étape 6 : Log Audit Trail ─────────────────────────────────────────
+        # ── Log Audit Trail ──────────────────────────────────────────────────
         output_data = {
             "id_unique":      resultat["id_unique"],
             "montant":        resultat["montant"],
@@ -768,10 +769,6 @@ class AuditMiddleware:
             statut="OK",
         )
 
-        # ── Étape 7 : Invalidation snapshots UI + anticipation ─────────────
-        self.invalider_snapshots(prefixe="ui_state_")
-        self.invalider_snapshots(prefixe="anticipation_")
-
         return {
             "id_unique":      resultat["id_unique"],
             "montant":        resultat["montant"],
@@ -781,95 +778,7 @@ class AuditMiddleware:
             "score":          classification.score,
             "action":         "OK",
             "anomalies":      anomalie["anomalies"],
-            "anticipation":   anticipation,
         }
-
-    # =========================================================================
-    # ROLE 3 — ANTICIPATION ENGINE
-    # =========================================================================
-
-    def _anticiper(self, mois: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Calcule et sauvegarde automatiquement les indicateurs proactifs :
-          - Plan 50/30/20 courant vs cible
-          - Projection dépenses fin de mois
-          - Vélocité hebdomadaire (si on continue à ce rythme…)
-          - Alertes de seuil (catégories >= 80% du budget)
-
-        Appelé automatiquement après chaque nouvelle transaction (via recevoir()).
-        Peut aussi être appelé manuellement.
-        """
-        mois_str = mois or datetime.now().strftime("%m/%Y")
-
-        identite   = self.get_identite()
-        mapping    = self._get_mapping_5030_20()
-        seuil_al   = float(IDENTITES_COACH[identite].get("seuil_alerte", 80))
-
-        bvr_5030   = self.moteur.get_analyse_5030_20(mois_str, mapping=mapping)
-        projection = self.moteur.get_projection_fin_mois(mois_str)
-        alertes    = self.moteur.get_alertes_seuil(seuil_al, mois_str)
-
-        # Vélocité : % du mois écoulé vs % des dépenses consommées
-        jours_ecoules = projection.get("jours_ecoules", 1)
-        jours_total   = projection.get("jours_total", 30)
-        dep_act       = projection.get("depenses_actuelles", 0)
-        proj_fin      = projection.get("projection_fin_mois", 0)
-        pct_mois      = round(jours_ecoules / jours_total * 100, 1)
-
-        # Alertes 50/30/20 spécifiques
-        alertes_5030 = []
-        for bucket, info in bvr_5030.get("buckets", {}).items():
-            if info["statut"] != "OK":
-                alertes_5030.append({
-                    "bucket":    bucket,
-                    "reel_pct":  info["reel_pct"],
-                    "cible_pct": info["cible_pct"],
-                    "ecart_pct": info["ecart_pct"],
-                    "statut":    info["statut"],
-                    "message": (
-                        f"{bucket} : {info['reel_pct']:.1f}% vs cible {info['cible_pct']:.0f}% "
-                        f"(ecart {info['ecart_pct']:+.1f}%)"
-                    ),
-                })
-
-        anticipation = {
-            "mois":            mois_str,
-            "pct_mois_ecoule": pct_mois,
-            "depenses_act_dh": dep_act,
-            "projection_dh":   proj_fin,
-            "solde_projete":   projection.get("solde_projete", 0),
-            "taux_journalier": projection.get("taux_journalier", 0),
-            "budget_5030_20":  bvr_5030,
-            "alertes_seuil":   alertes,
-            "alertes_5030_20": alertes_5030,
-            "calcule_a":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-
-        self._set_snapshot(f"anticipation_{mois_str}", anticipation)
-        self._log(
-            "ANTICIPATION", "CALCUL_AUTO",
-            {"mois": mois_str},
-            {
-                "nb_alertes_seuil": len(alertes),
-                "nb_alertes_5030":  len(alertes_5030),
-                "solde_projete":    projection.get("solde_projete"),
-            },
-        )
-
-        return anticipation
-
-    def get_anticipation(self, mois: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Retourne l'anticipation depuis le cache si disponible, sinon la recalcule.
-
-        Utilisé par app.py pour afficher la section "Ce mois-ci" sans attendre
-        une nouvelle transaction.
-        """
-        mois_str = mois or datetime.now().strftime("%m/%Y")
-        cached   = self._get_snapshot(f"anticipation_{mois_str}")
-        if cached:
-            return cached
-        return self._anticiper(mois_str)
 
     # =========================================================================
     # ROLE 5 — UI STATE MANAGER
@@ -885,22 +794,15 @@ class AuditMiddleware:
         Structure retournée :
         {
           mois, bilan, budget_5030_20, repartition,
-          categories_visibles, categories_masquees,
           alertes, badges_5030_20, projection,
           score_sante, message_coach, snapshot_ts
         }
 
-        Le résultat est mis en cache (Snapshot Manager) :
+        Le résultat est mis en cache côté Streamlit (core/cache.py) :
           - Valide 5 minutes
-          - Invalide si nouvelles transactions enregistrées
+          - Invalide via ui_cache.invalider() après toute écriture
         """
         mois_str = mois or datetime.now().strftime("%m/%Y")
-        cle      = f"ui_state_{mois_str}"
-
-        cached = self._get_snapshot(cle)
-        if cached:
-            logger.debug(f"UI State depuis snapshot '{cle}'")
-            return cached
 
         # ── Calculs via MoteurAnalyse ─────────────────────────────────────────
         identite    = self.get_identite()
@@ -916,20 +818,6 @@ class AuditMiddleware:
 
         # ── Humeur du coach ───────────────────────────────────────────────────
         humeur = self._calculer_humeur(score, bilan, bvr_5030)
-
-        # ── Catégories visibles / masquées ────────────────────────────────────
-        cats_actives = (
-            set(repartition["Categorie"].tolist())
-            if not repartition.empty else set()
-        )
-        with self.db.connexion() as conn:
-            toutes_cats = [
-                r[0] for r in conn.execute(
-                    "SELECT DISTINCT Categorie FROM CATEGORIES ORDER BY Categorie"
-                ).fetchall()
-            ]
-        cats_visibles = [c for c in toutes_cats if c in cats_actives]
-        cats_masquees = [c for c in toutes_cats if c not in cats_actives]
 
         # ── Alertes formatées pour app.py ─────────────────────────────────────
         alertes_ui: List[Dict] = []
@@ -985,8 +873,6 @@ class AuditMiddleware:
                 repartition.to_dict("records")
                 if not repartition.empty else []
             ),
-            "categories_visibles": cats_visibles,
-            "categories_masquees": cats_masquees,
             "alertes":             alertes_ui,
             "badges_5030_20":      badges,
             "projection":          projection,
@@ -997,16 +883,9 @@ class AuditMiddleware:
             "snapshot_ts":         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        self._set_snapshot(cle, state)
-        self._log(
-            "UI", "UI_STATE_CONSTRUIT",
-            {"mois": mois_str},
-            {
-                "cats_visibles": len(cats_visibles),
-                "cats_masquees": len(cats_masquees),
-                "nb_alertes":    len(alertes_ui),
-                "score":         score.get("score"),
-            },
+        logger.debug(
+            "UI_STATE_CONSTRUIT mois=%s nb_alertes=%d score=%s",
+            mois_str, len(alertes_ui), score.get("score"),
         )
 
         return state
@@ -1180,6 +1059,7 @@ class AuditMiddleware:
         "budget_vs_reel":         "get_budget_vs_reel",
         "projection":             "get_projection_fin_mois",
         "charges_fixes":          "get_charges_fixes",
+        "radar_factures":         "get_radar_factures",
         "anomalies":              "detecter_anomalies",
         "score_sante":            "get_score_sante_financiere",
         "alertes":                "get_alertes_seuil",
@@ -1196,13 +1076,12 @@ class AuditMiddleware:
         "comparaison_habitudes":  "get_comparaison_vs_habitudes",
     }
 
-    def query(self, demande: str, use_cache: bool = True, **kwargs) -> Dict[str, Any]:
+    def query(self, demande: str, **kwargs) -> Dict[str, Any]:
         """
         Routeur de requêtes analytiques complexes vers MoteurAnalyse.
 
         Paramètres :
           demande   — Identifiant de la requête (voir liste ci-dessous).
-          use_cache — True (défaut) = retourne le snapshot si disponible.
           **kwargs  — Arguments passés à la méthode correspondante.
 
         Requêtes disponibles :
@@ -1238,13 +1117,6 @@ class AuditMiddleware:
                 "connus":  sorted(self._QUERY_MAP.keys()),
             }
 
-        # ── Vérification cache ────────────────────────────────────────────────
-        cle_snap = f"query_{demande}_{abs(hash(str(sorted(kwargs.items()))))}"
-        if use_cache:
-            cached = self._get_snapshot(cle_snap, ttl=60)
-            if cached:
-                return cached
-
         # ── Appel MoteurAnalyse ───────────────────────────────────────────────
         methode = getattr(self.moteur, self._QUERY_MAP[demande])
         try:
@@ -1277,15 +1149,10 @@ class AuditMiddleware:
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        # ── Sauvegarde cache ──────────────────────────────────────────────────
-        self._set_snapshot(cle_snap, output)
-
-        # ── Log ───────────────────────────────────────────────────────────────
-        nb_res = len(resultat_serial) if isinstance(resultat_serial, list) else 1
-        self._log(
-            "QUERY", f"REQUETE_{demande.upper()}",
-            kwargs, {"nb_resultats": nb_res},
-        )
+        # ── Log (debug only — pas d'INSERT AUDIT_LOG en hot path) ────────────
+        if logger.isEnabledFor(logging.DEBUG):
+            nb_res = len(resultat_serial) if isinstance(resultat_serial, list) else 1
+            logger.debug("QUERY %s nb_resultats=%d", demande, nb_res)
 
         return output
 
@@ -1294,69 +1161,3 @@ class AuditMiddleware:
         return sorted(self._QUERY_MAP.keys())
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# POINT D'ENTREE — SMOKE TEST
-# ─────────────────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-    )
-
-    audit = AuditMiddleware("finance_saas.db")
-
-    print("\n" + "=" * 60)
-    print("ROLE 1+6 — GATEWAY + ANOMALY DETECTOR")
-    print("=" * 60)
-
-    # Saisie valide
-    r1 = audit.recevoir("CARREFOUR EXPRESS", 55.0, "OUT")
-    print(f"Valide  → action={r1['action']} | {r1.get('categorie','?')}/{r1.get('sous_categorie','?')} | methode={r1.get('methode','?')}")
-
-    # Saisie invalide
-    r2 = audit.recevoir("", -50.0, "X")
-    print(f"Invalide→ action={r2['action']} | erreur={r2.get('erreur','?')}")
-
-    print("\n" + "=" * 60)
-    print("ROLE 3 — ANTICIPATION ENGINE")
-    print("=" * 60)
-    ant = audit.get_anticipation()
-    print(f"Mois : {ant['mois']} | Projection fin mois : {ant['projection_dh']} DH")
-    print(f"50/30/20 score respect : {ant['budget_5030_20'].get('score_respect', 0)}%")
-    for b, info in ant["budget_5030_20"].get("buckets", {}).items():
-        print(f"  {b:8s} → {info['reel_pct']:5.1f}% vs cible {info['cible_pct']:.0f}% [{info['statut']}]")
-
-    print("\n" + "=" * 60)
-    print("ROLE 5 — UI STATE MANAGER")
-    print("=" * 60)
-    state = audit.get_ui_state()
-    print(f"Score sante : {state['score_sante']['score']}/100 [{state['score_sante']['niveau']}]")
-    print(f"Categories visibles : {state['categories_visibles']}")
-    print(f"Categories masquees : {state['categories_masquees']}")
-    print(f"Message coach : {state['message_coach']}")
-    print(f"Alertes : {len(state['alertes'])}")
-    for a in state["alertes"]:
-        print(f"  [{a['type']}] {a['message']}")
-
-    print("\n" + "=" * 60)
-    print("ROLE 7 — QUERY ENGINE")
-    print("=" * 60)
-    for demande, kwargs in [
-        ("plan_5030_20", {}),
-        ("projection",   {}),
-        ("score_sante",  {}),
-        ("crash_test",   {"nb_mois_sans_revenu": 3}),
-        ("evolution_mensuelle", {}),
-    ]:
-        res = audit.query(demande, **kwargs)
-        if "erreur" not in res:
-            print(f"  {demande:25s} OK ({res['timestamp']})")
-        else:
-            print(f"  {demande:25s} ERREUR: {res['erreur']}")
-
-    print("\n" + "=" * 60)
-    print("ROLE 2 — AUDIT TRAIL (5 dernieres entrees)")
-    print("=" * 60)
-    for entry in audit.get_audit_log(limit=5):
-        print(f"  [{entry['Role']:12s}] {entry['Action']:30s} {entry['Statut']} — {entry['Timestamp']}")

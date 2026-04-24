@@ -26,6 +26,7 @@ NAV_PAGES = [
     {"id": "Journal",    "icon": "📔", "label": "Journal",    "disabled": False},
     {"id": "Plafond",    "icon": "🔔", "label": "Plafond",    "disabled": False},
     {"id": "Objectif",   "icon": "🎯", "label": "Objectif",   "disabled": False},
+    {"id": "Daret",      "icon": "🔄", "label": "Daret",      "disabled": False},
     {"id": "Langue",     "icon": "🌐", "label": "Langue",     "disabled": True},
     {"id": "Devise",     "icon": "💱", "label": "Devise",     "disabled": True},
 ]
@@ -205,6 +206,19 @@ def render(audit) -> str:
             key=f"saisie_date_{_k}",
         )
 
+        # ── Tags & Contact (optionnel, caché) ─────────────────────────────────
+        with st.expander("🏷️ Tags & Contact", expanded=False):
+            saisie_tags = st.text_input(
+                "Tags", placeholder="hanout, famille, boulot…",
+                key=f"saisie_tags_{_k}",
+                label_visibility="collapsed",
+            )
+            saisie_contact = st.text_input(
+                "Contact", placeholder="ex: Karim, Hanout Derb Omar…",
+                key=f"saisie_contact_{_k}",
+                label_visibility="collapsed",
+            )
+
         if st.button("Enregistrer ↵", use_container_width=True,
                      type="primary", key="btn_enreg"):
             if not libelle_final:
@@ -217,6 +231,9 @@ def render(audit) -> str:
                                         st.session_state.saisie_sens, dv)
                 action = res.get("action")
                 if action == "OK":
+                    tx_id = res.get("id_unique")
+                    if tx_id and (saisie_tags.strip() or saisie_contact.strip()):
+                        audit.update_tags_contact(tx_id, saisie_tags, saisie_contact)
                     st.success(
                         f"✅ **{res.get('categorie')}**  \n"
                         f"{res.get('sous_categorie')} · {res.get('methode')} "
@@ -229,9 +246,11 @@ def render(audit) -> str:
                     st.session_state.saisie_confirmer = {
                         "libelle": libelle_final, "montant": montant,
                         "sens": st.session_state.saisie_sens, "dv": dv,
+                        "tags": saisie_tags, "contact": saisie_contact,
                     }
                     st.warning(f"⚠️ {res.get('message','')}")
                 elif action == "BLOQUER":
+                    st.session_state.saisie_confirmer = None
                     st.error(f"🚫 {res.get('message', 'Doublon détecté')}")
                 else:
                     st.error(res.get("erreur", "Erreur inconnue"))
@@ -239,7 +258,11 @@ def render(audit) -> str:
         if st.session_state.saisie_confirmer:
             p = st.session_state.saisie_confirmer
             if st.button("Confirmer quand même", key="btn_forcer", type="secondary"):
-                audit.recevoir(p["libelle"], p["montant"], p["sens"], p["dv"], forcer=True)
+                res2 = audit.recevoir(p["libelle"], p["montant"], p["sens"], p["dv"], forcer=True)
+                if res2.get("action") == "OK":
+                    tx_id = res2.get("id_unique")
+                    if tx_id and (p.get("tags", "").strip() or p.get("contact", "").strip()):
+                        audit.update_tags_contact(tx_id, p.get("tags", ""), p.get("contact", ""))
                 st.session_state.saisie_confirmer = None
                 st.session_state.saisie_ctr += 1
                 _invalider_cache()
@@ -278,7 +301,6 @@ def _reset_donnees(audit) -> None:
                 "('onboarding_done','revenu_salaire','revenu_extras_json','revenu_total_attendu')",
                 (audit.user_id,)
             )
-            conn.execute("UPDATE CATEGORIES SET Plafond = 0.0")
     except Exception:
         logger.exception("_reset_onboarding_data DB cleanup failed")
 
@@ -293,7 +315,6 @@ def _restart_onboarding(audit) -> None:
     Réinitialise l'onboarding sans supprimer les transactions manuelles.
     · Supprime les préférences onboarding (flag + revenus saisis)
     · Supprime uniquement les transactions Source=ONBOARDING (saisies auto)
-    · Remet les plafonds à 0
     · Vide le cache Streamlit
     """
     try:
@@ -307,7 +328,6 @@ def _restart_onboarding(audit) -> None:
                 "DELETE FROM TRANSACTIONS WHERE user_id = ? AND Source = 'ONBOARDING'",
                 (audit.user_id,)
             )
-            conn.execute("UPDATE CATEGORIES SET Plafond = 0.0")
     except Exception:
         logger.exception("_restart_onboarding DB cleanup failed")
 
@@ -333,6 +353,7 @@ def _suggestions_live(audit, prefix: str, sens: str) -> List[str]:
                 rows2 = conn.execute(
                     """SELECT DISTINCT Libelle FROM TRANSACTIONS
                        WHERE user_id = ? AND UPPER(Libelle) LIKE ?
+                         AND Statut = 'VALIDE'
                        ORDER BY Date_Saisie DESC LIMIT ?""",
                     (audit.user_id, q, 6 - len(results))
                 ).fetchall()

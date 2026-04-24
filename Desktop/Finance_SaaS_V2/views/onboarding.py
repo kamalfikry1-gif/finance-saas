@@ -179,6 +179,82 @@ def _etape_revenus() -> None:
 # ÉTAPE 2 — DÉPENSES DU MOIS PAR CATÉGORIE
 # ─────────────────────────────────────────────────────────────────────────────
 
+_CATS_PRIORITAIRES = {"Logement", "Vie Quotidienne", "Transport", "Abonnements"}
+
+# Onboarding display overrides for Vie Quotidienne
+_VQ_SKIP: set = set()  # all sub-cats are now canonical — nothing to hide
+_VQ_LABELS = {
+    "Alimentation": "Alimentation (fruits, légumes, viande, courses alimentaires…)",
+}
+
+
+def _prepare_vq_items(items: list) -> list:
+    """
+    Merge 'Protéine' and 'Fruits & légumes' into 'Alimentation' for the
+    onboarding display. Returns a filtered list with a combined label —
+    display-only, the data model is untouched.
+    """
+    result = []
+    for item in items:
+        sous = item["sous_categorie"]
+        if sous in _VQ_SKIP:
+            continue
+        if sous in _VQ_LABELS:
+            item = dict(item)
+            item["_display_label"] = _VQ_LABELS[sous]
+        result.append(item)
+    return result
+
+
+def _render_cat_block(cat: str, items: list, montants: dict,
+                      start_open: bool = False) -> float:
+    """Render one category block (header + sub-cat inputs)."""
+    couleur   = COULEURS_CAT.get(cat, T.TEXT_MED)
+    total_cat = sum(montants.get(f"{cat}|{it['sous_categorie']}", 0.0) for it in items)
+
+    st.markdown(
+        f"<div style='display:flex;align-items:center;justify-content:space-between;"
+        f"margin:20px 0 0'>"
+        f"<div style='display:flex;align-items:center;gap:10px'>"
+        f"<div style='width:4px;height:22px;background:{couleur};border-radius:2px'></div>"
+        f"<span style='color:{T.TEXT_HIGH};font-weight:700;font-size:16px'>{cat}</span>"
+        f"</div>"
+        + (f"<span style='color:{couleur};font-size:13px;font-weight:700'>{_dh(total_cat)}</span>"
+           if total_cat > 0 else "") +
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    with st.expander(
+        f"{'✓ ' if total_cat > 0 else ''}{len(items)} sous-catégorie{'s' if len(items) > 1 else ''}",
+        expanded=(start_open or total_cat > 0),
+    ):
+        for item in items:
+            sous         = item["sous_categorie"]
+            display_sous = item.get("_display_label", sous)
+            cle          = f"{cat}|{sous}"
+            c_label, c_input = st.columns([3, 2])
+            with c_label:
+                st.markdown(
+                    f"<div style='color:{T.TEXT_MED};font-size:13px;padding-top:10px'>"
+                    f"{display_sous}</div>",
+                    unsafe_allow_html=True,
+                )
+            with c_input:
+                stored = montants.get(cle, 0.0)
+                val = st.number_input(
+                    display_sous, min_value=0.0, max_value=500_000.0,
+                    value=float(stored) if stored > 0 else None,
+                    placeholder="0",
+                    step=50.0, format="%.0f",
+                    label_visibility="collapsed",
+                    key=f"ob_dep_{cle}",
+                )
+                montants[cle] = float(val) if val is not None else 0.0
+
+    return total_cat
+
+
 def _etape_depenses(categories: list) -> None:
     now        = datetime.now()
     mois_label = now.strftime("%B %Y").capitalize()
@@ -187,13 +263,19 @@ def _etape_depenses(categories: list) -> None:
         f"<h2 style='color:{T.TEXT_HIGH};margin:24px 0 4px'>"
         f"Vos dépenses de {mois_label} 📋</h2>"
         f"<p style='color:{T.TEXT_LOW};font-size:13px;margin-bottom:6px'>"
-        f"Renseignez ce dont vous vous souvenez — laissez à 0 ce que vous ne savez plus."
+        f"Renseignez ce dont vous vous souvenez — tout est optionnel, laissez à 0 ce que vous ne savez pas."
         f"</p>"
+        f"<div style='display:flex;align-items:center;gap:16px;margin-bottom:20px'>"
         f"<div style='background:{T.BG_CARD_ALT};border-radius:{T.RADIUS_SM};padding:8px 14px;"
-        f"border-left:3px solid {T.PRIMARY};margin-bottom:24px'>"
+        f"border-left:3px solid {T.PRIMARY};flex:1'>"
         f"<span style='color:{T.TEXT_MED};font-size:12px'>"
         f"Chaque montant renseigné crée une transaction dans la bonne catégorie. "
-        f"Vous pourrez affiner et ajouter d'autres opérations depuis l'app.</span>"
+        f"Vous pourrez affiner depuis l'app.</span>"
+        f"</div>"
+        f"<div style='background:{T.BG_CARD};border:1px solid {T.BORDER};border-radius:{T.RADIUS_MD};"
+        f"padding:6px 14px;white-space:nowrap'>"
+        f"<span style='color:{T.TEXT_LOW};font-size:11px'>⏱ ~2 min</span>"
+        f"</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -208,58 +290,102 @@ def _etape_depenses(categories: list) -> None:
             cats_groupees[cat] = []
         cats_groupees[cat].append(item)
 
+    # Finances & Crédits is rendered as a single credit field — exclude from both lists
+    _CATS_STANDALONE = {"Finances & Crédits"}
+    cats_prio   = {c: v for c, v in cats_groupees.items()
+                   if c in _CATS_PRIORITAIRES and c not in _CATS_STANDALONE}
+    cats_autres = {c: v for c, v in cats_groupees.items()
+                   if c not in _CATS_PRIORITAIRES and c not in _CATS_STANDALONE}
+
     # Init état montants
     if "ob_montants" not in st.session_state:
         st.session_state.ob_montants = {}
 
-    montants = st.session_state.ob_montants
+    montants    = st.session_state.ob_montants
     total_saisi = 0.0
 
-    for cat, items in cats_groupees.items():
-        couleur = COULEURS_CAT.get(cat, T.TEXT_MED)
+    # ── Catégories prioritaires (toujours ouvertes) ───────────────────────────
+    for cat, items in cats_prio.items():
+        display_items = _prepare_vq_items(items) if cat == "Vie Quotidienne" else items
+        total_saisi += _render_cat_block(cat, display_items, montants, start_open=True)
 
-        # Total de la catégorie
-        total_cat = sum(montants.get(f"{cat}|{it['sous_categorie']}", 0.0) for it in items)
+    # ── Crédit mensuel — champ unique, sans surcharge ────────────────────────────
+    cle_credit = "Finances & Crédits|Crédit & Remboursement"
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='display:flex;align-items:center;justify-content:space-between;"
+        f"margin-bottom:4px'>"
+        f"<div style='display:flex;align-items:center;gap:10px'>"
+        f"<div style='width:4px;height:22px;background:{T.PURPLE};border-radius:2px'></div>"
+        f"<span style='color:{T.TEXT_HIGH};font-weight:700;font-size:16px'>"
+        f"Remboursement crédit mensuel</span>"
+        f"</div>"
+        f"<span style='color:{T.TEXT_LOW};font-size:12px'>optionnel</span>"
+        f"</div>"
+        f"<div style='color:{T.TEXT_LOW};font-size:12px;margin-left:14px;margin-bottom:10px'>"
+        f"Crédit conso, auto, immobilier… laissez à 0 si aucun.</div>",
+        unsafe_allow_html=True,
+    )
+    c_credit_lbl, c_credit_inp = st.columns([3, 2])
+    with c_credit_inp:
+        stored_credit = montants.get(cle_credit, 0.0)
+        val_credit = st.number_input(
+            "Crédit mensuel", min_value=0.0, max_value=500_000.0,
+            value=float(stored_credit) if stored_credit > 0 else None,
+            placeholder="0",
+            step=100.0, format="%.0f",
+            label_visibility="collapsed",
+            key="ob_dep_credit",
+        )
+        val_credit = float(val_credit) if val_credit is not None else 0.0
+        montants[cle_credit] = val_credit
+    total_saisi += val_credit
 
+    # ── Autres catégories — chaque catégorie a son propre expander ───────────────
+    if cats_autres:
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         st.markdown(
-            f"<div style='display:flex;align-items:center;justify-content:space-between;"
-            f"margin:20px 0 0'>"
-            f"<div style='display:flex;align-items:center;gap:10px'>"
-            f"<div style='width:4px;height:22px;background:{couleur};border-radius:2px'></div>"
-            f"<span style='color:{T.TEXT_HIGH};font-weight:700;font-size:16px'>{cat}</span>"
-            f"</div>"
-            + (f"<span style='color:{couleur};font-size:13px;font-weight:700'>{_dh(total_cat)}</span>"
-               if total_cat > 0 else "") +
-            f"</div>",
+            f"<div style='color:{T.TEXT_LOW};font-size:11px;font-weight:600;"
+            f"text-transform:uppercase;letter-spacing:1px;margin-bottom:10px'>"
+            f"Autres catégories (optionnel)</div>",
             unsafe_allow_html=True,
         )
+        for cat, items in cats_autres.items():
+            display_items = _prepare_vq_items(items) if cat == "Vie Quotidienne" else items
+            couleur    = COULEURS_CAT.get(cat, T.TEXT_MED)
+            total_cat  = sum(
+                montants.get(f"{cat}|{it['sous_categorie']}", 0.0)
+                for it in display_items
+            )
+            titre = f"{'✓ ' if total_cat > 0 else ''}{cat}"
+            if total_cat > 0:
+                titre += f"  —  {_dh(total_cat)}"
 
-        with st.expander(
-            f"{'✓ ' if total_cat > 0 else ''}{len(items)} sous-catégorie{'s' if len(items) > 1 else ''}",
-            expanded=(total_cat > 0),
-        ):
-            for item in items:
-                sous = item["sous_categorie"]
-                cle  = f"{cat}|{sous}"
+            with st.expander(titre, expanded=(total_cat > 0)):
+                for item in display_items:
+                    sous         = item["sous_categorie"]
+                    display_sous = item.get("_display_label", sous)
+                    cle          = f"{cat}|{sous}"
+                    c_label, c_input = st.columns([3, 2])
+                    with c_label:
+                        st.markdown(
+                            f"<div style='color:{T.TEXT_MED};font-size:13px;"
+                            f"padding-top:10px'>{display_sous}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with c_input:
+                        stored = montants.get(cle, 0.0)
+                        val = st.number_input(
+                            display_sous, min_value=0.0, max_value=500_000.0,
+                            value=float(stored) if stored > 0 else None,
+                            placeholder="0",
+                            step=50.0, format="%.0f",
+                            label_visibility="collapsed",
+                            key=f"ob_dep_{cle}",
+                        )
+                        montants[cle] = float(val) if val is not None else 0.0
 
-                c_label, c_input = st.columns([3, 2])
-                with c_label:
-                    st.markdown(
-                        f"<div style='color:{T.TEXT_MED};font-size:13px;padding-top:10px'>"
-                        f"{sous}</div>",
-                        unsafe_allow_html=True,
-                    )
-                with c_input:
-                    val = st.number_input(
-                        sous, min_value=0.0, max_value=500_000.0,
-                        value=float(montants.get(cle, 0.0)),
-                        step=50.0, format="%.0f",
-                        label_visibility="collapsed",
-                        key=f"ob_dep_{cle}",
-                    )
-                    montants[cle] = val
-
-        total_saisi += total_cat
+            total_saisi += total_cat
 
     st.session_state.ob_montants = montants
 
@@ -281,27 +407,45 @@ def _etape_depenses(categories: list) -> None:
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
     # ── Navigation ────────────────────────────────────────────────────────────
-    c_back, c_passer, c_valider = st.columns([1, 1, 2])
-
-    with c_back:
-        if st.button("← Retour", use_container_width=True,
-                     type="secondary", key="ob_back2"):
-            st.session_state.ob_step = 1
-            st.rerun()
-
-    with c_passer:
-        if st.button("Passer", use_container_width=True,
-                     type="secondary", key="ob_passer"):
-            _finaliser(enregistrer=False)
-
-    with c_valider:
-        label = (
-            f"Enregistrer {nb_postes} poste{'s' if nb_postes != 1 else ''} et commencer →"
-            if nb_postes > 0 else "Commencer →"
-        )
-        if st.button(label, use_container_width=True,
-                     type="primary", key="ob_valider"):
-            _finaliser(enregistrer=(nb_postes > 0))
+    if nb_postes == 0:
+        # No data entered — single forward button to reduce friction
+        c_back, c_next = st.columns([1, 3])
+        with c_back:
+            if st.button("← Retour", use_container_width=True,
+                         type="secondary", key="ob_back2"):
+                st.session_state.ob_step = 1
+                st.rerun()
+        with c_next:
+            if st.button("Commencer sans renseigner →", use_container_width=True,
+                         type="primary", key="ob_valider_empty"):
+                _finaliser(enregistrer=False)
+    else:
+        # Data entered — offer choice to save or skip saving
+        c_back, c_passer, c_valider = st.columns([1, 1, 2])
+        with c_back:
+            if st.button("← Retour", use_container_width=True,
+                         type="secondary", key="ob_back2"):
+                st.session_state.ob_step = 1
+                st.session_state.pop("ob_skip_confirm", None)
+                st.rerun()
+        with c_passer:
+            if st.session_state.get("ob_skip_confirm"):
+                st.warning(f"⚠️ {nb_postes} poste(s) saisi(s) seront perdus.")
+                if st.button("Continuer quand même", use_container_width=True,
+                             type="secondary", key="ob_passer_confirm"):
+                    st.session_state.pop("ob_skip_confirm", None)
+                    _finaliser(enregistrer=False)
+            else:
+                if st.button("Sans sauvegarder", use_container_width=True,
+                             type="secondary", key="ob_passer"):
+                    st.session_state.ob_skip_confirm = True
+                    st.rerun()
+        with c_valider:
+            label = f"Enregistrer {nb_postes} poste{'s' if nb_postes != 1 else ''} et commencer →"
+            if st.button(label, use_container_width=True,
+                         type="primary", key="ob_valider"):
+                st.session_state.pop("ob_skip_confirm", None)
+                _finaliser(enregistrer=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

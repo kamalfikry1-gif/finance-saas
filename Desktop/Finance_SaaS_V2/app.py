@@ -25,6 +25,7 @@ import views.historique as page_historique
 import views.journal    as page_journal
 import views.plafond    as page_plafond
 import views.objectif   as page_objectif
+import views.daret      as page_daret
 
 from core.data_input import est_onboarding_fait
 
@@ -93,7 +94,7 @@ audit = st.session_state.audit
 # 6. SESSION STATE — NAVIGATION & UI
 # ─────────────────────────────────────────────────────────────────────────────
 
-_VALID_PAGES = {"Accueil", "Assistant", "Moi", "Historique", "Journal", "Plafond", "Objectif"}
+_VALID_PAGES = {"Accueil", "Assistant", "Moi", "Historique", "Journal", "Plafond", "Objectif", "Daret"}
 if st.session_state.get("page") not in _VALID_PAGES:
     st.session_state.page = "Accueil"
 if "ast_path"    not in st.session_state: st.session_state.ast_path    = []
@@ -161,10 +162,8 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     if st.button("🚪 Déconnexion", use_container_width=True, key="btn_logout"):
-        for k in ["logged_in","user_id","username","audit","_audit_user_id",
-                  "page","ast_path","ast_inputs","ast_result"]:
-            st.session_state.pop(k, None)
         ui_cache.invalider()
+        st.session_state.clear()
         st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -180,3 +179,4 @@ elif page == "Historique": page_historique.render(ctx)
 elif page == "Journal":    page_journal.render(ctx)
 elif page == "Plafond":    page_plafond.render(ctx)
 elif page == "Objectif":   page_objectif.render(ctx)
+elif page == "Daret":      page_daret.render(ctx)

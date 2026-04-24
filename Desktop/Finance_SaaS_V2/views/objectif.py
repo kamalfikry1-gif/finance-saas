@@ -9,6 +9,10 @@ from datetime import date, datetime
 import streamlit as st
 from components.design_tokens import T
 from components.helpers import dh as _dh
+from core.cache import (invalider as _invalider_cache,
+                        get_objectifs_type as _get_objs,
+                        get_depenses_mois as _get_dep,
+                        get_categories as _get_cats)
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +34,19 @@ def _progress_bar(pct: float, couleur: str) -> str:
 
 
 def _get_depenses_cat_mois(audit, categorie: str, mois: str) -> float:
-    depenses = audit.get_depenses_mois(mois)
-    return sum(v for (cat, _), v in depenses.items() if cat == categorie)
+    try:
+        depenses = _get_dep(audit, mois, audit.user_id)
+        return sum(v for (cat, _), v in depenses.items() if cat == categorie)
+    except Exception:
+        return 0.0
 
 
 def _get_categories_out(audit) -> list:
-    with audit.db.connexion() as conn:
-        rows = conn.execute(
-            """SELECT DISTINCT c.Categorie FROM CATEGORIES c
-               JOIN REFERENTIEL r ON c.Categorie=r.Categorie
-               WHERE r.Sens='OUT' ORDER BY c.Categorie"""
-        ).fetchall()
-    return [r[0] for r in rows]
+    try:
+        return [c for c in _get_cats(audit, audit.user_id)
+                if c not in {"Finances & Crédits", "Finances Credits", "Divers"}]
+    except Exception:
+        return []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -57,7 +62,8 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
     )
 
     # ── Formulaire création ───────────────────────────────────────────────────
-    with st.expander("➕ Nouvel objectif de dépense", expanded=False):
+    with st.expander("➕ Nouvel objectif de dépense",
+                     expanded=st.session_state.get("od_open", False)):
         cats = _get_categories_out(audit)
         d1, d2, d3 = st.columns(3)
         with d1:
@@ -88,21 +94,27 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
                     montant_cible=cible_dep, date_cible=str(date_cible_dep),
                     categorie=cat_dep or "", icone=icone_dep, couleur=T.WARNING,
                 )
+                st.session_state.od_open = False
+                _invalider_cache()
                 st.success("✅ Objectif créé")
                 st.rerun()
 
     # ── Liste objectifs dépense ───────────────────────────────────────────────
-    objectifs = audit.get_objectifs_v2("DEPENSE")
+    objectifs = _get_objs(audit, "DEPENSE", audit.user_id)
     if not objectifs:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
             f'border-radius:{T.RADIUS_LG};padding:32px;text-align:center;margin-top:16px">'
             f'<div style="font-size:28px;margin-bottom:8px">✂️</div>'
-            f'<div style="color:{T.TEXT_MED};font-size:13px">'
+            f'<div style="color:{T.TEXT_MED};font-size:13px;margin-bottom:12px">'
             f'Aucun objectif de réduction. Créez-en un pour suivre vos efforts !</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
+        if st.button("➕ Créer mon premier objectif de dépense", key="od_open_btn",
+                     type="primary", use_container_width=True):
+            st.session_state.od_open = True
+            st.rerun()
         return
 
     for obj in objectifs:
@@ -143,6 +155,7 @@ def _tab_depense(audit, mois_sel: str, mois_lbl: str) -> None:
 
         if st.button("🗑️ Supprimer", key=f"od_del_{oid}"):
             audit.supprimer_objectif(oid)
+            _invalider_cache()
             st.rerun()
 
 
@@ -159,7 +172,14 @@ def _tab_epargne(audit) -> None:
     )
 
     # ── Formulaire création ───────────────────────────────────────────────────
-    with st.expander("➕ Nouvel objectif d'épargne", expanded=False):
+    _COULEUR_NOMS = {
+        T.PRIMARY: "Bleu-vert", T.SUCCESS: "Vert", T.WARNING: "Ambre",
+        T.DANGER: "Rouge", T.BLUE: "Bleu", T.PURPLE: "Violet",
+        T.CAT_PALETTE[6]: "Couleur 7", T.CAT_PALETTE[7]: "Couleur 8",
+    }
+
+    with st.expander("➕ Nouvel objectif d'épargne",
+                     expanded=st.session_state.get("oe_open", False)):
         e1, e2 = st.columns(2)
         with e1:
             nom_ep = st.text_input("Nom du projet", placeholder="Ex: Vacances Turquie",
@@ -174,7 +194,7 @@ def _tab_epargne(audit) -> None:
 
         couleur_ep = st.selectbox(
             "Couleur", _COULEURS,
-            format_func=lambda c: c,
+            format_func=lambda c: _COULEUR_NOMS.get(c, c),
             key="oe_couleur"
         )
 
@@ -189,21 +209,27 @@ def _tab_epargne(audit) -> None:
                     montant_cible=cible_ep, date_cible=str(date_ep),
                     icone=icone_ep, couleur=couleur_ep,
                 )
+                st.session_state.oe_open = False
+                _invalider_cache()
                 st.success("✅ Projet créé")
                 st.rerun()
 
     # ── Liste objectifs épargne ───────────────────────────────────────────────
-    objectifs = audit.get_objectifs_v2("EPARGNE")
+    objectifs = _get_objs(audit, "EPARGNE", audit.user_id)
     if not objectifs:
         st.markdown(
             f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
             f'border-radius:{T.RADIUS_LG};padding:32px;text-align:center;margin-top:16px">'
             f'<div style="font-size:28px;margin-bottom:8px">🏖️</div>'
-            f'<div style="color:{T.TEXT_MED};font-size:13px">'
+            f'<div style="color:{T.TEXT_MED};font-size:13px;margin-bottom:12px">'
             f'Aucun projet d\'épargne. Définissez votre premier objectif !</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
+        if st.button("➕ Créer mon premier projet d'épargne", key="oe_open_btn",
+                     type="primary", use_container_width=True):
+            st.session_state.oe_open = True
+            st.rerun()
         return
 
     update_id = st.session_state.get("oe_update_id")
@@ -269,6 +295,7 @@ def _tab_epargne(audit) -> None:
             if update_id == oid:
                 if st.button("💾 OK", key=f"oe_save_{oid}", type="primary", use_container_width=True):
                     audit.maj_objectif_actuel(oid, new_actuel)
+                    _invalider_cache()
                     st.session_state.oe_update_id = None
                     st.rerun()
             else:
@@ -278,6 +305,7 @@ def _tab_epargne(audit) -> None:
         with uc:
             if st.button("🗑️ Supprimer", key=f"oe_del_{oid}", use_container_width=True):
                 audit.supprimer_objectif(oid)
+                _invalider_cache()
                 st.rerun()
 
 
