@@ -525,7 +525,8 @@ class DatabaseManager:
             """)
             logger.info("✅ SNAPSHOTS")
 
-            # ── DARETS (par utilisateur) ──────────────────────────────────────
+            # ── DARETS placeholder (actual creation in _ensure_darets below) ──
+            logger.debug("DARETS creation deferred to _ensure_darets()")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS DARETS (
                     id              SERIAL PRIMARY KEY,
@@ -543,8 +544,33 @@ class DatabaseManager:
             logger.info("✅ DARETS")
 
         logger.info("🎉 Schéma PostgreSQL initialisé")
+        self._ensure_darets()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
+
+    def _ensure_darets(self) -> None:
+        """Create DARETS table if it doesn't exist — runs in its own transaction
+        so it works even when the DB was initialised before this table was added."""
+        try:
+            with self.connexion() as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS DARETS (
+                        id              SERIAL PRIMARY KEY,
+                        Nom             TEXT NOT NULL,
+                        Montant_Mensuel NUMERIC NOT NULL,
+                        Nb_Membres      INTEGER NOT NULL,
+                        Membres_JSON    TEXT,
+                        Tour_Actuel     INTEGER DEFAULT 0,
+                        Date_Debut      TEXT,
+                        Statut          TEXT DEFAULT 'ACTIF',
+                        Notes           TEXT,
+                        user_id         INTEGER NOT NULL
+                                        REFERENCES UTILISATEURS(id) ON DELETE CASCADE
+                    )
+                """)
+            logger.info("✅ DARETS (ensure)")
+        except Exception:
+            logger.exception("_ensure_darets failed")
 
     def _purger_referentiel_obsolete(self) -> None:
         """Remove rows from REFERENTIEL/CATEGORIES not in the canonical v2 list.

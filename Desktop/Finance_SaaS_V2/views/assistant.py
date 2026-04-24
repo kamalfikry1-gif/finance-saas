@@ -26,6 +26,7 @@ from components.cards import (
 )
 from components.charts import _gauge
 from components.design_tokens import T
+from components.sidebar import _generer_mois_options
 from core.assistant_engine import AssistantEngine, RenderType
 from core.cache import invalider as _invalider_cache
 from components.helpers import dh as _dh, pct as _pct
@@ -417,7 +418,6 @@ def _render_sim_objectif(result: dict, ctx: dict) -> None:
 
     if audit:
         _section_label("💾 Sauvegarder cet objectif")
-        from components.sidebar import _generer_mois_options
         with st.form("ast_creer_obj"):
             nom_o = st.text_input("Nom de l'objectif", placeholder="Voyage Tokyo, PC Gaming…")
             cs1, cs2 = st.columns(2)
