@@ -545,8 +545,23 @@ class DatabaseManager:
 
         logger.info("🎉 Schéma PostgreSQL initialisé")
         self._ensure_darets()
+        self._ensure_transaction_columns()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
+
+    def _ensure_transaction_columns(self) -> None:
+        """Add Tags and Contact columns to TRANSACTIONS if they don't exist yet.
+        Production DBs created before these columns were added need this."""
+        try:
+            with self.connexion() as conn:
+                conn.execute("""
+                    ALTER TABLE TRANSACTIONS
+                        ADD COLUMN IF NOT EXISTS Tags    TEXT DEFAULT '',
+                        ADD COLUMN IF NOT EXISTS Contact TEXT DEFAULT ''
+                """)
+            logger.info("✅ TRANSACTIONS.Tags/Contact (ensure)")
+        except Exception:
+            logger.exception("_ensure_transaction_columns failed")
 
     def _ensure_darets(self) -> None:
         """Create DARETS table if it doesn't exist — runs in its own transaction
