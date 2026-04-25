@@ -196,9 +196,10 @@ _TRANSPORT_LABELS = {
     "Taxi & Uber": "Taxi & Transport (taxi, bus, tram…)",
 }
 
-# ── Global subcategory skip (onboarding only) ─────────────────────────────────
-# Hide "catch-all" subcategories that add noise without actionable meaning.
-_GLOBAL_SOUS_SKIP = {"Divers_Autre", "Revenu_autre"}
+def _is_autre(sous: str) -> bool:
+    """Return True for any catch-all subcategory that should be hidden in onboarding."""
+    s = sous.lower()
+    return s == "autre" or s.endswith("_autre")
 
 
 def _prepare_cat_items(cat: str, items: list) -> list:
@@ -216,7 +217,7 @@ def _prepare_cat_items(cat: str, items: list) -> list:
     result = []
     for item in items:
         sous = item["sous_categorie"]
-        if sous in skip or sous in _GLOBAL_SOUS_SKIP:
+        if sous in skip or _is_autre(sous):
             continue
         if sous in labels:
             item = dict(item)
