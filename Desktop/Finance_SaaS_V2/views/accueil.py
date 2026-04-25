@@ -558,10 +558,13 @@ def _render_rappels(audit, user_id: int, mois_sel: str) -> None:
                 submitted = st.form_submit_button("Enregistrer", type="primary",
                                                   use_container_width=True)
                 if submitted:
-                    db.sauvegarder_epargne_mois(user_id, mois_sel, float(montant_ep))
-                    st.session_state._rappel_ep_open = False
-                    st.success(f"✅ {montant_ep:,.0f} DH enregistrés.")
-                    st.rerun()
+                    try:
+                        db.sauvegarder_epargne_mois(user_id, mois_sel, float(montant_ep))
+                        st.session_state._rappel_ep_open = False
+                        st.success(f"✅ {montant_ep:,.0f} DH enregistrés.")
+                        st.rerun()
+                    except Exception:
+                        st.error("Enregistrement échoué — réessayez.")
     else:
         reel = float(ep.get("Montant_Reel", 0) or 0)
         st.markdown(

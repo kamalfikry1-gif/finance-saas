@@ -723,14 +723,34 @@ class MoteurAnalyse:
         )
 
     def get_cumul_epargne(self) -> float:
+        """
+        Cumul d'épargne global (toutes périodes confondues).
+        Priorité : 1) EPARGNE_HISTO si renseigné, 2) transactions Épargne explicites,
+        3) solde net global comme proxy d'épargne implicite.
+        """
         with self.db.connexion() as conn:
-            row = conn.execute(
+            # 1. EPARGNE_HISTO — enregistrements manuels
+            histo = conn.execute(
+                "SELECT SUM(Montant_Reel) FROM EPARGNE_HISTO WHERE user_id = ?",
+                (self.user_id,)
+            ).fetchone()
+            histo_val = round(float(histo[0] or 0), 2) if histo else 0.0
+            if histo_val > 0:
+                return histo_val
+
+            # 2. Transactions Épargne explicites
+            expl = conn.execute(
                 """SELECT SUM(ABS(Montant)) FROM TRANSACTIONS
                    WHERE Statut = 'VALIDE' AND Sens = 'OUT' AND user_id = ?
                    AND Categorie IN ('Epargne', 'Finances Credits')""",
                 (self.user_id,)
             ).fetchone()
-        return round(float(row[0] or 0), 2) if row else 0.0
+            expl_val = round(float(expl[0] or 0), 2) if expl else 0.0
+            if expl_val > 0:
+                return expl_val
+
+        # 3. Solde net global = épargne implicite (argent non dépensé)
+        return max(0.0, self.get_solde_global())
 
     def get_solde_global(self) -> float:
         with self.db.connexion() as conn:

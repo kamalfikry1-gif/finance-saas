@@ -245,14 +245,17 @@ def _render_daret_card(audit, d: dict) -> None:
         )
         if st.button("🎯 Placer en objectif", key=f"dr_obj_now_{daret_id}",
                      use_container_width=True, type="secondary"):
-            date_cible = date.today().replace(day=28).isoformat()
-            audit.creer_objectif_v2(
-                nom=f"Cagnotte Daret — {nom}",
-                type_obj="EPARGNE",
-                montant_cible=cagnotte,
-                date_cible=date_cible,
-            )
-            st.success(f"✅ Objectif créé — {_dh(cagnotte)}")
+            try:
+                date_cible = date.today().replace(day=28).isoformat()
+                audit.creer_objectif_v2(
+                    nom=f"Cagnotte Daret — {nom}",
+                    type_obj="EPARGNE",
+                    montant_cible=cagnotte,
+                    date_cible=date_cible,
+                )
+                st.success(f"✅ Objectif créé — {_dh(cagnotte)}")
+            except Exception:
+                st.error("Impossible de créer l'objectif — réessayez.")
     else:
         tours_until_mine = len(membres) - tour_idx
         monthly_needed   = round(cagnotte / tours_until_mine) if tours_until_mine > 0 else 0
@@ -277,18 +280,21 @@ def _render_daret_card(audit, d: dict) -> None:
         )
         if st.button("🎯 Créer objectif Daret", key=f"dr_obj_{daret_id}",
                      use_container_width=True, type="secondary"):
-            from datetime import date as _date
-            from dateutil.relativedelta import relativedelta
-            date_cible = (_date.today() + relativedelta(months=tours_until_mine)).isoformat()
-            audit.creer_objectif_v2(
-                nom=f"Daret — {nom} (dans {tours_until_mine} mois)",
-                type_obj="EPARGNE",
-                montant_cible=cagnotte,
-                date_cible=date_cible,
-            )
-            from core.cache import invalider as _inv
-            _inv()
-            st.success(f"✅ Objectif créé — {_dh(cagnotte)} dans {tours_until_mine} mois")
+            try:
+                from datetime import date as _date
+                from dateutil.relativedelta import relativedelta
+                date_cible = (_date.today() + relativedelta(months=tours_until_mine)).isoformat()
+                audit.creer_objectif_v2(
+                    nom=f"Daret — {nom} (dans {tours_until_mine} mois)",
+                    type_obj="EPARGNE",
+                    montant_cible=cagnotte,
+                    date_cible=date_cible,
+                )
+                from core.cache import invalider as _inv
+                _inv()
+                st.success(f"✅ Objectif créé — {_dh(cagnotte)} dans {tours_until_mine} mois")
+            except Exception:
+                st.error("Impossible de créer l'objectif — réessayez.")
 
     # Actions
     confirm_next  = st.session_state.get(f"dr_confirm_next_{daret_id}", False)

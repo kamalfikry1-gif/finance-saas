@@ -86,18 +86,24 @@ def _login_tab(db) -> None:
             st.error("Remplissez tous les champs.")
             return
 
-        user = db.get_utilisateur(username)
+        try:
+            user = db.get_utilisateur(username)
+        except Exception:
+            st.error("Erreur de connexion — réessayez dans quelques secondes.")
+            return
+
         if user is None:
             st.error("Utilisateur introuvable.")
             return
 
-        if not _bcrypt.verify(password, user["password_hash"]):
+        pwd_hash = user.get("password_hash") or user.get("password_Hash") or ""
+        if not pwd_hash or not _bcrypt.verify(password, pwd_hash):
             st.error("Mot de passe incorrect.")
             return
 
         # ✅ Login réussi
-        st.session_state.user_id   = user["id"]
-        st.session_state.username  = user["username"]
+        st.session_state.user_id   = user.get("id") or user.get("Id")
+        st.session_state.username  = user.get("username") or user.get("Username") or username
         st.session_state.logged_in = True
         st.rerun()
 

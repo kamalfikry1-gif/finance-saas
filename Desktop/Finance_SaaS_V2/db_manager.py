@@ -1077,14 +1077,21 @@ class DatabaseManager:
                                   montant_reel: float,
                                   montant_vise: float = 0.0) -> None:
         with self.connexion() as conn:
+            cum_row = conn.execute(
+                "SELECT COALESCE(SUM(Montant_Reel),0) FROM EPARGNE_HISTO"
+                " WHERE user_id=%s AND Mois != %s",
+                (user_id, mois),
+            ).fetchone()
+            cumul = float(cum_row[0] or 0) + montant_reel
             conn.execute(
                 """INSERT INTO EPARGNE_HISTO
-                   (Mois, Montant_Vise, Montant_Reel, user_id)
-                   VALUES (%s,%s,%s,%s)
+                   (Mois, Montant_Vise, Montant_Reel, Cumul_Total, user_id)
+                   VALUES (%s,%s,%s,%s,%s)
                    ON CONFLICT (Mois, user_id) DO UPDATE
                    SET Montant_Reel=EXCLUDED.Montant_Reel,
-                       Montant_Vise=EXCLUDED.Montant_Vise""",
-                (mois, montant_vise, montant_reel, user_id),
+                       Montant_Vise=EXCLUDED.Montant_Vise,
+                       Cumul_Total=EXCLUDED.Cumul_Total""",
+                (mois, montant_vise, montant_reel, cumul, user_id),
             )
 
     # ─────────────────────────────────────────────────────────────────────────
