@@ -20,7 +20,7 @@ from components.design_tokens import T
 from core.cache import invalider as _invalider_cache
 
 NAV_ITEMS = [
-    {"id": "Moi",        "icon": "👤", "label": "Paramètres"},
+    {"id": "Moi",        "icon": "👤", "label": "Mon compte"},
     {"id": "Historique", "icon": "📋", "label": "Historique"},
     {"id": "Journal",    "icon": "📔", "label": "Journal"},
     {"id": "Objectif",   "icon": "🎯", "label": "Objectif"},
