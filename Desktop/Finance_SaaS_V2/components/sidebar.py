@@ -53,33 +53,36 @@ def render(audit) -> str:
             st.session_state.sb_expanded = True
         sb_exp = st.session_state.sb_expanded
 
-        # ── 1. Title bar: logo + collapse toggle ──────────────────────────────
-        c_logo, c_toggle = st.columns([5, 1], gap="small")
+        # ── 1. Title bar: logo | username | toggle (always visible) ─────────────
+        c_logo, c_user, c_toggle = st.columns([3, 2, 1], gap="small")
         with c_logo:
             if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
                 st.session_state.page = "Accueil"
                 st.rerun()
+        with c_user:
+            st.markdown(
+                f'<div style="display:flex;align-items:center;height:38px;'
+                f'color:{T.TEXT_MED};font-size:12px;font-weight:600;'
+                f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+                f'{_username}</div>',
+                unsafe_allow_html=True,
+            )
         with c_toggle:
             if st.button("✕" if sb_exp else "☰", key="sb_toggle",
                          use_container_width=True):
                 st.session_state.sb_expanded = not sb_exp
                 st.rerun()
 
-        # Username — always visible below logo
-        if _username:
-            st.markdown(
-                f'<div style="color:{T.TEXT_MED};font-size:12px;font-weight:500;'
-                f'padding:2px 4px 10px;margin-top:-6px">{_username}</div>',
-                unsafe_allow_html=True,
-            )
-
         if not sb_exp:
-            # Collapsed — return early, skip nav + form
             now = datetime.now()
             return f"{now.month:02d}/{now.year}"
 
+        # ── Section label ─────────────────────────────────────────────────────
         st.markdown(
-            f'<div style="border-top:1px solid {T.BORDER};margin-bottom:8px"></div>',
+            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:2px;'
+            f'border-top:1px solid {T.BORDER};padding-top:12px;'
+            f'margin:6px 0 6px">Paramètres</div>',
             unsafe_allow_html=True,
         )
 
