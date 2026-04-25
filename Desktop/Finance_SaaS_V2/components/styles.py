@@ -22,6 +22,15 @@ def inject_css() -> None:
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }}
 
+/* Reduce Streamlit default top padding */
+.block-container {{
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}}
+div[data-testid="stAppViewBlockContainer"] {{
+    padding-top: 0.5rem !important;
+}}
+
 section[data-testid="stSidebar"] {{
     background: var(--bg-sidebar) !important;
     border-right: 1px solid var(--border);

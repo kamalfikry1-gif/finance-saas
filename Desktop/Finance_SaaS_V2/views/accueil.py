@@ -286,9 +286,9 @@ def _render_quick_transaction(audit) -> None:
                     st.error(res.get("erreur", "Erreur inconnue"))
 
 
-def _sparkline_svg(values: list, bg: bool = False) -> str:
-    """Pure SVG fluid polyline. bg=True → full-width hero background version."""
-    W, H = (400, 120) if bg else (110, 44)
+def _sparkline_svg(values: list) -> str:
+    """Small inline SVG polyline (non-bg use)."""
+    W, H = 110, 44
     n = len(values)
     if n < 2:
         return ""
@@ -300,33 +300,53 @@ def _sparkline_svg(values: list, bg: bool = False) -> str:
         y = round(H - 5 - ((v - mn) / rng) * (H - 10), 1)
         pts.append(f"{x},{y}")
     color = T.SUCCESS if values[-1] >= values[0] else T.DANGER
-    pts_str = " ".join(pts)
-    if bg:
-        fill_pts = f"{pts_str} {W},{H} 0,{H}"
-        return (
-            f'<div style="position:absolute;top:0;left:0;right:0;height:70%;'
-            f'overflow:hidden;pointer-events:none;z-index:0">'
-            f'<svg width="100%" height="100%" viewBox="0 0 {W} {H}" '
-            f'preserveAspectRatio="none">'
-            f'<polygon points="{fill_pts}" fill="{color}" fill-opacity="0.12"/>'
-            f'<polyline points="{pts_str}" fill="none" stroke="{color}" '
-            f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '
-            f'opacity="0.4"/>'
-            f'</svg>'
-            f'</div>'
-        )
     return (
         f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">'
-        f'<polyline points="{pts_str}" fill="none" '
+        f'<polyline points="{" ".join(pts)}" fill="none" '
         f'stroke="{color}" stroke-width="2.5" '
         f'stroke-linecap="round" stroke-linejoin="round"/>'
         f'</svg>'
     )
 
 
+def _sparkline_bg_style(values: list) -> str:
+    """CSS background-image string — embedded SVG data URI, no DOM positioning."""
+    W, H = 300, 80
+    n = len(values)
+    if n < 2:
+        return ""
+    mn, mx = min(values), max(values)
+    rng = (mx - mn) or 1.0
+    pts = []
+    for i, v in enumerate(values):
+        x = round(i / (n - 1) * W, 1)
+        y = round(H - 3 - ((v - mn) / rng) * (H - 6), 1)
+        pts.append(f"{x},{y}")
+    # rgba avoids # encoding issues in data URI
+    c = "rgba(0,229,160" if values[-1] >= values[0] else "rgba(244,63,94"
+    pts_str = " ".join(pts)
+    fill_pts = f"{pts_str} {W},{H} 0,{H}"
+    svg = (
+        f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {W} {H}' "
+        f"preserveAspectRatio='none'>"
+        f"<polygon points='{fill_pts}' fill='{c},0.13)'/>"
+        f"<polyline points='{pts_str}' fill='none' stroke='{c},0.45)' "
+        f"stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>"
+        f"</svg>"
+    )
+    encoded = svg.replace("<", "%3C").replace(">", "%3E").replace('"', "%22")
+    return (
+        f"background-image:url(\"data:image/svg+xml,{encoded}\");"
+        f"background-repeat:no-repeat;"
+        f"background-size:100% 65%;"
+        f"background-position:bottom center;"
+    )
+
+
 def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
-                       sparkline: list = None, epargne_total: float = 0.0) -> None:
-    """Hero + KPI strip unified in one card with sparkline background."""
+                       sparkline: list = None, epargne_total: float = 0.0,
+                       streak_jours: int = 0, mois_verts: int = 0) -> None:
+    """Hero + KPI strip in one card. Sparkline via CSS bg-image (no DOM positioning)."""
     solde      = bilan["solde"]
     sign       = "+" if solde >= 0 else "−"
     sclass     = "pos" if solde >= 0 else "neg"
@@ -338,7 +358,27 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
     reste      = max(0.0, revenus - max(depenses, float(proj_v)))
     ep_color   = T.PRIMARY if epargne_total > 0 else T.TEXT_LOW
-    spark_bg   = _sparkline_svg(sparkline or [], bg=True) if sparkline and len(sparkline) >= 2 else ""
+    bg_style   = _sparkline_bg_style(sparkline or [])
+
+    # Streak badge for hero top-right
+    if streak_jours >= 2:
+        streak_badge = (
+            f'<div style="position:absolute;top:16px;right:20px;z-index:2">'
+            f'<span style="background:{T.SUCCESS}18;border:1px solid {T.SUCCESS}35;'
+            f'color:{T.SUCCESS};font-size:11px;font-weight:700;padding:4px 10px;'
+            f'border-radius:99px">🔥 {streak_jours}j de suite</span>'
+            f'</div>'
+        )
+    elif streak_jours == 1:
+        streak_badge = (
+            f'<div style="position:absolute;top:16px;right:20px;z-index:2">'
+            f'<span style="background:{T.WARNING}18;border:1px solid {T.WARNING}35;'
+            f'color:{T.WARNING};font-size:11px;font-weight:700;padding:4px 10px;'
+            f'border-radius:99px">🔥 1er jour — bonne reprise !</span>'
+            f'</div>'
+        )
+    else:
+        streak_badge = ""
 
     def _kpi(label, val_html, sub, border=True):
         br = f"border-right:1px solid rgba(255,255,255,0.07);" if border else ""
@@ -375,9 +415,8 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     )
 
     st.markdown(
-        f'<div class="v1-hero" style="position:relative;overflow:hidden;padding-bottom:0">'
-        f'{spark_bg}'
-        f'<div style="position:relative;z-index:1">'
+        f'<div class="v1-hero" style="position:relative;padding-bottom:0;{bg_style}">'
+        f'{streak_badge}'
         f'  <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
         f'  <div class="v1-hero-amount">'
         f'    <span class="sign {sclass}">{sign}</span>{_fmt_dh(solde)}'
@@ -388,7 +427,6 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
         f'    <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
         f'  </div>'
         f'{kpis}'
-        f'</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -863,8 +901,8 @@ def render(ctx: dict) -> None:
     except Exception:
         epargne_total = 0.0
 
-    _render_streak_banner(streak_jours, mois_verts, ctx.get("username", ""))
-    _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_total)
+    _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_total,
+                      streak_jours, mois_verts)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
