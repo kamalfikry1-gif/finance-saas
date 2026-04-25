@@ -2,6 +2,7 @@
 DB_MANAGER.PY — GESTIONNAIRE POSTGRESQL (Supabase)
 ====================================================
 Migration SQLite → PostgreSQL pour le déploiement cloud.
+Version : 2.1 — DICO CRUD, EPARGNE_HISTO, admin methods, audit log.
 
 Architecture :
   - psycopg2 avec ThreadedConnectionPool (thread-safe pour Streamlit)

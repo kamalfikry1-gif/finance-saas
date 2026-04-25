@@ -493,7 +493,10 @@ def _render_rappels(audit, user_id: int, mois_sel: str) -> None:
     db = audit.db
 
     # ── Rappel épargne du mois ────────────────────────────────────────────────
-    ep = db.get_epargne_mois(user_id, mois_sel)
+    try:
+        ep = db.get_epargne_mois(user_id, mois_sel)
+    except Exception:
+        ep = None
     if ep is None:
         st.markdown(
             f'<div style="background:{T.WARNING}10;border:1px solid {T.WARNING}30;'
