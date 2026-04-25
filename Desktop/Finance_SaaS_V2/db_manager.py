@@ -1062,6 +1062,17 @@ class DatabaseManager:
             row = cur.fetchone()
         return _canon_dict(row) if row else None
 
+    def get_epargne_histo(self, user_id: int, nb_mois: int = 12) -> List[Dict]:
+        with self.connexion() as conn:
+            rows = conn.execute(
+                """SELECT Mois, Montant_Vise, Montant_Reel, Cumul_Total
+                   FROM EPARGNE_HISTO
+                   WHERE user_id=%s
+                   ORDER BY Mois DESC LIMIT %s""",
+                (user_id, nb_mois),
+            ).fetchall()
+        return [_canon_dict(r) for r in rows]
+
     def sauvegarder_epargne_mois(self, user_id: int, mois: str,
                                   montant_reel: float,
                                   montant_vise: float = 0.0) -> None:

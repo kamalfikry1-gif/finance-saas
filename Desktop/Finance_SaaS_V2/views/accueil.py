@@ -488,6 +488,60 @@ def _render_score_plan(score: dict, badges: dict) -> None:
     )
 
 
+def _render_daret_teaser(audit, user_id: int) -> None:
+    """Compact Daret intelligence card — shows nearest upcoming turn."""
+    import json
+    try:
+        from core.cache import get_darets as _get_darets
+        darets = _get_darets(audit, user_id)
+    except Exception:
+        return
+
+    best = None  # closest upcoming turn
+    for d in darets:
+        try:
+            membres = json.loads(d.get("Membres_JSON", "[]") or "[]")
+        except Exception:
+            membres = []
+        if not membres:
+            continue
+        nb       = len(membres)
+        tour_idx = int(d.get("Tour_Actuel", 0)) % nb
+        mon_tour = (tour_idx == 0)
+        if mon_tour:
+            continue  # already surfaced on the daret card
+        tours_until = nb - tour_idx
+        cagnotte    = float(d.get("Montant_Mensuel", 0)) * nb
+        if best is None or tours_until < best["tours"]:
+            best = {
+                "nom": d.get("Nom", "Daret"),
+                "tours": tours_until,
+                "cagnotte": cagnotte,
+                "monthly": round(cagnotte / tours_until) if tours_until else 0,
+            }
+
+    if best is None:
+        return
+
+    st.markdown(
+        f'<div style="background:{T.PRIMARY}08;border:1px solid {T.PRIMARY}25;'
+        f'border-radius:{T.RADIUS_MD};padding:12px 16px;margin-top:14px;'
+        f'display:flex;justify-content:space-between;align-items:center">'
+        f'<div>'
+        f'<div style="color:{T.PRIMARY};font-size:11px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px">🔄 {best["nom"]}</div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:12px;margin-top:2px">'
+        f'Ton tour dans <b style="color:{T.TEXT_HIGH}">{best["tours"]} mois</b> '
+        f'— mets de côté <b style="color:{T.TEXT_HIGH}">{_dh(best["monthly"])}/mois</b>'
+        f'</div>'
+        f'</div>'
+        f'<div style="color:{T.TEXT_HIGH};font-size:16px;font-weight:900">'
+        f'{_dh(best["cagnotte"])}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _render_rappels(audit, user_id: int, mois_sel: str) -> None:
     """Rappels épargne + objectif — cartes cliquables si données manquantes."""
     db = audit.db
@@ -797,6 +851,7 @@ def render(ctx: dict) -> None:
             st.rerun()
         _render_score_plan(score, badges)
         _render_age_of_money(audit, bilan, proj)
+        _render_daret_teaser(audit, ctx["user_id"])
         _render_goals(audit, ctx["user_id"])
         _render_rappels(audit, ctx["user_id"], ctx["mois_sel"])
         if alertes:

@@ -312,6 +312,111 @@ def _tab_epargne(audit) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # RENDER PRINCIPAL
 # ─────────────────────────────────────────────────────────────────────────────
+# TAB HISTORIQUE ÉPARGNE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _tab_histo_epargne(audit) -> None:
+    import plotly.graph_objects as go
+
+    st.markdown(
+        f'<p style="color:{T.TEXT_MED};font-size:13px;margin-bottom:16px">'
+        f'Votre épargne mois par mois — enregistrée via le rappel sur le dashboard.</p>',
+        unsafe_allow_html=True,
+    )
+
+    rows = audit.db.get_epargne_histo(audit.user_id, nb_mois=12)
+
+    if not rows:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_LG};padding:40px;text-align:center">'
+            f'<div style="font-size:32px;margin-bottom:10px">📈</div>'
+            f'<div style="color:{T.TEXT_MED};font-size:14px;margin-bottom:6px">'
+            f'Aucun historique enregistré.</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:12px">'
+            f'Utilisez le rappel sur le Dashboard pour renseigner votre épargne mensuelle.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    # Chronological order for chart
+    rows_asc = list(reversed(rows))
+    mois_labels = [r.get("Mois", "") for r in rows_asc]
+    reels       = [float(r.get("Montant_Reel", 0) or 0) for r in rows_asc]
+    vises       = [float(r.get("Montant_Vise", 0) or 0) for r in rows_asc]
+
+    fig = go.Figure()
+    if any(v > 0 for v in vises):
+        fig.add_trace(go.Bar(
+            x=mois_labels, y=vises,
+            name="Objectif", marker_color=T.BORDER_MED,
+            opacity=0.5,
+        ))
+    fig.add_trace(go.Bar(
+        x=mois_labels, y=reels,
+        name="Réel", marker_color=T.SUCCESS,
+    ))
+    fig.update_layout(
+        barmode="overlay",
+        paper_bgcolor=T.BG_PAGE, plot_bgcolor=T.BG_PAGE,
+        font_color=T.TEXT_MED,
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=T.TEXT_MED)),
+        margin=dict(t=20, b=20, l=0, r=0),
+        height=240,
+        yaxis=dict(gridcolor=T.BORDER),
+        xaxis=dict(gridcolor="rgba(0,0,0,0)"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Summary table
+    total_reel = sum(reels)
+    cumul_last = float(rows[0].get("Cumul_Total", 0) or 0)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:14px;text-align:center">'
+            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">Total sur {len(rows)} mois</div>'
+            f'<div style="color:{T.SUCCESS};font-size:24px;font-weight:900;margin-top:4px">'
+            f'{_dh(total_reel)}</div></div>',
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:14px;text-align:center">'
+            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">Cumul total</div>'
+            f'<div style="color:{T.PRIMARY};font-size:24px;font-weight:900;margin-top:4px">'
+            f'{_dh(cumul_last)}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    for r in rows:
+        mois  = r.get("Mois", "")
+        reel  = float(r.get("Montant_Reel", 0) or 0)
+        vise  = float(r.get("Montant_Vise", 0) or 0)
+        color = T.SUCCESS if (vise == 0 or reel >= vise) else T.WARNING
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:10px 16px;margin-bottom:4px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<span style="color:{T.TEXT_MED};font-size:13px">{mois}</span>'
+            f'<span style="display:flex;gap:20px;align-items:center">'
+            + (f'<span style="color:{T.TEXT_LOW};font-size:11px">Objectif {_dh(vise)}</span>'
+               if vise > 0 else '') +
+            f'<span style="color:{color};font-size:14px;font-weight:700">{_dh(reel)}</span>'
+            f'</span></div>',
+            unsafe_allow_html=True,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 def render(ctx: dict) -> None:
     audit    = ctx["audit"]
@@ -326,10 +431,15 @@ def render(ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    tab_dep, tab_ep = st.tabs(["💸 Objectif Dépense", "💰 Objectif Épargne"])
+    tab_dep, tab_ep, tab_histo = st.tabs([
+        "💸 Objectif Dépense", "💰 Objectif Épargne", "📈 Historique Épargne"
+    ])
 
     with tab_dep:
         _tab_depense(audit, mois_sel, mois_lbl)
 
     with tab_ep:
         _tab_epargne(audit)
+
+    with tab_histo:
+        _tab_histo_epargne(audit)

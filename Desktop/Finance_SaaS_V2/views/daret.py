@@ -226,6 +226,70 @@ def _render_daret_card(audit, d: dict) -> None:
             unsafe_allow_html=True,
         )
 
+    # ── Intelligence ──────────────────────────────────────────────────────────
+    if mon_tour:
+        st.markdown(
+            f'<div style="background:{T.SUCCESS}15;border:1px solid {T.SUCCESS}40;'
+            f'border-radius:{T.RADIUS_MD};padding:12px 16px;margin-bottom:10px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<div>'
+            f'<div style="color:{T.SUCCESS};font-weight:700;font-size:13px">'
+            f'🎉 C\'est ton tour — tu reçois la cagnotte !</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:2px">'
+            f'Pense à le placer sur un objectif ou en épargne.</div>'
+            f'</div>'
+            f'<div style="color:{T.SUCCESS};font-size:22px;font-weight:900">'
+            f'{_dh(cagnotte)}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("🎯 Placer en objectif", key=f"dr_obj_now_{daret_id}",
+                     use_container_width=True, type="secondary"):
+            date_cible = date.today().replace(day=28).isoformat()
+            audit.creer_objectif_v2(
+                nom=f"Cagnotte Daret — {nom}",
+                type_obj="EPARGNE",
+                montant_cible=cagnotte,
+                date_cible=date_cible,
+            )
+            st.success(f"✅ Objectif créé — {_dh(cagnotte)}")
+    else:
+        tours_until_mine = len(membres) - tour_idx
+        monthly_needed   = round(cagnotte / tours_until_mine) if tours_until_mine > 0 else 0
+        st.markdown(
+            f'<div style="background:{T.PRIMARY}10;border:1px solid {T.PRIMARY}30;'
+            f'border-radius:{T.RADIUS_MD};padding:12px 16px;margin-bottom:10px">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'<div>'
+            f'<div style="color:{T.PRIMARY};font-weight:700;font-size:13px">'
+            f'⏳ Ton tour dans {tours_until_mine} mois</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:2px">'
+            f'Mets de côté <b style="color:{T.TEXT_HIGH}">{_dh(monthly_needed)}/mois</b> '
+            f'pour être prêt à recevoir la cagnotte.</div>'
+            f'</div>'
+            f'<div style="text-align:right">'
+            f'<div style="color:{T.TEXT_HIGH};font-size:18px;font-weight:900">'
+            f'{_dh(cagnotte)}</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:10px">à recevoir</div>'
+            f'</div></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("🎯 Créer objectif Daret", key=f"dr_obj_{daret_id}",
+                     use_container_width=True, type="secondary"):
+            from datetime import date as _date
+            from dateutil.relativedelta import relativedelta
+            date_cible = (_date.today() + relativedelta(months=tours_until_mine)).isoformat()
+            audit.creer_objectif_v2(
+                nom=f"Daret — {nom} (dans {tours_until_mine} mois)",
+                type_obj="EPARGNE",
+                montant_cible=cagnotte,
+                date_cible=date_cible,
+            )
+            from core.cache import invalider as _inv
+            _inv()
+            st.success(f"✅ Objectif créé — {_dh(cagnotte)} dans {tours_until_mine} mois")
+
     # Actions
     confirm_next  = st.session_state.get(f"dr_confirm_next_{daret_id}", False)
     confirm_close = st.session_state.get(f"dr_confirm_close_{daret_id}", False)
