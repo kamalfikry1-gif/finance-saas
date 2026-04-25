@@ -179,6 +179,9 @@ class AuditMiddleware:
                     .get("Savings", {})
                     .get("reel_pct", 0)
         )
+        # When no explicit Savings transactions exist, taux_ep (already
+        # corrected to use net solde as fallback) is the true savings rate.
+        effective_savings = savings_reel_pct if savings_reel_pct > 0 else taux_ep
 
         # ── SERIEUX (conditions bloquantes) ───────────────────────────────────
         if solde < 0:
@@ -187,13 +190,13 @@ class AuditMiddleware:
             return HUMEUR_SERIEUX
         if taux_ep < HUMEUR_TAUX_EP_SERIEUX:
             return HUMEUR_SERIEUX
-        if savings_reel_pct < HUMEUR_SAVINGS_SERIEUX:
+        if effective_savings < HUMEUR_SAVINGS_SERIEUX:
             return HUMEUR_SERIEUX
 
         # ── COOL (toutes les conditions positives) ────────────────────────────
         if (solde > 0
                 and score_val >= cfg["humeur_seuil_score"]
-                and savings_reel_pct >= cfg["savings_pct"] * HUMEUR_SAVINGS_COOL_RATIO):
+                and effective_savings >= cfg["savings_pct"] * HUMEUR_SAVINGS_COOL_RATIO):
             return HUMEUR_COOL
 
         return HUMEUR_NEUTRE
