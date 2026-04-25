@@ -47,30 +47,41 @@ def _generer_mois_options() -> List[Dict]:
 def render(audit) -> str:
     with st.sidebar:
 
-        # ── 1. Logo + Full name ───────────────────────────────────────────────
-        st.markdown(f"""
-<style>
-/* Style the logo button as a brand header */
-section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
-  + .element-container button {{
-    font-size: 16px !important;
-    font-weight: 900 !important;
-    color: {T.TEXT_HIGH} !important;
-    padding: 14px 6px 8px !important;
-    letter-spacing: -0.4px !important;
-    border-bottom: 1px solid {T.BORDER} !important;
-    border-radius: 0 !important;
-    margin-bottom: 6px !important;
-}}
-</style>
-<div class="sb-logo-anchor"></div>""", unsafe_allow_html=True)
-
         _username = (st.session_state.get("username") or "").capitalize()
 
-        # Logo → Accueil (always Finance SaaS branding)
-        if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
-            st.session_state.page = "Accueil"
-            st.rerun()
+        if "sb_expanded" not in st.session_state:
+            st.session_state.sb_expanded = True
+        sb_exp = st.session_state.sb_expanded
+
+        # ── 1. Title bar: logo + collapse toggle ──────────────────────────────
+        c_logo, c_toggle = st.columns([5, 1], gap="small")
+        with c_logo:
+            if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
+                st.session_state.page = "Accueil"
+                st.rerun()
+        with c_toggle:
+            if st.button("✕" if sb_exp else "☰", key="sb_toggle",
+                         use_container_width=True):
+                st.session_state.sb_expanded = not sb_exp
+                st.rerun()
+
+        # Username — always visible below logo
+        if _username:
+            st.markdown(
+                f'<div style="color:{T.TEXT_MED};font-size:12px;font-weight:500;'
+                f'padding:2px 4px 10px;margin-top:-6px">{_username}</div>',
+                unsafe_allow_html=True,
+            )
+
+        if not sb_exp:
+            # Collapsed — return early, skip nav + form
+            now = datetime.now()
+            return f"{now.month:02d}/{now.year}"
+
+        st.markdown(
+            f'<div style="border-top:1px solid {T.BORDER};margin-bottom:8px"></div>',
+            unsafe_allow_html=True,
+        )
 
         # ── 2. Flat navigation ────────────────────────────────────────────────
         current_page = st.session_state.page
@@ -132,7 +143,6 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
                     st.session_state.page = "Admin"
                     st.rerun()
 
-        # Période removed — always current month (can re-add later)
         now = datetime.now()
         mois_sel = f"{now.month:02d}/{now.year}"
 
