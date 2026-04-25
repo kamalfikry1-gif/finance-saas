@@ -1004,6 +1004,25 @@ class DatabaseManager:
     # A_CLASSIFIER — global admin view
     # ─────────────────────────────────────────────────────────────────────────
 
+    def get_audit_log(self, user_id: Optional[int] = None,
+                      limit: int = 200) -> List[Dict]:
+        """Global audit log for admin. Pass user_id to filter by user."""
+        sql = (
+            "SELECT a.id, a.Timestamp, a.Role, a.Action, a.Methode,"
+            " a.Score, a.Statut, u.username"
+            " FROM AUDIT_LOG a"
+            " LEFT JOIN UTILISATEURS u ON u.id = a.user_id"
+        )
+        params: tuple = ()
+        if user_id is not None:
+            sql += " WHERE a.user_id=%s"
+            params = (user_id,)
+        sql += " ORDER BY a.Timestamp DESC LIMIT %s"
+        params = params + (limit,)
+        with self.connexion() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [_canon_dict(r) for r in rows]
+
     def get_all_a_classifier_global(self) -> List[Dict]:
         with self.connexion() as conn:
             rows = conn.execute(

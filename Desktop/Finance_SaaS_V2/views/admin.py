@@ -30,8 +30,9 @@ def render(ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    tab_dico, tab_ref, tab_clf = st.tabs([
-        "📖 DICO_MATCHING", "📊 Référentiel", "🔍 À Classifier (global)"
+    tab_dico, tab_ref, tab_clf, tab_log = st.tabs([
+        "📖 DICO_MATCHING", "📊 Référentiel",
+        "🔍 À Classifier (global)", "📋 Audit Log"
     ])
 
     with tab_dico:
@@ -42,6 +43,9 @@ def render(ctx: dict) -> None:
 
     with tab_clf:
         _render_classifier_global(db, audit)
+
+    with tab_log:
+        _render_audit_log(db)
 
 
 # ── Tab 1 : DICO_MATCHING ────────────────────────────────────────────────────
@@ -325,6 +329,68 @@ def _render_classifier_global(db, audit) -> None:
                 st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ── Tab 4 : Audit Log ────────────────────────────────────────────────────────
+
+def _render_audit_log(db) -> None:
+    st.markdown(
+        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:12px">'
+        f'Journal immutable de toutes les actions — 200 dernières entrées.</p>',
+        unsafe_allow_html=True,
+    )
+
+    rows = db.get_audit_log(limit=200)
+    if not rows:
+        st.info("Aucune entrée dans l'audit log.")
+        return
+
+    STATUT_COLOR = {
+        "OK":     T.SUCCESS,
+        "WARN":   T.WARNING,
+        "ERREUR": T.DANGER,
+        "BLOQUE": T.DANGER,
+    }
+
+    for r in rows:
+        ts      = str(r.get("Timestamp", ""))[:19]
+        role    = r.get("Role", "")
+        action  = r.get("Action", "")
+        methode = r.get("Methode") or ""
+        score   = r.get("Score")
+        statut  = r.get("Statut", "OK")
+        user    = r.get("username") or "—"
+        color   = STATUT_COLOR.get(statut, T.TEXT_LOW)
+
+        score_html = (
+            f'<span style="color:{T.TEXT_MED};font-size:10px;margin-left:8px">'
+            f'score {float(score):.0f}</span>'
+            if score is not None else ""
+        )
+        methode_html = (
+            f'<span style="color:{T.TEXT_LOW};font-size:10px;margin-left:8px">'
+            f'{methode}</span>'
+            if methode else ""
+        )
+
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-left:3px solid {color};border-radius:{T.RADIUS_MD};'
+            f'padding:8px 14px;margin-bottom:4px;'
+            f'display:flex;align-items:center;gap:10px">'
+            f'<span style="color:{T.TEXT_LOW};font-size:10px;white-space:nowrap">{ts}</span>'
+            f'<span style="background:{color}20;color:{color};font-size:10px;'
+            f'padding:1px 7px;border-radius:{T.RADIUS_PILL};font-weight:700;'
+            f'flex-shrink:0">{statut}</span>'
+            f'<span style="color:{T.TEXT_MED};font-size:11px;flex-shrink:0">{role}</span>'
+            f'<span style="color:{T.TEXT_HIGH};font-size:12px;font-weight:600;flex:1">'
+            f'{action}</span>'
+            f'{methode_html}{score_html}'
+            f'<span style="color:{T.TEXT_LOW};font-size:10px;'
+            f'white-space:nowrap">👤 {user}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
