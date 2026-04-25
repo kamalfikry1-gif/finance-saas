@@ -557,6 +557,7 @@ class DatabaseManager:
         self._ensure_darets()
         self._ensure_transaction_columns()
         self.ensure_regles_sous_categorie()
+        self._ensure_admin_column()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
 
@@ -953,6 +954,25 @@ class DatabaseManager:
                 )
         except Exception:
             logger.exception("ensure_regles_sous_categorie failed")
+
+    def _ensure_admin_column(self) -> None:
+        """Add is_admin to UTILISATEURS for DBs created before this column existed."""
+        try:
+            with self.connexion() as conn:
+                conn.execute(
+                    "ALTER TABLE UTILISATEURS"
+                    " ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE"
+                )
+        except Exception:
+            logger.exception("_ensure_admin_column failed")
+
+    def is_admin(self, user_id: int) -> bool:
+        with self.connexion() as conn:
+            cur = conn.execute(
+                "SELECT is_admin FROM UTILISATEURS WHERE id=%s", (user_id,)
+            )
+            row = cur.fetchone()
+        return bool(row[0]) if row else False
 
     def get_mots_cles_inconnus(self, user_id: int) -> List[Dict]:
         with self.connexion() as conn:

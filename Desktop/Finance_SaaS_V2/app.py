@@ -70,6 +70,8 @@ if "user_id" not in st.session_state:
     st.session_state.user_id = None
 if "username" not in st.session_state:
     st.session_state.username = None
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. LOGIN GATE — si non connecté → page login uniquement
@@ -94,6 +96,10 @@ audit = st.session_state.audit
 # ─────────────────────────────────────────────────────────────────────────────
 # 5b. STREAK — update once per session (not on every rerun)
 # ─────────────────────────────────────────────────────────────────────────────
+
+if st.session_state.get("_admin_checked_for") != user_id:
+    st.session_state.is_admin = db.is_admin(user_id)
+    st.session_state._admin_checked_for = user_id
 
 if "streak_updated" not in st.session_state:
     try:
