@@ -1476,13 +1476,16 @@ class MoteurAnalyse:
         bilan  = self.get_bilan_mensuel(mois)
         bvr    = self.get_budget_vs_reel(mois)
         repart = self.get_repartition_par_categorie(mois)
+        proj   = self.get_projection_fin_mois(mois)
 
         # Composante 1 — Épargne
-        # epargne_reelle = transactions explicitement catégorisées Épargne/Finances.
-        # Si aucune, on utilise le solde net réel (revenus - dépenses) comme proxy —
-        # l'argent non dépensé IS l'épargne implicite du mois.
+        # Si épargne explicite: on l'utilise.
+        # Sinon: on prend le solde PROJETÉ fin de mois (pas le solde live) —
+        # plus honnête en milieu de mois car il intègre les jours restants.
+        # Les deux convergent en fin de mois quand les jours restants → 0.
+        solde_projete = float(proj.get("solde_projete", bilan.evolution_dh) or 0)
         epargne_eff = (bilan.epargne_reelle if bilan.epargne_reelle > 0
-                       else max(0.0, bilan.evolution_dh))
+                       else max(0.0, solde_projete))
         taux_ep   = (epargne_eff / bilan.revenus * 100) if bilan.revenus > 0 else 0.0
         pts_ep    = min(SCORE_POIDS_EPARGNE, round(taux_ep / 20 * SCORE_POIDS_EPARGNE, 1))
 
