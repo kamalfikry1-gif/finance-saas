@@ -58,14 +58,17 @@ def render(audit) -> str:
     Affiche la sidebar complète et retourne le mois sélectionné (str 'MM/YYYY').
     """
     with st.sidebar:
-        # ── Logo ──────────────────────────────────────────────────────────────
+        # ── Logo (cliquable → Accueil) ────────────────────────────────────────
+        if st.button(
+            "💰 Finance SaaS",
+            key="nav_logo",
+            use_container_width=True,
+        ):
+            st.session_state.page = "Accueil"
+            st.rerun()
         st.markdown(
-            f'<div style="padding:16px 0 24px">'
-            f'<div style="color:{T.PRIMARY};font-size:22px;font-weight:900;'
-            f'letter-spacing:-0.5px">💰 Finance SaaS</div>'
-            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px;'
-            f'text-transform:uppercase;letter-spacing:1.5px">Dashboard Personnel</div>'
-            f'</div>',
+            f'<div style="color:{T.TEXT_LOW};font-size:10px;margin:-8px 0 16px 4px;'
+            f'text-transform:uppercase;letter-spacing:1.5px">Dashboard Personnel</div>',
             unsafe_allow_html=True,
         )
 
