@@ -636,7 +636,7 @@ def _render_goals(audit, user_id: int) -> None:
             seen_ids.add(gid)
             unique_goals.append(g)
 
-    for g in unique_goals[:2]:
+    for g in unique_goals[:1]:
         target = float(g.get("montant_cible") or g.get("Montant_Cible") or 0)
         current = float(g.get("montant_actuel") or g.get("Montant_Actuel") or 0)
         if target <= 0:
@@ -661,7 +661,7 @@ def _render_goals(audit, user_id: int) -> None:
             unsafe_allow_html=True,
         )
 
-    if len(unique_goals) > 2:
+    if len(unique_goals) > 1:
         if st.button(f"Voir les {len(unique_goals)} objectifs →", key="acc_goal_all",
                      use_container_width=True):
             st.session_state.page = "Objectif"
@@ -816,7 +816,6 @@ def render(ctx: dict) -> None:
     streak_jours, mois_verts = ctx.get("streak", (0, 0))
 
     _render_streak_banner(streak_jours, mois_verts, ctx.get("username", ""))
-    _render_quick_transaction(audit)
     _render_hero(bilan, proj, score, mois_lbl)
     _render_kpis(bilan, proj)
 
@@ -826,22 +825,16 @@ def render(ctx: dict) -> None:
     with col_cats:
         _render_categories(rept, ctx)
     with col_right:
-        _render_radar(audit, proj)
-        _render_charges_fixes(audit)
         _render_coach(message, humeur, identite)
         if st.button("🤖 Parler au Coach →", key="coach_cta",
                      use_container_width=True):
             st.session_state.page = "Assistant"
             st.rerun()
         _render_score_plan(score, badges)
-        _render_age_of_money(audit, bilan, proj)
-        _render_daret_teaser(audit, ctx["user_id"])
         _render_goals(audit, ctx["user_id"])
         suggested_ep = max(0.0, float(proj.get("solde_projete", 0) or 0))
         _render_rappels(audit, ctx["user_id"], ctx["mois_sel"], suggested_ep=suggested_ep)
         if alertes:
-            st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
-            for a in alertes[:3]:
+            st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
+            for a in alertes[:2]:
                 alerte_box(a["message"], a["couleur"])
-
-    _render_donut(rept)
