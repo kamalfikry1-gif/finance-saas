@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 import streamlit as st
 from components.design_tokens import T
-from components.helpers import dh as _dh, section as _section
+from components.helpers import dh as _dh, section as _section, render_page_header
 from core.cache import invalider as _invalider_cache, get_categories as _get_cats, get_sous_categories as _get_scats
 
 logger = logging.getLogger(__name__)
@@ -22,13 +22,7 @@ def render(ctx: dict) -> None:
     mois_sel = ctx["mois_sel"]
     mois_lbl = ctx["mois_lbl"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
-        f'font-size:24px;margin-bottom:4px">📋 Historique</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:20px">'
-        f'Consultez, modifiez ou supprimez vos transactions · {mois_lbl}</p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("📋", "Historique", f"Transactions · {mois_lbl}")
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
     inconnus = audit.get_a_classifier()

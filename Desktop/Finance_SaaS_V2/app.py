@@ -14,6 +14,8 @@ from config import APP_TITLE, APP_ICON
 
 from components.styles import inject_css
 from components.sidebar import render as render_sidebar
+from components.topbar import render as _render_topbar
+from components.design_tokens import T
 from core import cache as ui_cache
 
 import views.accueil   as page_accueil
@@ -191,7 +193,55 @@ with st.sidebar:
         st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 11. ROUTEUR DE PAGES
+# 11. TOPBAR — persistent strip above every page
+# ─────────────────────────────────────────────────────────────────────────────
+
+_render_topbar(ctx)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 12. FAB COACH DIALOG — defined here, triggered after page render
+# ─────────────────────────────────────────────────────────────────────────────
+
+@st.dialog("Coach")
+def _fab_coach_dialog(ctx: dict) -> None:
+    _humeur   = ctx["humeur"]
+    _identite = ctx["identite_active"]
+    _message  = ctx["message"]
+    _score_v  = float(ctx["score"].get("score", 0) or 0)
+    _niveau   = {"EXCELLENT": "Excellent", "BON": "Bon",
+                 "MOYEN": "Moyen", "CRITIQUE": "Critique"}.get(
+        ctx["score"].get("niveau", ""), ""
+    )
+    _mc = (T.SUCCESS if _humeur == "COOL" else T.DANGER if _humeur == "SERIEUX" else T.WARNING)
+    _init = (_identite or "E")[:1].upper()
+    st.markdown(
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+        f'<div style="width:42px;height:42px;border-radius:50%;'
+        f'background:linear-gradient(135deg,{T.PRIMARY},{T.PURPLE});'
+        f'display:flex;align-items:center;justify-content:center;'
+        f'color:#0a1020;font-weight:800;font-size:17px">{_init}</div>'
+        f'<div><div style="color:{T.TEXT_HIGH};font-weight:700;font-size:14px">'
+        f'Coach {_identite}</div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:11px">Assistant financier</div></div>'
+        f'<span style="margin-left:auto;background:{_mc}20;color:{_mc};'
+        f'font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;'
+        f'letter-spacing:1px;text-transform:uppercase">{_humeur}</span>'
+        f'</div>'
+        f'<div style="color:{T.TEXT_HIGH};font-size:13px;line-height:1.6;'
+        f'margin-bottom:14px">{_message}</div>'
+        f'<div style="background:{T.BG_CARD_ALT};border-radius:{T.RADIUS_MD};'
+        f'padding:10px 14px;display:flex;align-items:baseline;gap:6px;margin-bottom:4px">'
+        f'<span style="color:{_mc};font-size:30px;font-weight:900">{_score_v:.0f}</span>'
+        f'<span style="color:{T.TEXT_LOW};font-size:12px">/100 · {_niveau}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("🤖 Parler au Coach →", use_container_width=True, type="primary"):
+        st.session_state.page = "Assistant"
+        st.rerun()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 13. ROUTEUR DE PAGES
 # ─────────────────────────────────────────────────────────────────────────────
 
 page = st.session_state.page
@@ -205,3 +255,30 @@ elif page == "Plafond":    page_plafond.render(ctx)
 elif page == "Objectif":   page_objectif.render(ctx)
 elif page == "Daret":      page_daret.render(ctx)
 elif page == "Admin":      page_admin.render(ctx)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 14. FAB COACH — fixed bottom-right circle, every page
+# ─────────────────────────────────────────────────────────────────────────────
+
+_fab_humeur   = ctx.get("humeur", "NEUTRE")
+_fab_identite = ctx.get("identite_active", "EQUILIBRE")
+_fab_letter   = (_fab_identite or "E")[:1].upper()
+_fab_bg       = (T.SUCCESS if _fab_humeur == "COOL"
+                 else T.DANGER if _fab_humeur == "SERIEUX" else T.WARNING)
+
+st.markdown(
+    f'<style>'
+    f'.element-container:has(.fab-anchor) + .element-container {{'
+    f'  background:{_fab_bg} !important;'
+    f'}}'
+    f'.element-container:has(.fab-anchor) + .element-container button {{'
+    f'  background:{_fab_bg} !important;'
+    f'  background-image:none !important;'
+    f'  box-shadow:0 6px 28px {_fab_bg}55 !important;'
+    f'}}'
+    f'</style>'
+    f'<div class="fab-anchor"></div>',
+    unsafe_allow_html=True,
+)
+if st.button(_fab_letter, key="fab_coach_open", type="primary"):
+    _fab_coach_dialog(ctx)

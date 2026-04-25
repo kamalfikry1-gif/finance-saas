@@ -16,20 +16,14 @@ import json
 from datetime import date, datetime
 import streamlit as st
 from components.design_tokens import T
-from components.helpers import dh as _dh
+from components.helpers import dh as _dh, render_page_header
 from core.cache import get_darets as _get_darets
 
 
 def render(ctx: dict) -> None:
     audit = ctx["audit"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
-        f'font-size:24px;margin-bottom:4px">🔄 Daret & Tontine</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:20px">'
-        f'Gérez vos cercles d\'épargne communautaire — qui reçoit la cagnotte ce mois ?</p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("🔄", "Daret & Tontine", "Gérez vos cercles d'épargne communautaire")
 
     try:
         darets = _get_darets(audit, audit.user_id)

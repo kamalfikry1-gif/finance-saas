@@ -573,5 +573,50 @@ summary {{
     color: var(--text-med);
 }}
 .goal-foot-v1 .cur {{ color: var(--text-high); font-weight: 600; font-variant-numeric: tabular-nums; }}
+
+/* ── FAB Coach — fixed bottom-right, every page ─────────────────────────── */
+/* Marker div injected by app.py via st.markdown; adjacent sibling = button  */
+.fab-anchor {{ display: none; }}
+
+.element-container:has(.fab-anchor) + .element-container {{
+    position: fixed !important;
+    bottom: 28px !important;
+    right: 28px !important;
+    z-index: 10000 !important;
+    width: 56px !important;
+    height: 56px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}}
+
+.element-container:has(.fab-anchor) + .element-container > div {{
+    width: 56px !important;
+    height: 56px !important;
+}}
+
+.element-container:has(.fab-anchor) + .element-container button {{
+    width: 56px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 20px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}}
+
+.element-container:has(.fab-anchor) + .element-container button:hover {{
+    transform: scale(1.08) !important;
+}}
+
+@media (max-width: 768px) {{
+    .element-container:has(.fab-anchor) + .element-container {{
+        bottom: 80px !important;
+        right: 16px !important;
+    }}
+}}
+
 </style>
 """, unsafe_allow_html=True)

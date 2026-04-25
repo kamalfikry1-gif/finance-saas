@@ -8,7 +8,7 @@ import logging
 from datetime import date, datetime
 import streamlit as st
 from components.design_tokens import T
-from components.helpers import dh as _dh
+from components.helpers import dh as _dh, render_page_header
 from core.cache import (invalider as _invalider_cache,
                         get_objectifs_type as _get_objs,
                         get_depenses_mois as _get_dep,
@@ -423,13 +423,7 @@ def render(ctx: dict) -> None:
     mois_sel = ctx["mois_sel"]
     mois_lbl = ctx["mois_lbl"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
-        f'font-size:24px;margin-bottom:4px">🎯 Objectifs</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:20px">'
-        f'Suivez vos ambitions financières — réduction des dépenses et constitution d\'épargne.</p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("🎯", "Objectifs", "Réduction des dépenses et constitution d'épargne")
 
     tab_dep, tab_ep, tab_histo = st.tabs([
         "💸 Objectif Dépense", "💰 Objectif Épargne", "📈 Historique Épargne"

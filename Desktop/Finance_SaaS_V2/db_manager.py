@@ -1049,6 +1049,33 @@ class DatabaseManager:
             )
 
     # ─────────────────────────────────────────────────────────────────────────
+    # SPARKLINE — 7-day net flux for hero chart
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_solde_7j(self, user_id: int) -> list:
+        """Return daily net flux (IN-OUT) for last 7 days — sparkline data."""
+        from datetime import date, timedelta
+        sql = """
+            SELECT DATE(Date) as jour,
+                   SUM(CASE WHEN Sens='IN' THEN Montant ELSE -Montant END) as flux
+            FROM TRANSACTIONS
+            WHERE user_id = %s
+              AND DATE(Date) >= CURRENT_DATE - INTERVAL '6 days'
+            GROUP BY DATE(Date)
+            ORDER BY jour ASC
+        """
+        try:
+            with self.connexion() as conn:
+                rows = conn.execute(sql, (user_id,)).fetchall()
+            today = date.today()
+            flux_by_day = {}
+            for r in rows:
+                jour = r["jour"] if isinstance(r["jour"], date) else date.fromisoformat(str(r["jour"])[:10])
+                flux_by_day[jour] = float(r["flux"] or 0)
+            return [flux_by_day.get(today - timedelta(days=6 - i), 0.0) for i in range(7)]
+        except Exception:
+            return []
+
     # EPARGNE_HISTO — user savings register
     # ─────────────────────────────────────────────────────────────────────────
 

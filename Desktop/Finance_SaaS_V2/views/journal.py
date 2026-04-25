@@ -7,7 +7,7 @@ import logging
 from datetime import date
 import streamlit as st
 from components.design_tokens import T
-from components.helpers import section as _section
+from components.helpers import section as _section, render_page_header
 from core.cache import invalider as _invalider_cache, get_journal as _get_journal
 
 logger = logging.getLogger(__name__)
@@ -28,14 +28,7 @@ _TAGS_SUGGERES = [
 def render(ctx: dict) -> None:
     audit = ctx["audit"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
-        f'font-size:24px;margin-bottom:4px">📔 Journal Financier</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:24px">'
-        f'Notez le contexte de vos dépenses inhabituelles — '
-        f'le coach s\'en souviendra pour interpréter vos mois atypiques.</p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("📔", "Journal Financier", "Contextualisez vos mois atypiques")
 
     # ── Formulaire nouvelle note (caché par défaut) ───────────────────────────
     with st.expander("📝 Nouvelle note", expanded=st.session_state.get("j_form_open", False)):

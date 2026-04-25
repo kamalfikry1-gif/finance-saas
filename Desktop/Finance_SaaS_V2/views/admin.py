@@ -9,6 +9,7 @@ Tabs :
 
 import streamlit as st
 from components.design_tokens import T
+from components.helpers import render_page_header
 from core.cache import invalider as _invalider_cache
 
 
@@ -22,13 +23,7 @@ def render(ctx: dict) -> None:
     db    = ctx["audit"].db
     audit = ctx["audit"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;font-size:24px;'
-        f'margin-bottom:4px">⚙️ Administration</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:20px">'
-        f'Gestion du dictionnaire, du référentiel et des mots-clés inconnus.</p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("⚙️", "Administration", "Gestion des données et règles")
 
     tab_dico, tab_ref, tab_clf, tab_log = st.tabs([
         "📖 DICO_MATCHING", "📊 Référentiel",

@@ -29,7 +29,7 @@ from components.design_tokens import T
 from components.sidebar import _generer_mois_options
 from core.assistant_engine import AssistantEngine, RenderType
 from core.cache import invalider as _invalider_cache
-from components.helpers import dh as _dh, pct as _pct
+from components.helpers import dh as _dh, pct as _pct, render_page_header
 
 _ENGINE = AssistantEngine()
 
@@ -881,6 +881,7 @@ def _render_result_block(node_id: str, ctx: dict) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render(ctx: dict) -> None:
+    render_page_header("🤖", "Assistant Coach", "Posez vos questions financières")
     _chat_init()
 
     # ── Greeting — toujours dynamique (jamais stocké dans chat_messages) ──────

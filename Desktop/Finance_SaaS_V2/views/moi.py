@@ -8,7 +8,7 @@ import logging
 import streamlit as st
 from components.design_tokens import T
 from components.cards import IDENTITE_LABEL, IDENTITE_DESC
-from components.helpers import section as _section
+from components.helpers import section as _section, render_page_header
 from core.cache import invalider as _invalider_cache
 
 logger = logging.getLogger(__name__)
@@ -17,13 +17,7 @@ logger = logging.getLogger(__name__)
 def render(ctx: dict) -> None:
     audit = ctx["audit"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
-        f'font-size:24px;margin-bottom:4px">👤 Mon Profil</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:24px">'
-        f'Gérez vos informations personnelles et préférences de l\'application.</p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("👤", "Mon Profil", "Paramètres et identité de coach")
 
     # ── Section 1 : Revenus ──────────────────────────────────────────────────
     _section("Revenus")

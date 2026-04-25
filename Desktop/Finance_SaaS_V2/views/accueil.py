@@ -286,24 +286,55 @@ def _render_quick_transaction(audit) -> None:
                     st.error(res.get("erreur", "Erreur inconnue"))
 
 
-def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str) -> None:
-    solde  = bilan["solde"]
-    sign   = "+" if solde >= 0 else "−"
-    sclass = "pos" if solde >= 0 else "neg"
-    proj_v = proj.get("projection_fin_mois", 0) or 0
+def _sparkline_svg(values: list) -> str:
+    """Pure SVG fluid polyline — no axes, no labels, just the 7-day trend."""
+    W, H = 110, 44
+    n = len(values)
+    if n < 2:
+        return ""
+    mn, mx = min(values), max(values)
+    rng = (mx - mn) or 1.0
+    pts = []
+    for i, v in enumerate(values):
+        x = round(i / (n - 1) * W, 1)
+        y = round(H - 5 - ((v - mn) / rng) * (H - 10), 1)
+        pts.append(f"{x},{y}")
+    color = T.SUCCESS if values[-1] >= values[0] else T.DANGER
+    return (
+        f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">'
+        f'<polyline points="{" ".join(pts)}" fill="none" '
+        f'stroke="{color}" stroke-width="2.5" '
+        f'stroke-linecap="round" stroke-linejoin="round"/>'
+        f'</svg>'
+    )
+
+
+def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str, sparkline: list = None) -> None:
+    solde   = bilan["solde"]
+    sign    = "+" if solde >= 0 else "−"
+    sclass  = "pos" if solde >= 0 else "neg"
+    proj_v  = proj.get("projection_fin_mois", 0) or 0
     taux_ep = float(score.get("taux_epargne_pct", 0) or 0)
+    spark   = _sparkline_svg(sparkline or [])
+    spark_html = (
+        f'<div style="flex-shrink:0;opacity:0.7;align-self:center">{spark}</div>'
+        if spark else ""
+    )
 
     st.markdown(
-        f'<div class="v1-hero">'
-        f'  <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
-        f'  <div class="v1-hero-amount">'
-        f'    <span class="sign {sclass}">{sign}</span>{_fmt_dh(solde)}'
-        f'    <span class="unit">DH</span>'
+        f'<div class="v1-hero" style="display:flex;align-items:center;gap:24px">'
+        f'  <div style="flex:1;min-width:0">'
+        f'    <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
+        f'    <div class="v1-hero-amount">'
+        f'      <span class="sign {sclass}">{sign}</span>{_fmt_dh(solde)}'
+        f'      <span class="unit">DH</span>'
+        f'    </div>'
+        f'    <div class="v1-hero-sub">'
+        f'      <span class="v1-hero-pill">↑ {taux_ep:.1f}% épargne</span>'
+        f'      <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
+        f'    </div>'
         f'  </div>'
-        f'  <div class="v1-hero-sub">'
-        f'    <span class="v1-hero-pill">↑ {taux_ep:.1f}% épargne</span>'
-        f'    <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
-        f'  </div>'
+        f'  {spark_html}'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -815,8 +846,13 @@ def render(ctx: dict) -> None:
     audit    = ctx["audit"]
     streak_jours, mois_verts = ctx.get("streak", (0, 0))
 
+    try:
+        sparkline_data = audit.db.get_solde_7j(ctx["user_id"])
+    except Exception:
+        sparkline_data = []
+
     _render_streak_banner(streak_jours, mois_verts, ctx.get("username", ""))
-    _render_hero(bilan, proj, score, mois_lbl)
+    _render_hero(bilan, proj, score, mois_lbl, sparkline_data)
     _render_kpis(bilan, proj)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)

@@ -29,3 +29,23 @@ def section(titre: str) -> None:
         f'border-bottom:1px solid {T.BORDER}">{titre}</div>',
         unsafe_allow_html=True,
     )
+
+
+def render_page_header(icon: str, title: str, subtitle: str = "") -> None:
+    """Standard page header — icon · title · subtitle. Applied to all pages."""
+    sub_html = (
+        f'<div style="color:{T.TEXT_LOW};font-size:12px;margin-top:3px">{subtitle}</div>'
+        if subtitle else ""
+    )
+    st.markdown(
+        f'<div style="margin-bottom:20px;padding-bottom:14px;'
+        f'border-bottom:1px solid {T.BORDER}">'
+        f'<div style="display:flex;align-items:center;gap:10px">'
+        f'<span style="font-size:20px;line-height:1">{icon}</span>'
+        f'<div>'
+        f'<div style="color:{T.TEXT_HIGH};font-size:20px;font-weight:800;'
+        f'line-height:1.1;letter-spacing:-0.3px">{title}</div>'
+        f'{sub_html}'
+        f'</div></div></div>',
+        unsafe_allow_html=True,
+    )

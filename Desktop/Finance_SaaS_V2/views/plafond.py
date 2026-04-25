@@ -7,7 +7,7 @@ import logging
 import unicodedata
 import streamlit as st
 from components.design_tokens import T
-from components.helpers import dh as _dh
+from components.helpers import dh as _dh, render_page_header
 from core.cache import invalider as _invalider_cache, get_plafonds as _get_plafonds, get_depenses_mois as _get_dep
 
 logger = logging.getLogger(__name__)
@@ -142,15 +142,7 @@ def render(ctx: dict) -> None:
     mois_sel = ctx["mois_sel"]
     mois_lbl = ctx["mois_lbl"]
 
-    st.markdown(
-        f'<h2 style="color:{T.TEXT_HIGH};font-weight:900;'
-        f'font-size:24px;margin-bottom:4px">🔔 Plafonds Budgétaires</h2>'
-        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:24px">'
-        f'Définissez un plafond mensuel par sous-catégorie. '
-        f'Le coach vous alerte automatiquement quand vous approchez de la limite. '
-        f'· Vue mois : <strong style="color:{T.PRIMARY}">{mois_lbl}</strong></p>',
-        unsafe_allow_html=True,
-    )
+    render_page_header("🔔", "Plafonds Budgétaires", f"Limites par sous-catégorie · {mois_lbl}")
 
     try:
         cats     = _get_plafonds(audit, audit.user_id)
