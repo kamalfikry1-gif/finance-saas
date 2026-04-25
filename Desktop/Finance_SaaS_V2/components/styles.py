@@ -22,13 +22,16 @@ def inject_css() -> None:
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }}
 
+/* Hide Streamlit chrome (header, footer, menu) */
+header[data-testid="stHeader"] {{ display: none !important; }}
+div[data-testid="stToolbar"]  {{ display: none !important; }}
+#MainMenu {{ visibility: hidden !important; }}
+footer    {{ visibility: hidden !important; }}
+
 /* Reduce Streamlit default top padding */
 .block-container {{
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-}}
-div[data-testid="stAppViewBlockContainer"] {{
     padding-top: 0.5rem !important;
+    padding-bottom: 1rem !important;
 }}
 
 section[data-testid="stSidebar"] {{
