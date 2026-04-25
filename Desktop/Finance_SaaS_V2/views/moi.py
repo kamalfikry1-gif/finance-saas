@@ -193,3 +193,30 @@ def render(ctx: dict) -> None:
             if k.startswith("ob_") or k.startswith("_ob_") or k == "onboarding_budgets":
                 del st.session_state[k]
         st.rerun()
+
+    # ── Déconnexion ───────────────────────────────────────────────────────────
+    _section("Déconnexion")
+
+    @st.dialog("Confirmer la déconnexion")
+    def _logout_dialog():
+        st.markdown(
+            f'<div style="color:{T.TEXT_MED};font-size:13px;margin-bottom:16px">'
+            f'Voulez-vous vraiment vous déconnecter ?<br>'
+            f'<span style="color:{T.TEXT_LOW};font-size:11px">'
+            f'Vos données sont sauvegardées — vous pourrez vous reconnecter à tout moment.</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🚪 Déconnecter", key="logout_confirm_btn",
+                         type="primary", use_container_width=True):
+                _invalider_cache()
+                st.session_state.clear()
+                st.rerun()
+        with c2:
+            if st.button("Annuler", key="logout_cancel_btn", use_container_width=True):
+                st.rerun()
+
+    if st.button("🚪 Se déconnecter", key="moi_logout_btn", type="secondary"):
+        _logout_dialog()

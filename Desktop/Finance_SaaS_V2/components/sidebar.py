@@ -66,8 +66,9 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
 <div class="sb-logo-anchor"></div>""", unsafe_allow_html=True)
 
         _username = (st.session_state.get("username") or "").capitalize()
-        _logo_label = f"👤  {_username}" if _username else "💰  Finance SaaS"
-        if st.button(_logo_label, key="nav_logo", use_container_width=True):
+
+        # Logo → Accueil (always Finance SaaS branding)
+        if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
             st.session_state.page = "Accueil"
             st.rerun()
 
@@ -76,6 +77,16 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
 
         for item in NAV_ITEMS:
             pid, icon, label = item["id"], item["icon"], item["label"]
+
+            # Mon compte shows the username as primary text
+            if pid == "Moi" and _username:
+                display = _username
+                sub_html = (f'<div style="color:{T.TEXT_LOW};font-size:10px;margin-top:1px">'
+                            f'Mon compte</div>')
+            else:
+                display = label
+                sub_html = ""
+
             if current_page == pid:
                 st.markdown(
                     f'<div style="display:flex;align-items:center;gap:10px;'
@@ -83,12 +94,15 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
                     f'padding:9px 12px;margin:2px 0;'
                     f'border-left:3px solid {T.PRIMARY}">'
                     f'<span style="font-size:14px">{icon}</span>'
-                    f'<span style="color:{T.PRIMARY};font-weight:700;font-size:13px">'
-                    f'{label}</span></div>',
+                    f'<div>'
+                    f'<div style="color:{T.PRIMARY};font-weight:700;font-size:13px">'
+                    f'{display}</div>'
+                    f'{sub_html}'
+                    f'</div></div>',
                     unsafe_allow_html=True,
                 )
             else:
-                if st.button(f"{icon}  {label}", key=f"nav_{pid}",
+                if st.button(f"{icon}  {display}", key=f"nav_{pid}",
                              use_container_width=True):
                     st.session_state.page = pid
                     st.rerun()
@@ -117,16 +131,6 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
                              use_container_width=True):
                     st.session_state.page = "Admin"
                     st.rerun()
-
-        # ── Déconnexion ───────────────────────────────────────────────────────
-        st.markdown(
-            f'<div style="border-top:1px solid {T.BORDER};margin:10px 0 4px"></div>',
-            unsafe_allow_html=True,
-        )
-        if st.button("🚪  Déconnexion", key="btn_logout", use_container_width=True):
-            _invalider_cache()
-            st.session_state.clear()
-            st.rerun()
 
         # Période removed — always current month (can re-add later)
         now = datetime.now()
