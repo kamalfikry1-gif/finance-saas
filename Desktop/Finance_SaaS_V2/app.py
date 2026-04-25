@@ -99,7 +99,10 @@ audit = st.session_state.audit
 # ─────────────────────────────────────────────────────────────────────────────
 
 if st.session_state.get("_admin_checked_for") != user_id:
-    st.session_state.is_admin = db.is_admin(user_id)
+    try:
+        st.session_state.is_admin = db.is_admin(user_id)
+    except Exception:
+        st.session_state.is_admin = False
     st.session_state._admin_checked_for = user_id
 
 if "streak_updated" not in st.session_state:
