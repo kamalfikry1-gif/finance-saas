@@ -1,8 +1,11 @@
 """
-components/sidebar.py — Sidebar complète : navigation, période, saisie rapide.
+components/sidebar.py — Sidebar navigation.
 
-Export principal :
-    render(audit) → str   (retourne mois_sel sélectionné)
+Structure (top → bottom):
+    1. Logo + Full name → Accueil
+    2. Flat nav: Mon compte · Historique · Journal · Objectif · Plafond · Daret · Déconnexion
+    3. Period selector
+    4. + Transaction (full form with suggestions)
 """
 
 import logging
@@ -16,26 +19,13 @@ logger = logging.getLogger(__name__)
 from components.design_tokens import T
 from core.cache import invalider as _invalider_cache
 
-# ── Navigation groups ─────────────────────────────────────────────────────────
-
-NAV_GROUPS = [
-    {
-        "label": "Principal",
-        "pages": [
-            {"id": "Accueil",    "icon": "🏠", "label": "Accueil"},
-            {"id": "Historique", "icon": "📋", "label": "Historique"},
-            {"id": "Moi",        "icon": "👤", "label": "Moi"},
-        ],
-    },
-    {
-        "label": "Planification",
-        "pages": [
-            {"id": "Objectif",   "icon": "🎯", "label": "Objectif"},
-            {"id": "Plafond",    "icon": "🔔", "label": "Plafond"},
-            {"id": "Daret",      "icon": "🔄", "label": "Daret"},
-            {"id": "Journal",    "icon": "📔", "label": "Journal"},
-        ],
-    },
+NAV_ITEMS = [
+    {"id": "Moi",        "icon": "👤", "label": "Mon compte"},
+    {"id": "Historique", "icon": "📋", "label": "Historique"},
+    {"id": "Journal",    "icon": "📔", "label": "Journal"},
+    {"id": "Objectif",   "icon": "🎯", "label": "Objectif"},
+    {"id": "Plafond",    "icon": "🔔", "label": "Plafond"},
+    {"id": "Daret",      "icon": "🔄", "label": "Daret"},
 ]
 
 
@@ -54,69 +44,65 @@ def _generer_mois_options() -> List[Dict]:
 
 
 def render(audit) -> str:
-    """
-    Affiche la sidebar complète et retourne le mois sélectionné (str 'MM/YYYY').
-    """
     with st.sidebar:
-        # ── Logo (cliquable → Accueil) ────────────────────────────────────────
-        if st.button(
-            "💰 Finance SaaS",
-            key="nav_logo",
-            use_container_width=True,
-        ):
+
+        # ── 1. Logo + Full name ───────────────────────────────────────────────
+        st.markdown(f"""
+<style>
+/* Style the logo button as a brand header */
+section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
+  + .element-container button {{
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    color: {T.TEXT_HIGH} !important;
+    padding: 14px 6px 8px !important;
+    letter-spacing: -0.4px !important;
+    border-bottom: 1px solid {T.BORDER} !important;
+    border-radius: 0 !important;
+    margin-bottom: 6px !important;
+}}
+</style>
+<div class="sb-logo-anchor"></div>""", unsafe_allow_html=True)
+
+        if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
             st.session_state.page = "Accueil"
             st.rerun()
-        st.markdown(
-            f'<div style="color:{T.TEXT_LOW};font-size:10px;margin:-8px 0 16px 4px;'
-            f'text-transform:uppercase;letter-spacing:1.5px">Dashboard Personnel</div>',
-            unsafe_allow_html=True,
-        )
 
-        # ── Navigation (grouped) ─────────────────────────────────────────────
+        # ── 2. Flat navigation ────────────────────────────────────────────────
         current_page = st.session_state.page
 
-        for group in NAV_GROUPS:
-            page_ids      = [p["id"] for p in group["pages"]]
-            group_active  = current_page in page_ids
+        for item in NAV_ITEMS:
+            pid, icon, label = item["id"], item["icon"], item["label"]
+            if current_page == pid:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:10px;'
+                    f'background:{T.PRIMARY}18;border-radius:{T.RADIUS_MD};'
+                    f'padding:9px 12px;margin:2px 0;'
+                    f'border-left:3px solid {T.PRIMARY}">'
+                    f'<span style="font-size:14px">{icon}</span>'
+                    f'<span style="color:{T.PRIMARY};font-weight:700;font-size:13px">'
+                    f'{label}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                if st.button(f"{icon}  {label}", key=f"nav_{pid}",
+                             use_container_width=True):
+                    st.session_state.page = pid
+                    st.rerun()
 
-            with st.expander(group["label"], expanded=group_active):
-                for page in group["pages"]:
-                    pid   = page["id"]
-                    icon  = page["icon"]
-                    label = page["label"]
-
-                    if current_page == pid:
-                        st.markdown(
-                            f'<div style="display:flex;align-items:center;gap:10px;'
-                            f'background:{T.PRIMARY}18;border-radius:{T.RADIUS_MD};'
-                            f'padding:8px 12px;margin:2px 0;'
-                            f'border-left:3px solid {T.PRIMARY}">'
-                            f'<span style="font-size:14px">{icon}</span>'
-                            f'<span style="color:{T.PRIMARY};font-weight:700;'
-                            f'font-size:13px">{label}</span>'
-                            f'</div>',
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        if st.button(f"{icon}  {label}", key=f"nav_{pid}",
-                                     use_container_width=True):
-                            st.session_state.page = pid
-                            st.rerun()
-
-        # ── Admin (visible uniquement si is_admin) ────────────────────────────
+        # ── Admin (conditionnnel) ─────────────────────────────────────────────
         if st.session_state.get("is_admin"):
             st.markdown(
                 f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
                 f'text-transform:uppercase;letter-spacing:2px;'
-                f'margin:12px 0 6px">Admin</div>',
+                f'margin:10px 0 4px">Admin</div>',
                 unsafe_allow_html=True,
             )
-            is_active = st.session_state.page == "Admin"
-            if is_active:
+            if current_page == "Admin":
                 st.markdown(
                     f'<div style="display:flex;align-items:center;gap:10px;'
                     f'background:{T.WARNING}18;border-radius:{T.RADIUS_MD};'
-                    f'padding:9px 14px;margin:2px 0;'
+                    f'padding:9px 12px;margin:2px 0;'
                     f'border-left:3px solid {T.WARNING}">'
                     f'<span style="font-size:14px">⚙️</span>'
                     f'<span style="color:{T.WARNING};font-weight:700;font-size:13px">'
@@ -129,43 +115,37 @@ def render(audit) -> str:
                     st.session_state.page = "Admin"
                     st.rerun()
 
-        # ── Restart Onboarding ────────────────────────────────────────────────
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        if st.button(
-            "🔄  Refaire l'onboarding",
-            key="btn_restart_onboarding",
-            use_container_width=True,
-            type="secondary",
-        ):
-            _restart_onboarding(audit)
+        # ── Déconnexion ───────────────────────────────────────────────────────
+        st.markdown(
+            f'<div style="border-top:1px solid {T.BORDER};margin:10px 0 4px"></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("🚪  Déconnexion", key="btn_logout", use_container_width=True):
+            _invalider_cache()
+            st.session_state.clear()
             st.rerun()
 
-        st.divider()
-
-        # ── Période ───────────────────────────────────────────────────────────
+        # ── 3. Période ────────────────────────────────────────────────────────
         st.markdown(
             f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">'
-            f'Période</div>',
+            f'text-transform:uppercase;letter-spacing:2px;'
+            f'margin:16px 0 6px">Période</div>',
             unsafe_allow_html=True,
         )
         mois_opts = _generer_mois_options()
         mois_sel  = st.selectbox(
             "mois",
             options=[m["value"] for m in mois_opts],
-            format_func=lambda v: next(
-                m["label"] for m in mois_opts if m["value"] == v
-            ),
+            format_func=lambda v: next(m["label"] for m in mois_opts if m["value"] == v),
             label_visibility="collapsed",
             key="sidebar_mois_sel",
         )
 
-        st.divider()
-
-        # ── Saisie rapide ─────────────────────────────────────────────────────
+        # ── 4. + Transaction ──────────────────────────────────────────────────
         st.markdown(
             f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">'
+            f'text-transform:uppercase;letter-spacing:2px;'
+            f'margin:16px 0 8px;border-top:1px solid {T.BORDER};padding-top:14px">'
             f'+ Transaction</div>',
             unsafe_allow_html=True,
         )
@@ -226,7 +206,6 @@ def render(audit) -> str:
             key=f"saisie_date_{_k}",
         )
 
-        # ── Tags & Contact (optionnel, caché) ─────────────────────────────────
         with st.expander("🏷️ Tags & Contact", expanded=False):
             saisie_tags = st.text_input(
                 "Tags", placeholder="hanout, famille, boulot…",
@@ -278,7 +257,8 @@ def render(audit) -> str:
         if st.session_state.saisie_confirmer:
             p = st.session_state.saisie_confirmer
             if st.button("Confirmer quand même", key="btn_forcer", type="secondary"):
-                res2 = audit.recevoir(p["libelle"], p["montant"], p["sens"], p["dv"], forcer=True)
+                res2 = audit.recevoir(p["libelle"], p["montant"],
+                                      p["sens"], p["dv"], forcer=True)
                 if res2.get("action") == "OK":
                     tx_id = res2.get("id_unique")
                     if tx_id and (p.get("tags", "").strip() or p.get("contact", "").strip()):
@@ -288,24 +268,24 @@ def render(audit) -> str:
                 _invalider_cache()
                 st.rerun()
 
-        # ── Zone Test ─────────────────────────────────────────────────────────
-        st.divider()
+        # ── Zone Test (dev only) ───────────────────────────────────────────────
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         with st.expander("🛠️ Zone Test", expanded=False):
+            if st.button("🔄  Refaire l'onboarding", key="btn_restart_onboarding",
+                         use_container_width=True, type="secondary"):
+                _restart_onboarding(audit)
+                st.rerun()
             st.markdown(
-                f'<div style="color:{T.DANGER};font-size:11px;margin-bottom:8px">'
-                f'Supprime toutes les transactions et réinitialise l\'onboarding.</div>',
+                f'<div style="color:{T.DANGER};font-size:11px;margin:8px 0">'
+                f'Supprime toutes les transactions.</div>',
                 unsafe_allow_html=True,
             )
             confirme = st.checkbox("Je confirme la suppression", key="reset_confirm")
-            if st.button(
-                "Réinitialiser les données",
-                key="btn_reset_data",
-                type="secondary",
-                use_container_width=True,
-                disabled=not confirme,
-            ):
+            if st.button("Réinitialiser les données", key="btn_reset_data",
+                         type="secondary", use_container_width=True,
+                         disabled=not confirme):
                 _reset_donnees(audit)
-                st.success("Données effacées. Rechargement...")
+                st.success("Données effacées.")
                 st.rerun()
 
     return mois_sel
@@ -314,16 +294,15 @@ def render(audit) -> str:
 def _reset_donnees(audit) -> None:
     try:
         with audit.db.connexion() as conn:
-            conn.execute("DELETE FROM TRANSACTIONS WHERE user_id = ?", (audit.user_id,))
-            conn.execute("DELETE FROM BUDGETS_MENSUELS WHERE user_id = ?", (audit.user_id,))
+            conn.execute("DELETE FROM TRANSACTIONS WHERE user_id = %s", (audit.user_id,))
+            conn.execute("DELETE FROM BUDGETS_MENSUELS WHERE user_id = %s", (audit.user_id,))
             conn.execute(
-                "DELETE FROM PREFERENCES WHERE user_id = ? AND Cle IN "
+                "DELETE FROM PREFERENCES WHERE user_id = %s AND Cle IN "
                 "('onboarding_done','revenu_salaire','revenu_extras_json','revenu_total_attendu')",
                 (audit.user_id,)
             )
     except Exception:
-        logger.exception("_reset_onboarding_data DB cleanup failed")
-
+        logger.exception("_reset_donnees DB cleanup failed")
     _invalider_cache()
     for key in list(st.session_state.keys()):
         if key.startswith("ob_") or key.startswith("_ob_") or key == "onboarding_budgets":
@@ -331,26 +310,19 @@ def _reset_donnees(audit) -> None:
 
 
 def _restart_onboarding(audit) -> None:
-    """
-    Réinitialise l'onboarding sans supprimer les transactions manuelles.
-    · Supprime les préférences onboarding (flag + revenus saisis)
-    · Supprime uniquement les transactions Source=ONBOARDING (saisies auto)
-    · Vide le cache Streamlit
-    """
     try:
         with audit.db.connexion() as conn:
             conn.execute(
-                "DELETE FROM PREFERENCES WHERE user_id = ? AND Cle IN "
+                "DELETE FROM PREFERENCES WHERE user_id = %s AND Cle IN "
                 "('onboarding_done','revenu_salaire','revenu_extras_json','revenu_total_attendu')",
                 (audit.user_id,)
             )
             conn.execute(
-                "DELETE FROM TRANSACTIONS WHERE user_id = ? AND Source = 'ONBOARDING'",
+                "DELETE FROM TRANSACTIONS WHERE user_id = %s AND Source = 'ONBOARDING'",
                 (audit.user_id,)
             )
     except Exception:
         logger.exception("_restart_onboarding DB cleanup failed")
-
     _invalider_cache()
     for key in list(st.session_state.keys()):
         if key.startswith("ob_") or key.startswith("_ob_") or key == "onboarding_budgets":
@@ -364,7 +336,7 @@ def _suggestions_live(audit, prefix: str, sens: str) -> List[str]:
         with audit.db.connexion() as conn:
             rows = conn.execute(
                 """SELECT DISTINCT Mot_Cle FROM DICO_MATCHING
-                   WHERE UPPER(Mot_Cle) LIKE ? AND Sens = ?
+                   WHERE UPPER(Mot_Cle) LIKE %s AND Sens = %s
                    ORDER BY Mot_Cle LIMIT 6""",
                 (q, sens)
             ).fetchall()
@@ -372,9 +344,9 @@ def _suggestions_live(audit, prefix: str, sens: str) -> List[str]:
             if len(results) < 6:
                 rows2 = conn.execute(
                     """SELECT DISTINCT Libelle FROM TRANSACTIONS
-                       WHERE user_id = ? AND UPPER(Libelle) LIKE ?
+                       WHERE user_id = %s AND UPPER(Libelle) LIKE %s
                          AND Statut = 'VALIDE'
-                       ORDER BY Date_Saisie DESC LIMIT ?""",
+                       ORDER BY Date_Saisie DESC LIMIT %s""",
                     (audit.user_id, q, 6 - len(results))
                 ).fetchall()
                 seen = set(results)

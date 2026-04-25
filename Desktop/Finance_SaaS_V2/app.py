@@ -176,30 +176,13 @@ ctx: Dict = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 10. BOUTON DÉCONNEXION (sidebar bas)
-# ─────────────────────────────────────────────────────────────────────────────
-
-with st.sidebar:
-    st.divider()
-    from components.design_tokens import T as _T
-    st.markdown(
-        f"<div style='color:{_T.TEXT_MED};font-size:11px;margin-bottom:4px'>"
-        f"Connecté : <strong>{st.session_state.username}</strong></div>",
-        unsafe_allow_html=True,
-    )
-    if st.button("🚪 Déconnexion", use_container_width=True, key="btn_logout"):
-        ui_cache.invalider()
-        st.session_state.clear()
-        st.rerun()
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 11. TOPBAR — persistent strip above every page
+# 10. TOPBAR — persistent strip above every page
 # ─────────────────────────────────────────────────────────────────────────────
 
 _render_topbar(ctx)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 12. FAB COACH DIALOG — defined here, triggered after page render
+# 11. FAB COACH DIALOG — defined here, triggered after page render
 # ─────────────────────────────────────────────────────────────────────────────
 
 @st.dialog("Coach")
@@ -241,7 +224,7 @@ def _fab_coach_dialog(ctx: dict) -> None:
         st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 13. ROUTEUR DE PAGES
+# 12. ROUTEUR DE PAGES
 # ─────────────────────────────────────────────────────────────────────────────
 
 page = st.session_state.page
@@ -257,7 +240,7 @@ elif page == "Daret":      page_daret.render(ctx)
 elif page == "Admin":      page_admin.render(ctx)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 14. FAB COACH — fixed bottom-right circle, every page
+# 13. FAB COACH — fixed bottom-right circle, every page
 # ─────────────────────────────────────────────────────────────────────────────
 
 _fab_humeur   = ctx.get("humeur", "NEUTRE")
