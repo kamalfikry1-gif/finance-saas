@@ -68,6 +68,13 @@ _CANONICAL_COLS = {c.lower(): c for c in (
     # DARETS
     "Montant_Mensuel", "Nb_Membres", "Membres_JSON", "Tour_Actuel",
     "Date_Debut", "Notes",
+    # EPARGNE_HISTO
+    "Montant_Vise", "Montant_Reel", "Evolution_DH", "Cumul_Total",
+    # A_CLASSIFIER
+    "Mot_Cle_Inconnu", "Categorie_Auto", "Sous_Categorie_Auto",
+    "Nb_Occurrences", "Date_Ajout", "Enrichi",
+    # REGLES_UTILISATEUR
+    "Categorie_Cible", "Sous_Categorie_Cible",
 )}
 
 
@@ -549,6 +556,7 @@ class DatabaseManager:
         logger.info("🎉 Schéma PostgreSQL initialisé")
         self._ensure_darets()
         self._ensure_transaction_columns()
+        self.ensure_regles_sous_categorie()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
 
@@ -930,6 +938,68 @@ class DatabaseManager:
             )
             rows = cur.fetchall()
         return {r[0]: r[1] for r in rows}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # A_CLASSIFIER + REGLES_UTILISATEUR
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def ensure_regles_sous_categorie(self) -> None:
+        """Add Sous_Categorie_Cible to REGLES_UTILISATEUR if it was created without it."""
+        try:
+            with self.connexion() as conn:
+                conn.execute(
+                    "ALTER TABLE REGLES_UTILISATEUR"
+                    " ADD COLUMN IF NOT EXISTS Sous_Categorie_Cible TEXT DEFAULT ''"
+                )
+        except Exception:
+            logger.exception("ensure_regles_sous_categorie failed")
+
+    def get_mots_cles_inconnus(self, user_id: int) -> List[Dict]:
+        with self.connexion() as conn:
+            rows = conn.execute(
+                """SELECT Mot_Cle_Inconnu, Sens, Categorie_Auto, Sous_Categorie_Auto,
+                          Nb_Occurrences, Date_Ajout
+                   FROM A_CLASSIFIER
+                   WHERE user_id=%s AND Enrichi=0
+                   ORDER BY Nb_Occurrences DESC""",
+                (user_id,),
+            ).fetchall()
+        return [_canon_dict(r) for r in rows]
+
+    def sauvegarder_regle(self, sens: str, mot_cle: str,
+                          categorie: str, sous_categorie: str, user_id: int) -> None:
+        with self.connexion() as conn:
+            conn.execute(
+                """INSERT INTO REGLES_UTILISATEUR
+                   (Sens, Mot_Cle, Categorie_Cible, Sous_Categorie_Cible, user_id)
+                   VALUES (%s,%s,%s,%s,%s)
+                   ON CONFLICT (Sens, Mot_Cle) DO UPDATE
+                   SET Categorie_Cible=EXCLUDED.Categorie_Cible,
+                       Sous_Categorie_Cible=EXCLUDED.Sous_Categorie_Cible""",
+                (sens, mot_cle.strip(), categorie.strip(), sous_categorie.strip(), user_id),
+            )
+
+    def marquer_enrichi(self, mot_cle: str, sens: str, user_id: int) -> None:
+        with self.connexion() as conn:
+            conn.execute(
+                "UPDATE A_CLASSIFIER SET Enrichi=1"
+                " WHERE Mot_Cle_Inconnu=%s AND Sens=%s AND user_id=%s",
+                (mot_cle, sens, user_id),
+            )
+
+    def reclassifier_par_mot_cle(self, mot_cle: str, sens: str,
+                                  categorie: str, sous_categorie: str,
+                                  user_id: int) -> int:
+        """Re-classify VALIDE=A_CLASSIFIER transactions whose Libelle contains mot_cle."""
+        with self.connexion() as conn:
+            cur = conn.execute(
+                """UPDATE TRANSACTIONS
+                   SET Categorie=%s, Sous_Categorie=%s, Statut='VALIDE'
+                   WHERE user_id=%s AND Sens=%s AND Statut='A_CLASSIFIER'
+                     AND UPPER(Libelle) LIKE %s""",
+                (categorie, sous_categorie, user_id, sens, f"%{mot_cle.upper()}%"),
+            )
+            return cur.rowcount or 0
 
     # ─────────────────────────────────────────────────────────────────────────
     # SEEDING — DONNÉES PARTAGÉES (sans user_id)

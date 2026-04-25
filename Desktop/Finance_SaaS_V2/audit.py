@@ -439,6 +439,31 @@ class AuditMiddleware:
         self._log("DARET", "CLOTURE", {"id": daret_id})
 
     # =========================================================================
+    # A_CLASSIFIER — mots-clés inconnus + règles utilisateur
+    # =========================================================================
+
+    def get_a_classifier(self) -> List[Dict]:
+        return self.db.get_mots_cles_inconnus(self.user_id)
+
+    def valider_classification(self, mot_cle: str, sens: str,
+                               categorie: str, sous_categorie: str) -> int:
+        """
+        Persist a user rule, mark the keyword as enriched, re-classify
+        matching A_CLASSIFIER transactions. Returns nb of transactions fixed.
+        """
+        self.db.sauvegarder_regle(sens, mot_cle, categorie, sous_categorie, self.user_id)
+        self.db.marquer_enrichi(mot_cle, sens, self.user_id)
+        nb = self.db.reclassifier_par_mot_cle(mot_cle, sens, categorie, sous_categorie, self.user_id)
+        self._log("CLASSIFIER", "REGLE_VALIDEE",
+                  {"mot_cle": mot_cle, "categorie": categorie, "sous_categorie": sous_categorie},
+                  {"nb_transactions": nb})
+        return nb
+
+    def ignorer_mot_cle(self, mot_cle: str, sens: str) -> None:
+        """Mark as enriched without creating a rule — user explicitly skips it."""
+        self.db.marquer_enrichi(mot_cle, sens, self.user_id)
+
+    # =========================================================================
     # PLAFONDS (views/plafond.py)
     # =========================================================================
 

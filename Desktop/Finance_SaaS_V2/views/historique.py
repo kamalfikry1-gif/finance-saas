@@ -31,10 +31,17 @@ def render(ctx: dict) -> None:
     )
 
     # ── Tabs ──────────────────────────────────────────────────────────────────
-    tab_hist, tab_carnet = st.tabs(["📋 Transactions", "💳 Carnet de Crédit"])
+    inconnus = audit.get_a_classifier()
+    nb_label = f" ({len(inconnus)})" if inconnus else ""
+    tab_hist, tab_carnet, tab_clf = st.tabs([
+        "📋 Transactions", "💳 Carnet de Crédit", f"🔍 À Classifier{nb_label}"
+    ])
 
     with tab_carnet:
         _render_carnet(audit)
+
+    with tab_clf:
+        _render_a_classifier(audit, inconnus)
 
     with tab_hist:
         # ── Filtres ───────────────────────────────────────────────────────────
@@ -223,6 +230,83 @@ def _render_liste(audit, rows) -> None:
                 st.session_state.hist_del_id  = tid
                 st.session_state.hist_edit_id = None
                 st.rerun()
+
+
+def _render_a_classifier(audit, inconnus: list) -> None:
+    """
+    🔍 À Classifier — let the user teach the app unknown keywords.
+    Each validated row writes to REGLES_UTILISATEUR and re-classifies
+    matching A_CLASSIFIER transactions immediately.
+    """
+    st.markdown(
+        f'<p style="color:{T.TEXT_LOW};font-size:13px;margin-bottom:16px">'
+        f'Ces mots-clés n\'ont pas pu être classifiés automatiquement. '
+        f'Chaque règle validée s\'applique à toutes les transactions correspondantes.</p>',
+        unsafe_allow_html=True,
+    )
+
+    if not inconnus:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_LG};padding:32px;text-align:center">'
+            f'<div style="font-size:28px;margin-bottom:8px">✅</div>'
+            f'<div style="color:{T.TEXT_MED};font-size:13px">'
+            f'Aucun mot-clé inconnu — tout est classifié.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    all_cats = _get_cats(audit, audit.user_id)
+
+    for item in inconnus:
+        mot   = item.get("Mot_Cle_Inconnu", "")
+        sens  = item.get("Sens", "OUT")
+        nb    = int(item.get("Nb_Occurrences", 1))
+        auto_cat  = item.get("Categorie_Auto", "")
+        auto_scat = item.get("Sous_Categorie_Auto", "")
+
+        sens_color = T.DANGER if sens == "OUT" else T.SUCCESS
+        sens_label = "Dépense" if sens == "OUT" else "Revenu"
+
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:14px 16px;margin-bottom:6px">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;'
+            f'margin-bottom:10px">'
+            f'<div style="display:flex;align-items:center;gap:10px">'
+            f'<span style="color:{T.TEXT_HIGH};font-weight:700;font-size:14px">{mot}</span>'
+            f'<span style="background:{sens_color}20;color:{sens_color};font-size:10px;'
+            f'padding:2px 8px;border-radius:{T.RADIUS_PILL};font-weight:700">{sens_label}</span>'
+            f'</div>'
+            f'<span style="color:{T.TEXT_LOW};font-size:11px">{nb}× rencontré</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
+        with c1:
+            cat_idx = all_cats.index(auto_cat) if auto_cat in all_cats else 0
+            new_cat = st.selectbox("Catégorie", all_cats, index=cat_idx,
+                                   key=f"clf_cat_{mot}_{sens}", label_visibility="collapsed")
+        with c2:
+            scats = _get_scats(audit, new_cat, audit.user_id)
+            scat_idx = scats.index(auto_scat) if auto_scat in scats else 0
+            new_scat = st.selectbox("Sous-catégorie", scats or ["—"], index=scat_idx,
+                                    key=f"clf_scat_{mot}_{sens}", label_visibility="collapsed")
+        with c3:
+            if st.button("✅ Valider", key=f"clf_ok_{mot}_{sens}",
+                         type="primary", use_container_width=True):
+                nb_fixed = audit.valider_classification(mot, sens, new_cat, new_scat)
+                _invalider_cache()
+                st.success(f"{nb_fixed} transaction(s) reclassifiée(s) → {new_cat} / {new_scat}")
+                st.rerun()
+        with c4:
+            if st.button("Ignorer", key=f"clf_skip_{mot}_{sens}", use_container_width=True):
+                audit.ignorer_mot_cle(mot, sens)
+                st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_carnet(audit) -> None:

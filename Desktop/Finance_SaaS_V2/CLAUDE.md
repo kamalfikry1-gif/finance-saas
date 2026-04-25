@@ -80,7 +80,9 @@ Key tables:
 - `OBJECTIFS` — savings goals
 - `DARETS` — rotating savings groups (Montant_Mensuel, Membres_JSON, Tour_Actuel)
 - `BUDGETS_MENSUELS` — monthly budget overrides
-- `EPARGNE_HISTO` — manual savings register (optional; score falls back to net solde if empty)
+- `EPARGNE_HISTO` — manual savings register. **No UI writes to it yet.**
+  Scoring falls back to `max(0, net_solde)` when empty (see `logic_sqlite.py:get_score_sante_financiere`).
+  Decision: keep the table for future monthly savings history UI; do not build it until A_CLASSIFIER is done.
 - `AUDIT_LOG` — immutable action trail
 
 **Critical:** `_CANONICAL_COLS` in `db_manager.py` maps PostgreSQL lowercase columns back to
