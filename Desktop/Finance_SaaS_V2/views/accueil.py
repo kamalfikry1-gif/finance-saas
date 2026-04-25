@@ -518,7 +518,7 @@ def _render_daret_teaser(audit, user_id: int) -> None:
     )
 
 
-def _render_rappels(audit, user_id: int, mois_sel: str) -> None:
+def _render_rappels(audit, user_id: int, mois_sel: str, suggested_ep: float = 0.0) -> None:
     """Rappels épargne + objectif — cartes cliquables si données manquantes."""
     db = audit.db
 
@@ -553,6 +553,7 @@ def _render_rappels(audit, user_id: int, mois_sel: str) -> None:
                 )
                 montant_ep = st.number_input(
                     "Montant épargné", min_value=0.0, step=100.0,
+                    value=round(suggested_ep) if suggested_ep > 0 else 0.0,
                     format="%.0f", label_visibility="collapsed",
                 )
                 submitted = st.form_submit_button("Enregistrer", type="primary",
@@ -631,7 +632,16 @@ def _render_goals(audit, user_id: int) -> None:
             st.rerun()
         return
 
-    for g in goals[:2]:
+    # Deduplicate by DB id — user may have created the same goal twice
+    seen_ids: set = set()
+    unique_goals = []
+    for g in goals:
+        gid = g.get("id") or g.get("Id")
+        if gid not in seen_ids:
+            seen_ids.add(gid)
+            unique_goals.append(g)
+
+    for g in unique_goals[:2]:
         target = float(g.get("montant_cible") or g.get("Montant_Cible") or 0)
         current = float(g.get("montant_actuel") or g.get("Montant_Actuel") or 0)
         if target <= 0:
@@ -656,8 +666,8 @@ def _render_goals(audit, user_id: int) -> None:
             unsafe_allow_html=True,
         )
 
-    if len(goals) > 2:
-        if st.button(f"Voir les {len(goals)} objectifs →", key="acc_goal_all",
+    if len(unique_goals) > 2:
+        if st.button(f"Voir les {len(unique_goals)} objectifs →", key="acc_goal_all",
                      use_container_width=True):
             st.session_state.page = "Objectif"
             st.rerun()
@@ -832,7 +842,8 @@ def render(ctx: dict) -> None:
         _render_age_of_money(audit, bilan, proj)
         _render_daret_teaser(audit, ctx["user_id"])
         _render_goals(audit, ctx["user_id"])
-        _render_rappels(audit, ctx["user_id"], ctx["mois_sel"])
+        suggested_ep = max(0.0, float(proj.get("solde_projete", 0) or 0))
+        _render_rappels(audit, ctx["user_id"], ctx["mois_sel"], suggested_ep=suggested_ep)
         if alertes:
             st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
             for a in alertes[:3]:
