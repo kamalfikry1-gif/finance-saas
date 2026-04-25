@@ -939,6 +939,11 @@ class AuditMiddleware:
         # ══════════════════════════════════════════════════════════════════════
         if identite == "BATISSEUR":
             if humeur == HUMEUR_COOL:
+                if taux_ep >= 40:
+                    return (
+                        f"Epargne : {taux_ep:.1f}% — objectif {savings_cible:.0f}% largement depasse. "
+                        f"Score {score_val:.0f}/100. Capital inactif : alloue-le."
+                    )
                 return (
                     f"Epargne : {taux_ep:.1f}% — objectif {savings_cible:.0f}% atteint. "
                     f"Score {score_val:.0f}/100. Aucune action requise."
@@ -965,6 +970,11 @@ class AuditMiddleware:
         # ══════════════════════════════════════════════════════════════════════
         if identite == "EQUILIBRE":
             if humeur == HUMEUR_COOL:
+                if taux_ep >= 40:
+                    return (
+                        f"Excellent mois, khoya ! Tu epargnes {taux_ep:.1f}% — Score {score_val:.0f}/100. "
+                        f"Cet argent dort. Pense a le placer : fonds, objectif, ou investissement."
+                    )
                 return (
                     f"Bonne gestion ce mois ! Score {score_val:.0f}/100. "
                     f"Tu epargnes {taux_ep:.1f}% — continue comme ca."
@@ -1000,6 +1010,11 @@ class AuditMiddleware:
                 if objectifs else "Aucun objectif actif."
             )
             if humeur == HUMEUR_COOL:
+                if taux_ep >= 40:
+                    return (
+                        f"Solide — {taux_ep:.1f}% epargne, score {score_val:.0f}/100. "
+                        f"Capital disponible : affecte-le a un objectif concret. {obj_str}"
+                    )
                 return (
                     f"Trajectoire conforme. Epargne {taux_ep:.1f}% — dans les clous. "
                     f"{obj_str}"
@@ -1020,6 +1035,11 @@ class AuditMiddleware:
         # LIBERE — direct, nomme le gaspillage
         # ══════════════════════════════════════════════════════════════════════
         if humeur == HUMEUR_COOL:
+            if taux_ep >= 40:
+                return (
+                    f"Solide ! {taux_ep:.1f}% epargne, score {score_val:.0f}/100. "
+                    f"L'argent dort — fais-le travailler."
+                )
             return (
                 f"Propre ! {taux_ep:.1f}% epargne, score {score_val:.0f}/100. "
                 f"Tu geres bien, continue."

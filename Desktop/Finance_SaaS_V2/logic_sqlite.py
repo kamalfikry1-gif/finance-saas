@@ -1478,7 +1478,12 @@ class MoteurAnalyse:
         repart = self.get_repartition_par_categorie(mois)
 
         # Composante 1 — Épargne
-        taux_ep   = (bilan.epargne_reelle / bilan.revenus * 100) if bilan.revenus > 0 else 0.0
+        # epargne_reelle = transactions explicitement catégorisées Épargne/Finances.
+        # Si aucune, on utilise le solde net réel (revenus - dépenses) comme proxy —
+        # l'argent non dépensé IS l'épargne implicite du mois.
+        epargne_eff = (bilan.epargne_reelle if bilan.epargne_reelle > 0
+                       else max(0.0, bilan.evolution_dh))
+        taux_ep   = (epargne_eff / bilan.revenus * 100) if bilan.revenus > 0 else 0.0
         pts_ep    = min(SCORE_POIDS_EPARGNE, round(taux_ep / 20 * SCORE_POIDS_EPARGNE, 1))
 
         # Composante 2 — Budgets
