@@ -307,10 +307,10 @@ def _sparkline_svg(values: list, bg: bool = False) -> str:
             f'<svg width="100%" height="100%" viewBox="0 0 {W} {H}" '
             f'preserveAspectRatio="none" '
             f'style="position:absolute;inset:0;pointer-events:none">'
-            f'<polygon points="{fill_pts}" fill="{color}" fill-opacity="0.07"/>'
+            f'<polygon points="{fill_pts}" fill="{color}" fill-opacity="0.18"/>'
             f'<polyline points="{pts_str}" fill="none" stroke="{color}" '
-            f'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '
-            f'opacity="0.25"/>'
+            f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '
+            f'opacity="0.55"/>'
             f'</svg>'
         )
     return (
@@ -322,83 +322,72 @@ def _sparkline_svg(values: list, bg: bool = False) -> str:
     )
 
 
-def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str, sparkline: list = None) -> None:
-    solde   = bilan["solde"]
-    sign    = "+" if solde >= 0 else "−"
-    sclass  = "pos" if solde >= 0 else "neg"
-    proj_v  = proj.get("projection_fin_mois", 0) or 0
-    taux_ep = float(score.get("taux_epargne_pct", 0) or 0)
-    spark_bg = _sparkline_svg(sparkline or [], bg=True) if sparkline and len(sparkline) >= 2 else ""
+def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
+                       sparkline: list = None, epargne_total: float = 0.0) -> None:
+    """Hero + KPI strip unified in one card with sparkline background."""
+    solde      = bilan["solde"]
+    sign       = "+" if solde >= 0 else "−"
+    sclass     = "pos" if solde >= 0 else "neg"
+    proj_v     = proj.get("projection_fin_mois", 0) or 0
+    taux_ep    = float(score.get("taux_epargne_pct", 0) or 0)
+    revenus    = bilan["revenus"]
+    depenses   = bilan["depenses"]
+    je         = int(proj.get("jours_ecoules", 0) or 0)
+    jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
+    reste      = max(0.0, revenus - max(depenses, float(proj_v)))
+    ep_color   = T.PRIMARY if epargne_total > 0 else T.TEXT_LOW
+    spark_bg   = _sparkline_svg(sparkline or [], bg=True) if sparkline and len(sparkline) >= 2 else ""
+
+    def _kpi(label, val_html, sub, border=True):
+        br = f"border-right:1px solid rgba(255,255,255,0.07);" if border else ""
+        return (
+            f'<div style="flex:1;padding:0 16px;{br}">'
+            f'<div style="color:{T.TEXT_LOW};font-size:9px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px">{label}</div>'
+            f'{val_html}'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:2px">{sub}</div>'
+            f'</div>'
+        )
+
+    kpis = (
+        f'<div style="display:flex;align-items:stretch;'
+        f'border-top:1px solid rgba(255,255,255,0.07);'
+        f'margin:28px -40px 0;padding:20px 40px 0">'
+        + _kpi("Total Revenus",
+               f'<div style="color:{T.SUCCESS};font-size:19px;font-weight:900">'
+               f'{_fmt_dh(revenus)} <span style="font-size:11px;font-weight:400">DH</span></div>',
+               "Encaissés ce mois")
+        + _kpi("Total Dépenses",
+               f'<div style="color:{T.WARNING};font-size:19px;font-weight:900">'
+               f'{_fmt_dh(depenses)} <span style="font-size:11px;font-weight:400">DH</span></div>',
+               f'Sur {je}j · <b style="color:{T.TEXT_MED}">{jours_rest}j restants</b>')
+        + _kpi("Reste à vivre",
+               f'<div style="color:{T.TEXT_HIGH};font-size:19px;font-weight:900">'
+               f'{_fmt_dh(reste)} <span style="font-size:11px;font-weight:400">DH</span></div>',
+               f'Proj. {_fmt_dh(proj_v)} DH dépensé')
+        + _kpi("Épargne Total",
+               f'<div style="color:{ep_color};font-size:19px;font-weight:900">'
+               f'{_fmt_dh(epargne_total)} <span style="font-size:11px;font-weight:400">DH</span></div>',
+               "Cumulé historique", border=False)
+        + '</div>'
+    )
 
     st.markdown(
         f'<div class="v1-hero" style="position:relative;overflow:hidden">'
         f'{spark_bg}'
-        f'  <div style="position:relative;z-index:1">'
-        f'    <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
-        f'    <div class="v1-hero-amount">'
-        f'      <span class="sign {sclass}">{sign}</span>{_fmt_dh(solde)}'
-        f'      <span class="unit">DH</span>'
-        f'    </div>'
-        f'    <div class="v1-hero-sub">'
-        f'      <span class="v1-hero-pill">↑ {taux_ep:.1f}% épargne</span>'
-        f'      <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
-        f'    </div>'
+        f'<div style="position:relative;z-index:1">'
+        f'  <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
+        f'  <div class="v1-hero-amount">'
+        f'    <span class="sign {sclass}">{sign}</span>{_fmt_dh(solde)}'
+        f'    <span class="unit">DH</span>'
         f'  </div>'
+        f'  <div class="v1-hero-sub">'
+        f'    <span class="v1-hero-pill">↑ {taux_ep:.1f}% épargne</span>'
+        f'    <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
+        f'  </div>'
+        f'{kpis}'
+        f'</div>'
         f'</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def _render_kpis(bilan: dict, proj: dict, epargne_total: float = 0.0) -> None:
-    revenus    = bilan["revenus"]
-    depenses   = bilan["depenses"]
-    proj_v     = float(proj.get("projection_fin_mois", 0) or 0)
-    je         = int(proj.get("jours_ecoules", 0) or 0)
-    jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
-    reste      = max(0.0, revenus - max(depenses, proj_v))
-    ep_color   = T.PRIMARY if epargne_total > 0 else T.TEXT_LOW
-
-    def _kpi(label, value_html, sub, border_right=True):
-        br = f"border-right:1px solid {T.BORDER};" if border_right else ""
-        return (
-            f'<div style="flex:1;padding:0 16px;{br}">'
-            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:1px">{label}</div>'
-            f'{value_html}'
-            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">{sub}</div>'
-            f'</div>'
-        )
-
-    st.markdown(
-        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-        f'border-radius:{T.RADIUS_MD};padding:16px 4px;margin-top:12px;'
-        f'display:flex;align-items:stretch">'
-        + _kpi(
-            "Total Revenus",
-            f'<div style="color:{T.SUCCESS};font-size:20px;font-weight:900;margin-top:4px">'
-            f'{_fmt_dh(revenus)} <span style="font-size:12px;font-weight:400">DH</span></div>',
-            "Encaissés ce mois",
-        )
-        + _kpi(
-            "Total Dépenses",
-            f'<div style="color:{T.WARNING};font-size:20px;font-weight:900;margin-top:4px">'
-            f'{_fmt_dh(depenses)} <span style="font-size:12px;font-weight:400">DH</span></div>',
-            f'Sur {je}j · <b style="color:{T.TEXT_MED}">{jours_rest}j restants</b>',
-        )
-        + _kpi(
-            "Reste à vivre",
-            f'<div style="color:{T.TEXT_HIGH};font-size:20px;font-weight:900;margin-top:4px">'
-            f'{_fmt_dh(reste)} <span style="font-size:12px;font-weight:400">DH</span></div>',
-            f'Projection : {_fmt_dh(proj_v)} DH dépensé',
-        )
-        + _kpi(
-            "Épargne Total",
-            f'<div style="color:{ep_color};font-size:20px;font-weight:900;margin-top:4px">'
-            f'{_fmt_dh(epargne_total)} <span style="font-size:12px;font-weight:400">DH</span></div>',
-            "Cumulé historique",
-            border_right=False,
-        )
-        + f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -873,8 +862,7 @@ def render(ctx: dict) -> None:
         epargne_total = 0.0
 
     _render_streak_banner(streak_jours, mois_verts, ctx.get("username", ""))
-    _render_hero(bilan, proj, score, mois_lbl, sparkline_data)
-    _render_kpis(bilan, proj, epargne_total)
+    _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_total)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
