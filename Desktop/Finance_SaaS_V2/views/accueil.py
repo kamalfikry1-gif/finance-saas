@@ -791,6 +791,10 @@ def render(ctx: dict) -> None:
         _render_radar(audit, proj)
         _render_charges_fixes(audit)
         _render_coach(message, humeur, identite)
+        if st.button("🤖 Parler au Coach →", key="coach_cta",
+                     use_container_width=True):
+            st.session_state.page = "Assistant"
+            st.rerun()
         _render_score_plan(score, badges)
         _render_age_of_money(audit, bilan, proj)
         _render_goals(audit, ctx["user_id"])

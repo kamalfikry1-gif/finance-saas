@@ -16,19 +16,26 @@ logger = logging.getLogger(__name__)
 from components.design_tokens import T
 from core.cache import invalider as _invalider_cache
 
-# ── Navigation ────────────────────────────────────────────────────────────────
+# ── Navigation groups ─────────────────────────────────────────────────────────
 
-NAV_PAGES = [
-    {"id": "Accueil",    "icon": "🏠", "label": "Accueil",    "disabled": False},
-    {"id": "Moi",        "icon": "👤", "label": "Moi",        "disabled": False},
-    {"id": "Assistant",  "icon": "🤖", "label": "Assistant",  "disabled": False},
-    {"id": "Historique", "icon": "📋", "label": "Historique", "disabled": False},
-    {"id": "Journal",    "icon": "📔", "label": "Journal",    "disabled": False},
-    {"id": "Plafond",    "icon": "🔔", "label": "Plafond",    "disabled": False},
-    {"id": "Objectif",   "icon": "🎯", "label": "Objectif",   "disabled": False},
-    {"id": "Daret",      "icon": "🔄", "label": "Daret",      "disabled": False},
-    {"id": "Langue",     "icon": "🌐", "label": "Langue",     "disabled": True},
-    {"id": "Devise",     "icon": "💱", "label": "Devise",     "disabled": True},
+NAV_GROUPS = [
+    {
+        "label": "Principal",
+        "pages": [
+            {"id": "Accueil",    "icon": "🏠", "label": "Accueil"},
+            {"id": "Historique", "icon": "📋", "label": "Historique"},
+            {"id": "Moi",        "icon": "👤", "label": "Moi"},
+        ],
+    },
+    {
+        "label": "Planification",
+        "pages": [
+            {"id": "Objectif",   "icon": "🎯", "label": "Objectif"},
+            {"id": "Plafond",    "icon": "🔔", "label": "Plafond"},
+            {"id": "Daret",      "icon": "🔄", "label": "Daret"},
+            {"id": "Journal",    "icon": "📔", "label": "Journal"},
+        ],
+    },
 ]
 
 
@@ -62,52 +69,36 @@ def render(audit) -> str:
             unsafe_allow_html=True,
         )
 
-        # ── Navigation ────────────────────────────────────────────────────────
-        st.markdown(
-            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">'
-            f'Navigation</div>',
-            unsafe_allow_html=True,
-        )
+        # ── Navigation (grouped) ─────────────────────────────────────────────
+        current_page = st.session_state.page
 
-        for page in NAV_PAGES:
-            pid      = page["id"]
-            icon     = page["icon"]
-            label    = page["label"]
-            disabled = page["disabled"]
-            is_active = st.session_state.page == pid
+        for group in NAV_GROUPS:
+            page_ids      = [p["id"] for p in group["pages"]]
+            group_active  = current_page in page_ids
 
-            if disabled:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:10px;'
-                    f'padding:9px 14px;margin:2px 0;border-radius:{T.RADIUS_MD};'
-                    f'opacity:0.35;cursor:not-allowed">'
-                    f'<span style="font-size:14px">{icon}</span>'
-                    f'<span style="color:{T.TEXT_LOW};font-size:13px;font-weight:600">{label}</span>'
-                    f'<span style="margin-left:auto;background:{T.BG_CARD};color:{T.TEXT_LOW};'
-                    f'font-size:9px;font-weight:700;padding:2px 7px;border-radius:{T.RADIUS_PILL};'
-                    f'letter-spacing:0.5px">BIENTÔT</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            elif is_active:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:10px;'
-                    f'background:{T.PRIMARY}18;border-radius:{T.RADIUS_MD};'
-                    f'padding:9px 14px;margin:2px 0;'
-                    f'border-left:3px solid {T.PRIMARY}">'
-                    f'<span style="font-size:14px">{icon}</span>'
-                    f'<span style="color:{T.PRIMARY};font-weight:700;font-size:13px">{label}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                if st.button(
-                    f"{icon}  {label}", key=f"nav_{pid}",
-                    use_container_width=True,
-                ):
-                    st.session_state.page = pid
-                    st.rerun()
+            with st.expander(group["label"], expanded=group_active):
+                for page in group["pages"]:
+                    pid   = page["id"]
+                    icon  = page["icon"]
+                    label = page["label"]
+
+                    if current_page == pid:
+                        st.markdown(
+                            f'<div style="display:flex;align-items:center;gap:10px;'
+                            f'background:{T.PRIMARY}18;border-radius:{T.RADIUS_MD};'
+                            f'padding:8px 12px;margin:2px 0;'
+                            f'border-left:3px solid {T.PRIMARY}">'
+                            f'<span style="font-size:14px">{icon}</span>'
+                            f'<span style="color:{T.PRIMARY};font-weight:700;'
+                            f'font-size:13px">{label}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        if st.button(f"{icon}  {label}", key=f"nav_{pid}",
+                                     use_container_width=True):
+                            st.session_state.page = pid
+                            st.rerun()
 
         # ── Admin (visible uniquement si is_admin) ────────────────────────────
         if st.session_state.get("is_admin"):
