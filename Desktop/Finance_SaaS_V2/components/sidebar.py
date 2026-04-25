@@ -53,73 +53,80 @@ def render(audit) -> str:
             st.session_state.sb_expanded = True
         sb_exp = st.session_state.sb_expanded
 
-        # ── 1. Title bar: logo | username | toggle (always visible) ─────────────
-        c_logo, c_user, c_toggle = st.columns([3, 2, 1], gap="small")
+        # ── 1. Title bar: logo + toggle ───────────────────────────────────────
+        c_logo, c_toggle = st.columns([5, 1], gap="small")
         with c_logo:
             if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
                 st.session_state.page = "Accueil"
                 st.rerun()
-        with c_user:
-            st.markdown(
-                f'<div style="display:flex;align-items:center;height:38px;'
-                f'color:{T.TEXT_MED};font-size:12px;font-weight:600;'
-                f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
-                f'{_username}</div>',
-                unsafe_allow_html=True,
-            )
         with c_toggle:
             if st.button("✕" if sb_exp else "☰", key="sb_toggle",
                          use_container_width=True):
                 st.session_state.sb_expanded = not sb_exp
                 st.rerun()
 
+        # Username — centered under logo with rule lines: ─── Kamal ───
+        if _username:
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:8px;'
+                f'padding:4px 2px 10px">'
+                f'<div style="flex:1;height:1px;background:{T.BORDER}"></div>'
+                f'<span style="color:{T.TEXT_MED};font-size:11px;font-weight:600;'
+                f'white-space:nowrap">{_username}</span>'
+                f'<div style="flex:1;height:1px;background:{T.BORDER}"></div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
         if not sb_exp:
             now = datetime.now()
             return f"{now.month:02d}/{now.year}"
 
-        # ── Section label ─────────────────────────────────────────────────────
-        st.markdown(
-            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:2px;'
-            f'border-top:1px solid {T.BORDER};padding-top:12px;'
-            f'margin:6px 0 6px">Paramètres</div>',
-            unsafe_allow_html=True,
-        )
+        # ── PARAMÈTRES — collapsible section ──────────────────────────────────
+        if "sb_params_exp" not in st.session_state:
+            st.session_state.sb_params_exp = True
+        params_exp = st.session_state.sb_params_exp
 
-        # ── 2. Flat navigation ────────────────────────────────────────────────
+        arrow = "▾" if params_exp else "▸"
+        if st.button(f"{arrow}  Paramètres", key="sb_params_toggle",
+                     use_container_width=True):
+            st.session_state.sb_params_exp = not params_exp
+            st.rerun()
+
+        # ── 2. Flat navigation (collapses with Paramètres toggle) ────────────
         current_page = st.session_state.page
 
-        for item in NAV_ITEMS:
-            pid, icon, label = item["id"], item["icon"], item["label"]
+        if params_exp:
+            for item in NAV_ITEMS:
+                pid, icon, label = item["id"], item["icon"], item["label"]
 
-            # Mon compte shows the username as primary text
-            if pid == "Moi" and _username:
-                display = _username
-                sub_html = (f'<div style="color:{T.TEXT_LOW};font-size:10px;margin-top:1px">'
-                            f'Mon compte</div>')
-            else:
-                display = label
-                sub_html = ""
+                if pid == "Moi" and _username:
+                    display = _username
+                    sub_html = (f'<div style="color:{T.TEXT_LOW};font-size:10px;margin-top:1px">'
+                                f'Mon compte</div>')
+                else:
+                    display = label
+                    sub_html = ""
 
-            if current_page == pid:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:10px;'
-                    f'background:{T.PRIMARY}18;border-radius:{T.RADIUS_MD};'
-                    f'padding:9px 12px;margin:2px 0;'
-                    f'border-left:3px solid {T.PRIMARY}">'
-                    f'<span style="font-size:14px">{icon}</span>'
-                    f'<div>'
-                    f'<div style="color:{T.PRIMARY};font-weight:700;font-size:13px">'
-                    f'{display}</div>'
-                    f'{sub_html}'
-                    f'</div></div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                if st.button(f"{icon}  {display}", key=f"nav_{pid}",
-                             use_container_width=True):
-                    st.session_state.page = pid
-                    st.rerun()
+                if current_page == pid:
+                    st.markdown(
+                        f'<div style="display:flex;align-items:center;gap:10px;'
+                        f'background:{T.PRIMARY}18;border-radius:{T.RADIUS_MD};'
+                        f'padding:9px 12px;margin:2px 0;'
+                        f'border-left:3px solid {T.PRIMARY}">'
+                        f'<span style="font-size:14px">{icon}</span>'
+                        f'<div>'
+                        f'<div style="color:{T.PRIMARY};font-weight:700;font-size:13px">'
+                        f'{display}</div>'
+                        f'{sub_html}'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    if st.button(f"{icon}  {display}", key=f"nav_{pid}",
+                                 use_container_width=True):
+                        st.session_state.page = pid
+                        st.rerun()
 
         # ── Admin (conditionnnel) ─────────────────────────────────────────────
         if st.session_state.get("is_admin"):
