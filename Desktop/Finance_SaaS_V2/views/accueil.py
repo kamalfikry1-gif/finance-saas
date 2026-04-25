@@ -488,6 +488,87 @@ def _render_score_plan(score: dict, badges: dict) -> None:
     )
 
 
+def _render_rappels(audit, user_id: int, mois_sel: str) -> None:
+    """Rappels épargne + objectif — cartes cliquables si données manquantes."""
+    db = audit.db
+
+    # ── Rappel épargne du mois ────────────────────────────────────────────────
+    ep = db.get_epargne_mois(user_id, mois_sel)
+    if ep is None:
+        st.markdown(
+            f'<div style="background:{T.WARNING}10;border:1px solid {T.WARNING}30;'
+            f'border-radius:{T.RADIUS_MD};padding:12px 16px;margin-top:14px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<div>'
+            f'<div style="color:{T.WARNING};font-size:11px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">💰 Épargne du mois</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:12px;margin-top:2px">'
+            f'Non renseignée pour ce mois</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Renseigner →", key="rappel_ep_btn", type="secondary"):
+            st.session_state._rappel_ep_open = True
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if st.session_state.get("_rappel_ep_open"):
+            with st.form("form_epargne_rappel", clear_on_submit=True):
+                st.markdown(
+                    f'<div style="color:{T.TEXT_HIGH};font-weight:700;'
+                    f'margin-bottom:8px">Épargne réelle ce mois (DH)</div>',
+                    unsafe_allow_html=True,
+                )
+                montant_ep = st.number_input(
+                    "Montant épargné", min_value=0.0, step=100.0,
+                    format="%.0f", label_visibility="collapsed",
+                )
+                submitted = st.form_submit_button("Enregistrer", type="primary",
+                                                  use_container_width=True)
+                if submitted:
+                    db.sauvegarder_epargne_mois(user_id, mois_sel, float(montant_ep))
+                    st.session_state._rappel_ep_open = False
+                    st.success(f"✅ {montant_ep:,.0f} DH enregistrés.")
+                    st.rerun()
+    else:
+        reel = float(ep.get("Montant_Reel", 0) or 0)
+        st.markdown(
+            f'<div style="background:{T.SUCCESS}10;border:1px solid {T.SUCCESS}30;'
+            f'border-radius:{T.RADIUS_MD};padding:12px 16px;margin-top:14px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<div style="color:{T.SUCCESS};font-size:11px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">💰 Épargne enregistrée</div>'
+            f'<div style="color:{T.SUCCESS};font-size:16px;font-weight:900">'
+            f'{_dh(reel)}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Rappel objectif ───────────────────────────────────────────────────────
+    try:
+        from core import cache as ui_cache
+        goals = ui_cache.get_objectifs(audit, user_id)
+    except Exception:
+        goals = []
+
+    if not goals:
+        st.markdown(
+            f'<div style="background:{T.PRIMARY}08;border:1px solid {T.PRIMARY}25;'
+            f'border-radius:{T.RADIUS_MD};padding:12px 16px;margin-top:8px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<div>'
+            f'<div style="color:{T.PRIMARY};font-size:11px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">🎯 Objectifs</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:12px;margin-top:2px">'
+            f'Aucun objectif défini</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Créer →", key="rappel_obj_btn", type="secondary"):
+            st.session_state.page = "Objectif"
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
 def _render_goals(audit, user_id: int) -> None:
     try:
         goals = ui_cache.get_objectifs(audit, user_id)
@@ -710,6 +791,7 @@ def render(ctx: dict) -> None:
         _render_score_plan(score, badges)
         _render_age_of_money(audit, bilan, proj)
         _render_goals(audit, ctx["user_id"])
+        _render_rappels(audit, ctx["user_id"], ctx["mois_sel"])
         if alertes:
             st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
             for a in alertes[:3]:

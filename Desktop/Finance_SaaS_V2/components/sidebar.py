@@ -109,6 +109,32 @@ def render(audit) -> str:
                     st.session_state.page = pid
                     st.rerun()
 
+        # ── Admin (visible uniquement si is_admin) ────────────────────────────
+        if st.session_state.get("is_admin"):
+            st.markdown(
+                f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+                f'text-transform:uppercase;letter-spacing:2px;'
+                f'margin:12px 0 6px">Admin</div>',
+                unsafe_allow_html=True,
+            )
+            is_active = st.session_state.page == "Admin"
+            if is_active:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:10px;'
+                    f'background:{T.WARNING}18;border-radius:{T.RADIUS_MD};'
+                    f'padding:9px 14px;margin:2px 0;'
+                    f'border-left:3px solid {T.WARNING}">'
+                    f'<span style="font-size:14px">⚙️</span>'
+                    f'<span style="color:{T.WARNING};font-weight:700;font-size:13px">'
+                    f'Administration</span></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                if st.button("⚙️  Administration", key="nav_Admin",
+                             use_container_width=True):
+                    st.session_state.page = "Admin"
+                    st.rerun()
+
         # ── Restart Onboarding ────────────────────────────────────────────────
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         if st.button(

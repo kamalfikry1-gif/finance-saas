@@ -941,6 +941,122 @@ class DatabaseManager:
         return {r[0]: r[1] for r in rows}
 
     # ─────────────────────────────────────────────────────────────────────────
+    # DICO_MATCHING — admin CRUD
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_all_dico(self, search: str = "") -> List[Dict]:
+        sql = ("SELECT id, Sens, Mot_Cle, Categorie_Cible, Sous_Categorie_Cible"
+               " FROM DICO_MATCHING")
+        params: tuple = ()
+        if search.strip():
+            sql += " WHERE UPPER(Mot_Cle) LIKE %s"
+            params = (f"%{search.upper().strip()}%",)
+        sql += " ORDER BY Sens, Mot_Cle"
+        with self.connexion() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [_canon_dict(r) for r in rows]
+
+    def add_dico_entry(self, sens: str, mot_cle: str,
+                       categorie: str, sous_categorie: str) -> bool:
+        try:
+            with self.connexion() as conn:
+                conn.execute(
+                    """INSERT INTO DICO_MATCHING
+                       (Sens, Mot_Cle, Categorie_Cible, Sous_Categorie_Cible)
+                       VALUES (%s,%s,%s,%s)
+                       ON CONFLICT (Sens, Mot_Cle) DO NOTHING""",
+                    (sens.upper(), mot_cle.strip().upper(),
+                     categorie.strip(), sous_categorie.strip()),
+                )
+            return True
+        except Exception:
+            logger.exception("add_dico_entry failed")
+            return False
+
+    def update_dico_entry(self, entry_id: int, categorie: str,
+                          sous_categorie: str) -> None:
+        with self.connexion() as conn:
+            conn.execute(
+                """UPDATE DICO_MATCHING
+                   SET Categorie_Cible=%s, Sous_Categorie_Cible=%s
+                   WHERE id=%s""",
+                (categorie.strip(), sous_categorie.strip(), entry_id),
+            )
+
+    def delete_dico_entry(self, entry_id: int) -> None:
+        with self.connexion() as conn:
+            conn.execute("DELETE FROM DICO_MATCHING WHERE id=%s", (entry_id,))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # RÉFÉRENTIEL — admin read
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_referentiel(self) -> List[Dict]:
+        with self.connexion() as conn:
+            rows = conn.execute(
+                """SELECT Categorie, Sous_Categorie, Sens, Frequence,
+                          Compteur_N, Montant_Cumule, Statut
+                   FROM REFERENTIEL ORDER BY Categorie, Sous_Categorie"""
+            ).fetchall()
+        return [_canon_dict(r) for r in rows]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # A_CLASSIFIER — global admin view
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_all_a_classifier_global(self) -> List[Dict]:
+        with self.connexion() as conn:
+            rows = conn.execute(
+                """SELECT a.Mot_Cle_Inconnu, a.Sens, a.Categorie_Auto,
+                          a.Sous_Categorie_Auto, a.Nb_Occurrences,
+                          a.Date_Ajout, u.username
+                   FROM A_CLASSIFIER a
+                   JOIN UTILISATEURS u ON u.id = a.user_id
+                   WHERE a.Enrichi = 0
+                   ORDER BY a.Nb_Occurrences DESC"""
+            ).fetchall()
+        return [_canon_dict(r) for r in rows]
+
+    def promote_to_dico(self, mot_cle: str, sens: str,
+                        categorie: str, sous_categorie: str) -> None:
+        """Promote an A_CLASSIFIER keyword to DICO_MATCHING (shared dict)."""
+        self.add_dico_entry(sens, mot_cle, categorie, sous_categorie)
+        with self.connexion() as conn:
+            conn.execute(
+                "UPDATE A_CLASSIFIER SET Enrichi=1"
+                " WHERE Mot_Cle_Inconnu=%s AND Sens=%s",
+                (mot_cle, sens),
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # EPARGNE_HISTO — user savings register
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def get_epargne_mois(self, user_id: int, mois: str) -> Optional[Dict]:
+        with self.connexion() as conn:
+            cur = conn.execute(
+                "SELECT Mois, Montant_Vise, Montant_Reel, Cumul_Total"
+                " FROM EPARGNE_HISTO WHERE user_id=%s AND Mois=%s",
+                (user_id, mois),
+            )
+            row = cur.fetchone()
+        return _canon_dict(row) if row else None
+
+    def sauvegarder_epargne_mois(self, user_id: int, mois: str,
+                                  montant_reel: float,
+                                  montant_vise: float = 0.0) -> None:
+        with self.connexion() as conn:
+            conn.execute(
+                """INSERT INTO EPARGNE_HISTO
+                   (Mois, Montant_Vise, Montant_Reel, user_id)
+                   VALUES (%s,%s,%s,%s)
+                   ON CONFLICT (Mois, user_id) DO UPDATE
+                   SET Montant_Reel=EXCLUDED.Montant_Reel,
+                       Montant_Vise=EXCLUDED.Montant_Vise""",
+                (mois, montant_vise, montant_reel, user_id),
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
     # A_CLASSIFIER + REGLES_UTILISATEUR
     # ─────────────────────────────────────────────────────────────────────────
 

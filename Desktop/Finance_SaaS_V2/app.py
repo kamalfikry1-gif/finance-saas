@@ -17,6 +17,7 @@ from components.sidebar import render as render_sidebar
 from core import cache as ui_cache
 
 import views.accueil   as page_accueil
+import views.admin     as page_admin
 import views.assistant as page_assistant
 import views.onboarding as page_onboarding
 import views.login      as page_login
@@ -113,7 +114,7 @@ if "streak_updated" not in st.session_state:
 # 6. SESSION STATE — NAVIGATION & UI
 # ─────────────────────────────────────────────────────────────────────────────
 
-_VALID_PAGES = {"Accueil", "Assistant", "Moi", "Historique", "Journal", "Plafond", "Objectif", "Daret"}
+_VALID_PAGES = {"Accueil", "Assistant", "Moi", "Historique", "Journal", "Plafond", "Objectif", "Daret", "Admin"}
 if st.session_state.get("page") not in _VALID_PAGES:
     st.session_state.page = "Accueil"
 if "ast_path"    not in st.session_state: st.session_state.ast_path    = []
@@ -200,3 +201,4 @@ elif page == "Journal":    page_journal.render(ctx)
 elif page == "Plafond":    page_plafond.render(ctx)
 elif page == "Objectif":   page_objectif.render(ctx)
 elif page == "Daret":      page_daret.render(ctx)
+elif page == "Admin":      page_admin.render(ctx)
