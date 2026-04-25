@@ -979,7 +979,7 @@ class AuditMiddleware:
             if humeur == HUMEUR_NEUTRE:
                 return (
                     f"Epargne a {taux_ep:.1f}% vs cible {savings_cible:.0f}%. "
-                    f"Manque : {manque_ep:.0f} DH. Identifier les Wants a couper."
+                    f"Manque : {manque_ep:.0f} DH. Identifier les Desirs a couper."
                 )
             # SERIEUX
             if scat_alerte:
@@ -990,7 +990,7 @@ class AuditMiddleware:
                 )
             return (
                 f"Situation degradee. Score {score_val:.0f}/100. "
-                f"Epargne {taux_ep:.1f}%. Revisez les postes Wants et Needs."
+                f"Epargne {taux_ep:.1f}%. Revisez les postes Desirs et Besoins."
             )
 
         # ══════════════════════════════════════════════════════════════════════
@@ -1050,13 +1050,13 @@ class AuditMiddleware:
             if humeur == HUMEUR_NEUTRE:
                 return (
                     f"Ecart epargne : {manque_ep:.0f} DH vs cible. "
-                    f"Reduire Wants de {max(0, wants_pct - savings_cible):.0f}% "
+                    f"Reduire les Desirs de {max(0, wants_pct - savings_cible):.0f}% "
                     f"permettrait de rattraper. {obj_str}"
                 )
             # SERIEUX
             return (
                 f"Trajectoire compromise. A ce rythme l'objectif sera retarde. "
-                f"Action requise sur les Wants ({wants_pct:.0f}%). {obj_str}"
+                f"Action requise sur les Desirs ({wants_pct:.0f}%). {obj_str}"
             )
 
         # ══════════════════════════════════════════════════════════════════════
@@ -1090,7 +1090,7 @@ class AuditMiddleware:
             )
         return (
             f"Les chiffres ne mentent pas : score {score_val:.0f}/100, "
-            f"epargne {taux_ep:.1f}%. Il faut agir sur les Wants maintenant."
+            f"epargne {taux_ep:.1f}%. Il faut agir sur les Desirs maintenant."
         )
 
     # =========================================================================

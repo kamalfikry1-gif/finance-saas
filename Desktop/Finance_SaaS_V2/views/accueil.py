@@ -446,27 +446,7 @@ def _render_score_plan(score: dict, badges: dict) -> None:
     score_val = float(score.get("score", 0) or 0)
     color     = _score_color(score_val)
     level     = score.get("niveau", "")
-
-    plan_rows = ""
-    for key in ("Needs", "Wants", "Savings"):
-        info = badges.get(key)
-        if not info:
-            continue
-        rp = float(info.get("reel_pct", 0) or 0)
-        cp = float(info.get("cible_pct", 0) or 0)
-        amt = float(info.get("reel_dh", 0) or 0)
-        dot = _PLAN_COLORS[key]
-        over = rp > cp
-        amt_color = T.WARNING if over else T.TEXT_HIGH
-        plan_rows += (
-            f'<div class="plan-row-v1">'
-            f'  <div class="k"><span class="dot" style="background:{dot}"></span>{_PLAN_LABELS[key]}</div>'
-            f'  <div class="v">'
-            f'    <span class="pct">{rp:.1f}% / {cp:.0f}%</span>'
-            f'    <span class="amt" style="color:{amt_color}">{_fmt_dh(amt)} DH</span>'
-            f'  </div>'
-            f'</div>'
-        )
+    niveau_fr = {"EXCELLENT": "Excellent", "BON": "Bon", "MOYEN": "Moyen", "CRITIQUE": "Critique"}.get(level, level)
 
     st.markdown(
         f'<div class="gauge-card" style="margin-top:14px">'
@@ -476,12 +456,8 @@ def _render_score_plan(score: dict, badges: dict) -> None:
         f'    <div class="gauge-text">'
         f'      <div class="gauge-num" style="color:{color}">{score_val:.0f}</div>'
         f'      <div class="gauge-total">sur 100</div>'
-        f'      <div class="gauge-label" style="color:{color}">{level}</div>'
+        f'      <div class="gauge-label" style="color:{color}">{niveau_fr}</div>'
         f'    </div>'
-        f'  </div>'
-        f'  <div style="margin-top:14px">'
-        f'    <div class="gauge-title" style="margin-bottom:8px">Plan 50 / 30 / 20</div>'
-        f'    {plan_rows}'
         f'  </div>'
         f'</div>',
         unsafe_allow_html=True,
