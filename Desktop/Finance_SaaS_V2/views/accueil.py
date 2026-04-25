@@ -304,14 +304,16 @@ def _sparkline_svg(values: list, bg: bool = False) -> str:
     if bg:
         fill_pts = f"{pts_str} {W},{H} 0,{H}"
         return (
+            f'<div style="position:absolute;top:0;left:0;right:0;height:70%;'
+            f'overflow:hidden;pointer-events:none;z-index:0">'
             f'<svg width="100%" height="100%" viewBox="0 0 {W} {H}" '
-            f'preserveAspectRatio="none" '
-            f'style="position:absolute;inset:0;pointer-events:none">'
-            f'<polygon points="{fill_pts}" fill="{color}" fill-opacity="0.18"/>'
+            f'preserveAspectRatio="none">'
+            f'<polygon points="{fill_pts}" fill="{color}" fill-opacity="0.12"/>'
             f'<polyline points="{pts_str}" fill="none" stroke="{color}" '
             f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '
-            f'opacity="0.55"/>'
+            f'opacity="0.4"/>'
             f'</svg>'
+            f'</div>'
         )
     return (
         f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">'
@@ -352,7 +354,7 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     kpis = (
         f'<div style="display:flex;align-items:stretch;'
         f'border-top:1px solid rgba(255,255,255,0.07);'
-        f'margin:28px -40px 0;padding:20px 40px 0">'
+        f'margin:16px -40px 0;padding:16px 40px 0">'
         + _kpi("Total Revenus",
                f'<div style="color:{T.SUCCESS};font-size:19px;font-weight:900">'
                f'{_fmt_dh(revenus)} <span style="font-size:11px;font-weight:400">DH</span></div>',
@@ -373,7 +375,7 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     )
 
     st.markdown(
-        f'<div class="v1-hero" style="position:relative;overflow:hidden">'
+        f'<div class="v1-hero" style="position:relative;overflow:hidden;padding-bottom:0">'
         f'{spark_bg}'
         f'<div style="position:relative;z-index:1">'
         f'  <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
