@@ -310,55 +310,50 @@ def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str) -> None:
 
 
 def _render_kpis(bilan: dict, proj: dict) -> None:
-    revenus = bilan["revenus"]
+    revenus  = bilan["revenus"]
     depenses = bilan["depenses"]
-    epargne_cumul = bilan["epargne_cumul"]
-    proj_v = proj.get("projection_fin_mois", 0) or 0
-    jours_rest = max(
-        0,
-        int(proj.get("jours_total", 0) or 0) - int(proj.get("jours_ecoules", 0) or 0),
+    proj_v   = float(proj.get("projection_fin_mois", 0) or 0)
+    je       = int(proj.get("jours_ecoules", 0) or 0)
+    jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
+    reste    = max(0.0, revenus - max(depenses, proj_v))
+
+    st.markdown(
+        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+        f'border-radius:{T.RADIUS_MD};padding:16px 20px;margin-top:12px;'
+        f'display:flex;justify-content:space-between;align-items:stretch;gap:0">'
+
+        # ── Revenus ──────────────────────────────────────────────────────────
+        f'<div style="flex:1;padding-right:20px;border-right:1px solid {T.BORDER}">'
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px">Revenus</div>'
+        f'<div style="color:{T.SUCCESS};font-size:20px;font-weight:900;margin-top:4px">'
+        f'{_fmt_dh(revenus)} <span style="font-size:12px;font-weight:400">DH</span></div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">Encaissés ce mois</div>'
+        f'</div>'
+
+        # ── Dépenses ─────────────────────────────────────────────────────────
+        f'<div style="flex:1;padding:0 20px;border-right:1px solid {T.BORDER}">'
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px">Dépenses</div>'
+        f'<div style="color:{T.WARNING};font-size:20px;font-weight:900;margin-top:4px">'
+        f'{_fmt_dh(depenses)} <span style="font-size:12px;font-weight:400">DH</span></div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">'
+        f'Sur {je}j · <b style="color:{T.TEXT_MED}">{jours_rest}j restants</b></div>'
+        f'</div>'
+
+        # ── Reste à vivre ─────────────────────────────────────────────────────
+        f'<div style="flex:1;padding-left:20px">'
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px">Reste à vivre</div>'
+        f'<div style="color:{T.TEXT_HIGH};font-size:20px;font-weight:900;margin-top:4px">'
+        f'{_fmt_dh(reste)} <span style="font-size:12px;font-weight:400">DH</span></div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">'
+        f'Projection : {_fmt_dh(proj_v)} DH dépensé</div>'
+        f'</div>'
+
+        f'</div>',
+        unsafe_allow_html=True,
     )
-    reste_a_vivre = max(0.0, revenus - max(depenses, proj_v))
-    epargne_mois = max(0.0, revenus - depenses)
-
-    def _card(accent_cls: str, label: str, value_dh: float, delta_html: str) -> str:
-        return (
-            f'<div class="v1-kpi">'
-            f'  <div class="v1-kpi-accent {accent_cls}"></div>'
-            f'  <div class="lbl">{label}</div>'
-            f'  <div class="val">{_fmt_dh(value_dh)}<span class="u"> DH</span></div>'
-            f'  <div class="delta">{delta_html}</div>'
-            f'</div>'
-        )
-
-    je         = int(proj.get("jours_ecoules", 0) or 0)
-    jours_total = int(proj.get("jours_total", 30) or 30)
-
-    k1, k2, k3, k4 = st.columns(4, gap="small")
-    with k1:
-        st.markdown(
-            _card("success", "Revenus du mois", revenus,
-                  f'<span class="up">Total encaissé ce mois</span>'),
-            unsafe_allow_html=True,
-        )
-    with k2:
-        st.markdown(
-            _card("warn", "Dépenses", depenses,
-                  f'<span class="warn">Dépensé sur {je}j — {jours_rest}j restants</span>'),
-            unsafe_allow_html=True,
-        )
-    with k3:
-        st.markdown(
-            _card("", "Reste à vivre", reste_a_vivre,
-                  f'Projection fin de mois : {_fmt_dh(proj_v)} DH dépensé'),
-            unsafe_allow_html=True,
-        )
-    with k4:
-        st.markdown(
-            _card("violet", "Épargne cumulée", epargne_cumul,
-                  f'<span class="up">+{_fmt_dh(epargne_mois)} DH ce mois</span>'),
-            unsafe_allow_html=True,
-        )
 
 
 def _render_categories(rept: list, ctx: dict) -> None:
