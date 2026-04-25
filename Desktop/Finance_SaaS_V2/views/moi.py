@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def render(ctx: dict) -> None:
     audit = ctx["audit"]
 
-    render_page_header("👤", "Mon Profil", "Paramètres et identité de coach")
+    render_page_header("👤", "Paramètres", "Informations personnelles et préférences")
 
     # ── Section 1 : Revenus ──────────────────────────────────────────────────
     _section("Revenus")
@@ -164,3 +164,32 @@ def render(ctx: dict) -> None:
         audit.set_preference("seuil_alerte", str(new_seuil))
         _invalider_cache()
         st.success(f"✅ Seuil d'alerte : {new_seuil} %")
+
+    # ── Compte ───────────────────────────────────────────────────────────────
+    _section("Compte")
+    st.markdown(
+        f'<p style="color:{T.TEXT_MED};font-size:12px;margin-bottom:12px">'
+        f'Réinitialise l\'onboarding (revenus + dépenses de départ) '
+        f'sans supprimer vos transactions manuelles.</p>',
+        unsafe_allow_html=True,
+    )
+    if st.button("🔄 Refaire l'onboarding", key="moi_restart_ob", type="secondary"):
+        try:
+            with audit.db.connexion() as conn:
+                conn.execute(
+                    "DELETE FROM PREFERENCES WHERE user_id = %s AND Cle IN "
+                    "('onboarding_done','revenu_salaire','revenu_extras_json',"
+                    "'revenu_total_attendu')",
+                    (audit.user_id,)
+                )
+                conn.execute(
+                    "DELETE FROM TRANSACTIONS WHERE user_id = %s AND Source = 'ONBOARDING'",
+                    (audit.user_id,)
+                )
+        except Exception:
+            pass
+        _invalider_cache()
+        for k in list(st.session_state.keys()):
+            if k.startswith("ob_") or k.startswith("_ob_") or k == "onboarding_budgets":
+                del st.session_state[k]
+        st.rerun()

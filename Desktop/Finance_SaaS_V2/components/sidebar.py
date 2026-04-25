@@ -20,10 +20,11 @@ from components.design_tokens import T
 from core.cache import invalider as _invalider_cache
 
 NAV_ITEMS = [
-    {"id": "Moi",        "icon": "👤", "label": "Mon compte"},
+    {"id": "Moi",        "icon": "👤", "label": "Paramètres"},
     {"id": "Historique", "icon": "📋", "label": "Historique"},
     {"id": "Journal",    "icon": "📔", "label": "Journal"},
     {"id": "Objectif",   "icon": "🎯", "label": "Objectif"},
+    {"id": "Epargne",    "icon": "💰", "label": "Épargne"},
     {"id": "Plafond",    "icon": "🔔", "label": "Plafond"},
     {"id": "Daret",      "icon": "🔄", "label": "Daret"},
 ]
@@ -64,7 +65,9 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
 </style>
 <div class="sb-logo-anchor"></div>""", unsafe_allow_html=True)
 
-        if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
+        _username = (st.session_state.get("username") or "").capitalize()
+        _logo_label = f"👤  {_username}" if _username else "💰  Finance SaaS"
+        if st.button(_logo_label, key="nav_logo", use_container_width=True):
             st.session_state.page = "Accueil"
             st.rerun()
 
@@ -125,23 +128,11 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
             st.session_state.clear()
             st.rerun()
 
-        # ── 3. Période ────────────────────────────────────────────────────────
-        st.markdown(
-            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:2px;'
-            f'margin:16px 0 6px">Période</div>',
-            unsafe_allow_html=True,
-        )
-        mois_opts = _generer_mois_options()
-        mois_sel  = st.selectbox(
-            "mois",
-            options=[m["value"] for m in mois_opts],
-            format_func=lambda v: next(m["label"] for m in mois_opts if m["value"] == v),
-            label_visibility="collapsed",
-            key="sidebar_mois_sel",
-        )
+        # Période removed — always current month (can re-add later)
+        now = datetime.now()
+        mois_sel = f"{now.month:02d}/{now.year}"
 
-        # ── 4. + Transaction ──────────────────────────────────────────────────
+        # ── 3. + Transaction ──────────────────────────────────────────────────
         st.markdown(
             f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
             f'text-transform:uppercase;letter-spacing:2px;'
@@ -271,10 +262,6 @@ section[data-testid="stSidebar"] .element-container:has(.sb-logo-anchor)
         # ── Zone Test (dev only) ───────────────────────────────────────────────
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         with st.expander("🛠️ Zone Test", expanded=False):
-            if st.button("🔄  Refaire l'onboarding", key="btn_restart_onboarding",
-                         use_container_width=True, type="secondary"):
-                _restart_onboarding(audit)
-                st.rerun()
             st.markdown(
                 f'<div style="color:{T.DANGER};font-size:11px;margin:8px 0">'
                 f'Supprime toutes les transactions.</div>',
