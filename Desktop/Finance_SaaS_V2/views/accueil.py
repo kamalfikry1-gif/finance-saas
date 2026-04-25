@@ -286,9 +286,9 @@ def _render_quick_transaction(audit) -> None:
                     st.error(res.get("erreur", "Erreur inconnue"))
 
 
-def _sparkline_svg(values: list) -> str:
-    """Pure SVG fluid polyline — no axes, no labels, just the 7-day trend."""
-    W, H = 110, 44
+def _sparkline_svg(values: list, bg: bool = False) -> str:
+    """Pure SVG fluid polyline. bg=True → full-width hero background version."""
+    W, H = (400, 120) if bg else (110, 44)
     n = len(values)
     if n < 2:
         return ""
@@ -300,9 +300,22 @@ def _sparkline_svg(values: list) -> str:
         y = round(H - 5 - ((v - mn) / rng) * (H - 10), 1)
         pts.append(f"{x},{y}")
     color = T.SUCCESS if values[-1] >= values[0] else T.DANGER
+    pts_str = " ".join(pts)
+    if bg:
+        fill_pts = f"{pts_str} {W},{H} 0,{H}"
+        return (
+            f'<svg width="100%" height="100%" viewBox="0 0 {W} {H}" '
+            f'preserveAspectRatio="none" '
+            f'style="position:absolute;inset:0;pointer-events:none">'
+            f'<polygon points="{fill_pts}" fill="{color}" fill-opacity="0.07"/>'
+            f'<polyline points="{pts_str}" fill="none" stroke="{color}" '
+            f'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '
+            f'opacity="0.25"/>'
+            f'</svg>'
+        )
     return (
         f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">'
-        f'<polyline points="{" ".join(pts)}" fill="none" '
+        f'<polyline points="{pts_str}" fill="none" '
         f'stroke="{color}" stroke-width="2.5" '
         f'stroke-linecap="round" stroke-linejoin="round"/>'
         f'</svg>'
@@ -315,15 +328,12 @@ def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str, sparkline:
     sclass  = "pos" if solde >= 0 else "neg"
     proj_v  = proj.get("projection_fin_mois", 0) or 0
     taux_ep = float(score.get("taux_epargne_pct", 0) or 0)
-    spark   = _sparkline_svg(sparkline or [])
-    spark_html = (
-        f'<div style="flex-shrink:0;opacity:0.7;align-self:center">{spark}</div>'
-        if spark else ""
-    )
+    spark_bg = _sparkline_svg(sparkline or [], bg=True) if sparkline and len(sparkline) >= 2 else ""
 
     st.markdown(
-        f'<div class="v1-hero" style="display:flex;align-items:center;gap:24px">'
-        f'  <div style="flex:1;min-width:0">'
+        f'<div class="v1-hero" style="position:relative;overflow:hidden">'
+        f'{spark_bg}'
+        f'  <div style="position:relative;z-index:1">'
         f'    <div class="v1-hero-label">{mois_lbl} · Solde net</div>'
         f'    <div class="v1-hero-amount">'
         f'      <span class="sign {sclass}">{sign}</span>{_fmt_dh(solde)}'
@@ -334,55 +344,61 @@ def _render_hero(bilan: dict, proj: dict, score: dict, mois_lbl: str, sparkline:
         f'      <span>Projection fin de mois <span class="hv warn">{_fmt_dh(proj_v)} DH</span></span>'
         f'    </div>'
         f'  </div>'
-        f'  {spark_html}'
         f'</div>',
         unsafe_allow_html=True,
     )
 
 
-def _render_kpis(bilan: dict, proj: dict) -> None:
-    revenus  = bilan["revenus"]
-    depenses = bilan["depenses"]
-    proj_v   = float(proj.get("projection_fin_mois", 0) or 0)
-    je       = int(proj.get("jours_ecoules", 0) or 0)
+def _render_kpis(bilan: dict, proj: dict, epargne_total: float = 0.0) -> None:
+    revenus    = bilan["revenus"]
+    depenses   = bilan["depenses"]
+    proj_v     = float(proj.get("projection_fin_mois", 0) or 0)
+    je         = int(proj.get("jours_ecoules", 0) or 0)
     jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
-    reste    = max(0.0, revenus - max(depenses, proj_v))
+    reste      = max(0.0, revenus - max(depenses, proj_v))
+    ep_color   = T.PRIMARY if epargne_total > 0 else T.TEXT_LOW
+
+    def _kpi(label, value_html, sub, border_right=True):
+        br = f"border-right:1px solid {T.BORDER};" if border_right else ""
+        return (
+            f'<div style="flex:1;padding:0 16px;{br}">'
+            f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">{label}</div>'
+            f'{value_html}'
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">{sub}</div>'
+            f'</div>'
+        )
 
     st.markdown(
         f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-        f'border-radius:{T.RADIUS_MD};padding:16px 20px;margin-top:12px;'
-        f'display:flex;justify-content:space-between;align-items:stretch;gap:0">'
-
-        # ── Revenus ──────────────────────────────────────────────────────────
-        f'<div style="flex:1;padding-right:20px;border-right:1px solid {T.BORDER}">'
-        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:1px">Revenus</div>'
-        f'<div style="color:{T.SUCCESS};font-size:20px;font-weight:900;margin-top:4px">'
-        f'{_fmt_dh(revenus)} <span style="font-size:12px;font-weight:400">DH</span></div>'
-        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">Encaissés ce mois</div>'
-        f'</div>'
-
-        # ── Dépenses ─────────────────────────────────────────────────────────
-        f'<div style="flex:1;padding:0 20px;border-right:1px solid {T.BORDER}">'
-        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:1px">Dépenses</div>'
-        f'<div style="color:{T.WARNING};font-size:20px;font-weight:900;margin-top:4px">'
-        f'{_fmt_dh(depenses)} <span style="font-size:12px;font-weight:400">DH</span></div>'
-        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">'
-        f'Sur {je}j · <b style="color:{T.TEXT_MED}">{jours_rest}j restants</b></div>'
-        f'</div>'
-
-        # ── Reste à vivre ─────────────────────────────────────────────────────
-        f'<div style="flex:1;padding-left:20px">'
-        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:1px">Reste à vivre</div>'
-        f'<div style="color:{T.TEXT_HIGH};font-size:20px;font-weight:900;margin-top:4px">'
-        f'{_fmt_dh(reste)} <span style="font-size:12px;font-weight:400">DH</span></div>'
-        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:3px">'
-        f'Projection : {_fmt_dh(proj_v)} DH dépensé</div>'
-        f'</div>'
-
-        f'</div>',
+        f'border-radius:{T.RADIUS_MD};padding:16px 4px;margin-top:12px;'
+        f'display:flex;align-items:stretch">'
+        + _kpi(
+            "Total Revenus",
+            f'<div style="color:{T.SUCCESS};font-size:20px;font-weight:900;margin-top:4px">'
+            f'{_fmt_dh(revenus)} <span style="font-size:12px;font-weight:400">DH</span></div>',
+            "Encaissés ce mois",
+        )
+        + _kpi(
+            "Total Dépenses",
+            f'<div style="color:{T.WARNING};font-size:20px;font-weight:900;margin-top:4px">'
+            f'{_fmt_dh(depenses)} <span style="font-size:12px;font-weight:400">DH</span></div>',
+            f'Sur {je}j · <b style="color:{T.TEXT_MED}">{jours_rest}j restants</b>',
+        )
+        + _kpi(
+            "Reste à vivre",
+            f'<div style="color:{T.TEXT_HIGH};font-size:20px;font-weight:900;margin-top:4px">'
+            f'{_fmt_dh(reste)} <span style="font-size:12px;font-weight:400">DH</span></div>',
+            f'Projection : {_fmt_dh(proj_v)} DH dépensé',
+        )
+        + _kpi(
+            "Épargne Total",
+            f'<div style="color:{ep_color};font-size:20px;font-weight:900;margin-top:4px">'
+            f'{_fmt_dh(epargne_total)} <span style="font-size:12px;font-weight:400">DH</span></div>',
+            "Cumulé historique",
+            border_right=False,
+        )
+        + f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -851,9 +867,14 @@ def render(ctx: dict) -> None:
     except Exception:
         sparkline_data = []
 
+    try:
+        epargne_total = audit.db.get_cumul_epargne(ctx["user_id"])
+    except Exception:
+        epargne_total = 0.0
+
     _render_streak_banner(streak_jours, mois_verts, ctx.get("username", ""))
     _render_hero(bilan, proj, score, mois_lbl, sparkline_data)
-    _render_kpis(bilan, proj)
+    _render_kpis(bilan, proj, epargne_total)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 

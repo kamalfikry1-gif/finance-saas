@@ -1100,6 +1100,18 @@ class DatabaseManager:
             ).fetchall()
         return [_canon_dict(r) for r in rows]
 
+    def get_cumul_epargne(self, user_id: int) -> float:
+        """Cumulative savings total — MAX(Cumul_Total) from EPARGNE_HISTO."""
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT MAX(Cumul_Total) FROM EPARGNE_HISTO WHERE user_id = %s",
+                    (user_id,),
+                ).fetchone()
+            return float(row[0] or 0) if row else 0.0
+        except Exception:
+            return 0.0
+
     def sauvegarder_epargne_mois(self, user_id: int, mois: str,
                                   montant_reel: float,
                                   montant_vise: float = 0.0) -> None:
