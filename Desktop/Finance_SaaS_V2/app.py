@@ -155,7 +155,15 @@ mois_sel = render_sidebar(audit)
 
 identite_active = audit.get_identite()
 state           = ui_cache.get_state(audit, mois_sel, identite_active, user_id)
-mois_lbl        = datetime.strptime(mois_sel, "%m/%Y").strftime("%B %Y").capitalize()
+_MOIS_FR = {
+    "January": "Janvier", "February": "Février", "March": "Mars",
+    "April": "Avril", "May": "Mai", "June": "Juin",
+    "July": "Juillet", "August": "Août", "September": "Septembre",
+    "October": "Octobre", "November": "Novembre", "December": "Décembre",
+}
+_mois_raw = datetime.strptime(mois_sel, "%m/%Y").strftime("%B %Y").capitalize()
+_parts    = _mois_raw.split(" ")
+mois_lbl  = f"{_MOIS_FR.get(_parts[0], _parts[0])} {_parts[1]}" if len(_parts) == 2 else _mois_raw
 
 ctx: Dict = {
     "audit":          audit,

@@ -85,12 +85,16 @@ def render(audit) -> str:
         # ── PARAMÈTRES — collapsible section ──────────────────────────────────
         if "sb_params_exp" not in st.session_state:
             st.session_state.sb_params_exp = True
+        # Always open on Accueil so user sees nav on landing
+        if st.session_state.get("page") == "Accueil" and not st.session_state.get("_params_toggled"):
+            st.session_state.sb_params_exp = True
         params_exp = st.session_state.sb_params_exp
 
         arrow = "▾" if params_exp else "▸"
         if st.button(f"{arrow}  Paramètres", key="sb_params_toggle",
                      use_container_width=True):
             st.session_state.sb_params_exp = not params_exp
+            st.session_state._params_toggled = True
             st.rerun()
 
         # ── 2. Flat navigation (collapses with Paramètres toggle) ────────────
@@ -283,21 +287,22 @@ def render(audit) -> str:
                 _invalider_cache()
                 st.rerun()
 
-        # ── Zone Test (dev only) ───────────────────────────────────────────────
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        with st.expander("🛠️ Zone Test", expanded=False):
-            st.markdown(
-                f'<div style="color:{T.DANGER};font-size:11px;margin:8px 0">'
-                f'Supprime toutes les transactions.</div>',
-                unsafe_allow_html=True,
-            )
-            confirme = st.checkbox("Je confirme la suppression", key="reset_confirm")
-            if st.button("Réinitialiser les données", key="btn_reset_data",
-                         type="secondary", use_container_width=True,
-                         disabled=not confirme):
-                _reset_donnees(audit)
-                st.success("Données effacées.")
-                st.rerun()
+        # ── Zone Test (admin only) ────────────────────────────────────────────
+        if st.session_state.get("is_admin"):
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            with st.expander("🛠️ Zone Test", expanded=False):
+                st.markdown(
+                    f'<div style="color:{T.DANGER};font-size:11px;margin:8px 0">'
+                    f'Supprime toutes les transactions.</div>',
+                    unsafe_allow_html=True,
+                )
+                confirme = st.checkbox("Je confirme la suppression", key="reset_confirm")
+                if st.button("Réinitialiser les données", key="btn_reset_data",
+                             type="secondary", use_container_width=True,
+                             disabled=not confirme):
+                    _reset_donnees(audit)
+                    st.success("Données effacées.")
+                    st.rerun()
 
     return mois_sel
 
