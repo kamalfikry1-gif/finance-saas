@@ -363,36 +363,6 @@ def _etape_depenses(categories: list) -> None:
         montants[cle_credit] = float(val_credit)
     total_saisi += float(val_credit)
 
-    # ── Daret — mise mensuelle dans une tontine ───────────────────────────────
-    cle_daret = "Finances & Crédits|Daret"
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-    st.markdown(
-        f"<div style='display:flex;align-items:center;justify-content:space-between;"
-        f"margin-bottom:4px'>"
-        f"<div style='display:flex;align-items:center;gap:10px'>"
-        f"<div style='width:4px;height:22px;background:{T.PRIMARY};border-radius:2px'></div>"
-        f"<span style='color:{T.TEXT_HIGH};font-weight:700;font-size:16px'>"
-        f"Mise Daret mensuelle</span>"
-        f"</div>"
-        f"<span style='color:{T.TEXT_LOW};font-size:12px'>optionnel</span>"
-        f"</div>"
-        f"<div style='color:{T.TEXT_LOW};font-size:12px;margin-left:14px;margin-bottom:10px'>"
-        f"Tontine / Daret — votre cotisation mensuelle. Laissez à 0 si non concerné.</div>",
-        unsafe_allow_html=True,
-    )
-    c_daret_lbl, c_daret_inp = st.columns([3, 2])
-    with c_daret_inp:
-        stored_daret = montants.get(cle_daret, 0.0)
-        val_daret = st.number_input(
-            "Daret mensuel", min_value=0.0, max_value=500_000.0,
-            value=float(stored_daret),
-            step=100.0, format="%.0f",
-            label_visibility="collapsed",
-            key="ob_dep_daret",
-        )
-        montants[cle_daret] = float(val_daret)
-    total_saisi += float(val_daret)
-
     # ── Autres catégories — chaque catégorie a son propre expander ───────────────
     if cats_autres:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)

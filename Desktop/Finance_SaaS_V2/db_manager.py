@@ -65,6 +65,9 @@ _CANONICAL_COLS = {c.lower(): c for c in (
     "Frequence", "Compteur_N", "Montant_Cumule", "Mot_Cle",
     # AUDIT_LOG
     "Timestamp", "Role", "Action", "Input_Raw", "Output_Raw",
+    # DARETS
+    "Montant_Mensuel", "Nb_Membres", "Membres_JSON", "Tour_Actuel",
+    "Date_Debut", "Notes",
 )}
 
 
