@@ -86,6 +86,91 @@ def _gauge_svg(score_val: float, color: str) -> str:
 
 # ── Sections ──────────────────────────────────────────────────────────────────
 
+def _render_streak_banner(streak_jours: int, mois_verts: int, username: str) -> None:
+    """One-line motivational banner — only visible when there's something to show."""
+    parts = []
+    if streak_jours >= 2:
+        parts.append(f"🔥 {streak_jours} jours de suite")
+    elif streak_jours == 1:
+        parts.append("🔥 1er jour — bonne reprise !")
+    if mois_verts >= 2:
+        parts.append(f"✅ {mois_verts} mois verts consécutifs")
+    elif mois_verts == 1:
+        parts.append("✅ 1er mois vert")
+
+    if not parts:
+        return
+
+    nom = (username or "").capitalize()
+    suffix = (
+        f" — Continue comme ça{', ' + nom if nom else ''} !"
+        if (streak_jours >= 5 or mois_verts >= 3)
+        else ""
+    )
+    text = " · ".join(parts)
+    st.markdown(
+        f'<div style="background:{T.SUCCESS}12;border-left:3px solid {T.SUCCESS};'
+        f'border-radius:{T.RADIUS_MD};padding:9px 14px;margin-bottom:10px;'
+        f'display:flex;align-items:center;gap:10px">'
+        f'<span style="color:{T.SUCCESS};font-size:13px;font-weight:700">{text}</span>'
+        f'<span style="color:{T.TEXT_LOW};font-size:12px">{suffix}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_charges_fixes(audit) -> None:
+    """Recurring fixed charges card — surfaces the hidden get_charges_fixes() intelligence."""
+    try:
+        res = audit.query("charges_fixes", nb_mois_min=2)
+        charges = res.get("resultat", [])
+    except Exception:
+        return
+
+    if not charges:
+        return
+
+    total_mensuel = sum(float(c.get("Montant_Moyen", 0)) for c in charges)
+    nb = len(charges)
+
+    st.markdown(
+        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+        f'border-radius:{T.RADIUS_MD};padding:14px 16px;margin-top:14px">'
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">'
+        f'📌 Charges fixes détectées</div>'
+        f'<div style="display:flex;justify-content:space-between;align-items:baseline;'
+        f'margin-bottom:10px">'
+        f'<span style="color:{T.TEXT_MED};font-size:12px">'
+        f'{nb} charge{"s" if nb > 1 else ""} récurrente{"s" if nb > 1 else ""}</span>'
+        f'<span style="color:{T.TEXT_HIGH};font-size:15px;font-weight:700">'
+        f'{_dh(total_mensuel)}/mois</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    for c in charges[:5]:
+        lib  = (c.get("Libelle") or "")[:28]
+        mnt  = float(c.get("Montant_Moyen", 0))
+        nb_m = int(c.get("Nb_Mois", 0))
+        st.markdown(
+            f'<div style="display:flex;justify-content:space-between;align-items:center;'
+            f'padding:4px 0;border-bottom:1px solid {T.BORDER}">'
+            f'<span style="color:{T.TEXT_MED};font-size:12px">{lib}</span>'
+            f'<span style="display:flex;gap:10px;align-items:center">'
+            f'<span style="color:{T.TEXT_HIGH};font-size:12px;font-weight:600">{_dh(mnt)}</span>'
+            f'<span style="color:{T.TEXT_LOW};font-size:10px">{nb_m}×</span>'
+            f'</span></div>',
+            unsafe_allow_html=True,
+        )
+    if len(charges) > 5:
+        st.markdown(
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;text-align:right;padding-top:4px">'
+            f'+{len(charges) - 5} autres</div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 def _render_quick_transaction(audit) -> None:
     """Collapsed quick-entry form on the dashboard — minimal 3 fields."""
     from datetime import date as _date
@@ -606,7 +691,9 @@ def render(ctx: dict) -> None:
     message  = ctx["message"]
     identite = ctx["identite_active"]
     audit    = ctx["audit"]
+    streak_jours, mois_verts = ctx.get("streak", (0, 0))
 
+    _render_streak_banner(streak_jours, mois_verts, ctx.get("username", ""))
     _render_quick_transaction(audit)
     _render_hero(bilan, proj, score, mois_lbl)
     _render_kpis(bilan, proj)
@@ -618,6 +705,7 @@ def render(ctx: dict) -> None:
         _render_categories(rept, ctx)
     with col_right:
         _render_radar(audit, proj)
+        _render_charges_fixes(audit)
         _render_coach(message, humeur, identite)
         _render_score_plan(score, badges)
         _render_age_of_money(audit, bilan, proj)

@@ -44,7 +44,7 @@ COULEURS_CAT = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _barre_etapes(etape: int) -> None:
-    labels = ["Vos revenus", "Vos dépenses du mois"]
+    labels = ["Vos revenus", "Vos dépenses du mois", "Votre bilan"]
     cols   = st.columns(len(labels))
     for i, (col, lbl) in enumerate(zip(cols, labels)):
         actif   = (i + 1 == etape)
@@ -181,29 +181,53 @@ def _etape_revenus() -> None:
 
 _CATS_PRIORITAIRES = {"Logement", "Vie Quotidienne", "Transport", "Abonnements"}
 
-# Onboarding display overrides for Vie Quotidienne
-_VQ_SKIP: set = set()  # all sub-cats are now canonical — nothing to hide
+# ── Vie Quotidienne display rules ────────────────────────────────────────────
+# "Alimentation" already covers everything food-related — hide the duplicates.
+_VQ_SKIP = {"Fruits & légumes", "Protéine"}
 _VQ_LABELS = {
-    "Alimentation": "Alimentation (fruits, légumes, viande, courses alimentaires…)",
+    "Alimentation": "Alimentation (fruits, légumes, viande, courses…)",
 }
 
+# ── Transport display rules ───────────────────────────────────────────────────
+# Merge Taxi & Uber + Tramway & Bus into a single "Taxi & Transport" field.
+# We keep the "Taxi & Uber" key for the DB record; "Tramway & Bus" is hidden.
+_TRANSPORT_SKIP   = {"Tramway & Bus"}
+_TRANSPORT_LABELS = {
+    "Taxi & Uber": "Taxi & Transport (taxi, bus, tram…)",
+}
 
-def _prepare_vq_items(items: list) -> list:
-    """
-    Merge 'Protéine' and 'Fruits & légumes' into 'Alimentation' for the
-    onboarding display. Returns a filtered list with a combined label —
-    display-only, the data model is untouched.
-    """
+# ── Global subcategory skip (onboarding only) ─────────────────────────────────
+# Hide "catch-all" subcategories that add noise without actionable meaning.
+_GLOBAL_SOUS_SKIP = {"Divers_Autre", "Revenu_autre"}
+
+
+def _prepare_cat_items(cat: str, items: list) -> list:
+    """Filter and relabel subcategories for cleaner onboarding display."""
+    if cat == "Vie Quotidienne":
+        skip   = _VQ_SKIP
+        labels = _VQ_LABELS
+    elif cat == "Transport":
+        skip   = _TRANSPORT_SKIP
+        labels = _TRANSPORT_LABELS
+    else:
+        skip   = set()
+        labels = {}
+
     result = []
     for item in items:
         sous = item["sous_categorie"]
-        if sous in _VQ_SKIP:
+        if sous in skip or sous in _GLOBAL_SOUS_SKIP:
             continue
-        if sous in _VQ_LABELS:
+        if sous in labels:
             item = dict(item)
-            item["_display_label"] = _VQ_LABELS[sous]
+            item["_display_label"] = labels[sous]
         result.append(item)
     return result
+
+
+# Keep old name as alias so nothing else breaks
+def _prepare_vq_items(items: list) -> list:
+    return _prepare_cat_items("Vie Quotidienne", items)
 
 
 def _render_cat_block(cat: str, items: list, montants: dict,
@@ -244,13 +268,12 @@ def _render_cat_block(cat: str, items: list, montants: dict,
                 stored = montants.get(cle, 0.0)
                 val = st.number_input(
                     display_sous, min_value=0.0, max_value=500_000.0,
-                    value=float(stored) if stored > 0 else None,
-                    placeholder="0",
+                    value=float(stored),
                     step=50.0, format="%.0f",
                     label_visibility="collapsed",
                     key=f"ob_dep_{cle}",
                 )
-                montants[cle] = float(val) if val is not None else 0.0
+                montants[cle] = float(val)
 
     return total_cat
 
@@ -306,7 +329,7 @@ def _etape_depenses(categories: list) -> None:
 
     # ── Catégories prioritaires (toujours ouvertes) ───────────────────────────
     for cat, items in cats_prio.items():
-        display_items = _prepare_vq_items(items) if cat == "Vie Quotidienne" else items
+        display_items = _prepare_cat_items(cat, items)
         total_saisi += _render_cat_block(cat, display_items, montants, start_open=True)
 
     # ── Crédit mensuel — champ unique, sans surcharge ────────────────────────────
@@ -331,15 +354,43 @@ def _etape_depenses(categories: list) -> None:
         stored_credit = montants.get(cle_credit, 0.0)
         val_credit = st.number_input(
             "Crédit mensuel", min_value=0.0, max_value=500_000.0,
-            value=float(stored_credit) if stored_credit > 0 else None,
-            placeholder="0",
+            value=float(stored_credit),
             step=100.0, format="%.0f",
             label_visibility="collapsed",
             key="ob_dep_credit",
         )
-        val_credit = float(val_credit) if val_credit is not None else 0.0
-        montants[cle_credit] = val_credit
-    total_saisi += val_credit
+        montants[cle_credit] = float(val_credit)
+    total_saisi += float(val_credit)
+
+    # ── Daret — mise mensuelle dans une tontine ───────────────────────────────
+    cle_daret = "Finances & Crédits|Daret"
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='display:flex;align-items:center;justify-content:space-between;"
+        f"margin-bottom:4px'>"
+        f"<div style='display:flex;align-items:center;gap:10px'>"
+        f"<div style='width:4px;height:22px;background:{T.PRIMARY};border-radius:2px'></div>"
+        f"<span style='color:{T.TEXT_HIGH};font-weight:700;font-size:16px'>"
+        f"Mise Daret mensuelle</span>"
+        f"</div>"
+        f"<span style='color:{T.TEXT_LOW};font-size:12px'>optionnel</span>"
+        f"</div>"
+        f"<div style='color:{T.TEXT_LOW};font-size:12px;margin-left:14px;margin-bottom:10px'>"
+        f"Tontine / Daret — votre cotisation mensuelle. Laissez à 0 si non concerné.</div>",
+        unsafe_allow_html=True,
+    )
+    c_daret_lbl, c_daret_inp = st.columns([3, 2])
+    with c_daret_inp:
+        stored_daret = montants.get(cle_daret, 0.0)
+        val_daret = st.number_input(
+            "Daret mensuel", min_value=0.0, max_value=500_000.0,
+            value=float(stored_daret),
+            step=100.0, format="%.0f",
+            label_visibility="collapsed",
+            key="ob_dep_daret",
+        )
+        montants[cle_daret] = float(val_daret)
+    total_saisi += float(val_daret)
 
     # ── Autres catégories — chaque catégorie a son propre expander ───────────────
     if cats_autres:
@@ -351,7 +402,9 @@ def _etape_depenses(categories: list) -> None:
             unsafe_allow_html=True,
         )
         for cat, items in cats_autres.items():
-            display_items = _prepare_vq_items(items) if cat == "Vie Quotidienne" else items
+            display_items = _prepare_cat_items(cat, items)
+            if not display_items:
+                continue
             couleur    = COULEURS_CAT.get(cat, T.TEXT_MED)
             total_cat  = sum(
                 montants.get(f"{cat}|{it['sous_categorie']}", 0.0)
@@ -377,13 +430,12 @@ def _etape_depenses(categories: list) -> None:
                         stored = montants.get(cle, 0.0)
                         val = st.number_input(
                             display_sous, min_value=0.0, max_value=500_000.0,
-                            value=float(stored) if stored > 0 else None,
-                            placeholder="0",
+                            value=float(stored),
                             step=50.0, format="%.0f",
                             label_visibility="collapsed",
                             key=f"ob_dep_{cle}",
                         )
-                        montants[cle] = float(val) if val is not None else 0.0
+                        montants[cle] = float(val)
 
             total_saisi += total_cat
 
@@ -477,7 +529,8 @@ def _sauvegarder_revenus() -> None:
 
 
 def _finaliser(enregistrer: bool) -> None:
-    audit   = st.session_state._ob_audit
+    """Record onboarding transactions, compute bilan summary, then show step 3."""
+    audit    = st.session_state._ob_audit
     montants = st.session_state.get("ob_montants", {})
 
     if enregistrer:
@@ -486,28 +539,138 @@ def _finaliser(enregistrer: bool) -> None:
             if montant <= 0:
                 continue
             cat, sous = cle.split("|", 1)
-            # On connaît déjà cat+sous : on bypasse le Trieur pour éviter "Divers"
             enregistrer_transaction_categorisee(
                 audit,
-                libelle       = sous,
-                montant       = montant,
-                sens          = "OUT",
-                categorie     = cat,
-                sous_categorie= sous,
-                date_valeur   = date_ob,
-                source        = "ONBOARDING",
+                libelle        = sous,
+                montant        = montant,
+                sens           = "OUT",
+                categorie      = cat,
+                sous_categorie = sous,
+                date_valeur    = date_ob,
+                source         = "ONBOARDING",
             )
 
-    marquer_onboarding_fait(audit)
+    # Compute bilan summary for the closing screen
+    revenus  = float(st.session_state.get("ob_salaire", 0.0))
+    for e in st.session_state.get("ob_extras", []):
+        revenus += float(e.get("montant", 0))
+    depenses  = sum(v for v in montants.values() if v > 0)
+    nb_postes = sum(1 for v in montants.values() if v > 0)
 
+    st.session_state.ob_bilan = {
+        "revenus":  revenus,
+        "depenses": depenses,
+        "nb_postes": nb_postes,
+    }
+    st.session_state.ob_step = 3
+    st.rerun()
+
+
+def _conclu(audit) -> None:
+    """Mark onboarding as done, clean up session state, enter the app."""
+    marquer_onboarding_fait(audit)
     for key in list(st.session_state.keys()):
         if key.startswith("ob_") or key.startswith("_ob_"):
             del st.session_state[key]
-
     _invalider_cache()
-    st.success("✅ Bienvenue ! Votre tableau de bord est prêt.")
     st.balloons()
     st.rerun()
+
+
+def _etape_bilan(audit) -> None:
+    """Step 3 — Bilan de Départ: show the user their projected financial profile."""
+    bilan    = st.session_state.get("ob_bilan", {})
+    revenus  = float(bilan.get("revenus", 0))
+    depenses = float(bilan.get("depenses", 0))
+    nb_pos   = int(bilan.get("nb_postes", 0))
+
+    taux_ep = round((revenus - depenses) / revenus * 100, 1) if revenus > 0 else 0.0
+    solde   = revenus - depenses
+
+    if taux_ep >= 20:
+        color_ep  = T.SUCCESS
+        label_ep  = "Excellent"
+        action    = "Vous avez la marge — créez votre premier objectif d'épargne."
+    elif taux_ep >= 10:
+        color_ep  = T.WARNING
+        label_ep  = "Correct"
+        action    = "Identifiez 1 poste de Désirs à optimiser pour atteindre 20% d'épargne."
+    elif taux_ep > 0:
+        color_ep  = T.DANGER
+        label_ep  = "À améliorer"
+        action    = "Votre Coach va trouver où part votre argent — explorez le Dashboard."
+    else:
+        color_ep  = T.TEXT_MED
+        label_ep  = "À renseigner"
+        action    = "Saisissez vos premières transactions pour que le Coach calibre votre profil."
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    st.markdown(
+        f"<div style='text-align:center;padding:20px 0 12px'>"
+        f"<div style='font-size:36px;margin-bottom:8px'>🎉</div>"
+        f"<h2 style='color:{T.TEXT_HIGH};font-size:24px;margin:0 0 6px'>"
+        f"Votre profil est prêt !</h2>"
+        f"<p style='color:{T.TEXT_LOW};font-size:13px;margin:0'>"
+        f"Voici votre bilan de départ"
+        f"{f' — basé sur {nb_pos} poste(s) renseigné(s)' if nb_pos > 0 else ''}."
+        f"</p></div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── 3 KPI cards ──────────────────────────────────────────────────────────
+    c1, c2, c3 = st.columns(3)
+    for col, lbl, val, color in (
+        (c1, "Revenus", revenus, T.SUCCESS),
+        (c2, "Dépenses", depenses, T.DANGER),
+        (c3, "Taux d'épargne", None, color_ep),
+    ):
+        with col:
+            if val is not None:
+                val_html = f"<div style='color:{color};font-size:22px;font-weight:900;margin-top:4px'>{_dh(val)}</div>"
+            else:
+                val_html = (
+                    f"<div style='color:{color_ep};font-size:26px;font-weight:900;margin-top:4px'>"
+                    f"{taux_ep:.1f}%</div>"
+                    f"<div style='color:{T.TEXT_LOW};font-size:10px;margin-top:2px'>{label_ep}</div>"
+                )
+            st.markdown(
+                f"<div style='background:{T.BG_CARD};border:1px solid {T.BORDER};"
+                f"border-radius:{T.RADIUS_MD};padding:14px;text-align:center'>"
+                f"<div style='color:{T.TEXT_LOW};font-size:10px;font-weight:700;"
+                f"text-transform:uppercase;letter-spacing:1px'>{lbl}</div>"
+                f"{val_html}</div>",
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ── Solde + recommended action ────────────────────────────────────────────
+    solde_color = T.SUCCESS if solde >= 0 else T.DANGER
+    solde_sign  = "+" if solde >= 0 else "−"
+    st.markdown(
+        f"<div style='background:{T.BG_CARD_ALT};border-left:3px solid {T.BORDER_MED};"
+        f"border-radius:{T.RADIUS_MD};padding:14px 16px;margin-bottom:12px;"
+        f"display:flex;justify-content:space-between;align-items:center'>"
+        f"<div style='color:{T.TEXT_LOW};font-size:12px'>Reste après dépenses</div>"
+        f"<div style='color:{solde_color};font-size:18px;font-weight:900'>"
+        f"{solde_sign}{_dh(abs(solde))}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<div style='background:{T.BG_CARD_ALT};border-left:3px solid {T.PRIMARY};"
+        f"border-radius:{T.RADIUS_MD};padding:14px 16px;margin-bottom:20px'>"
+        f"<div style='color:{T.TEXT_LOW};font-size:10px;font-weight:700;"
+        f"text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>"
+        f"Première action recommandée</div>"
+        f"<div style='color:{T.TEXT_HIGH};font-size:14px'>{action}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    if st.button("Entrer dans l'app →", type="primary",
+                 use_container_width=True, key="ob_bilan_cta"):
+        _conclu(audit)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -557,3 +720,6 @@ def render(audit) -> None:
                     st.rerun()
             else:
                 _etape_depenses(categories)
+
+        elif st.session_state.ob_step == 3:
+            _etape_bilan(audit)

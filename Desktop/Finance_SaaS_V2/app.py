@@ -28,6 +28,7 @@ import views.objectif   as page_objectif
 import views.daret      as page_daret
 
 from core.data_input import est_onboarding_fait
+from core.streak import actualiser_streak, actualiser_mois_verts, get_streak_data
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +92,18 @@ if "audit" not in st.session_state or st.session_state.get("_audit_user_id") != 
 audit = st.session_state.audit
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 5b. STREAK — update once per session (not on every rerun)
+# ─────────────────────────────────────────────────────────────────────────────
+
+if "streak_updated" not in st.session_state:
+    try:
+        actualiser_streak(db, user_id)
+        actualiser_mois_verts(db, audit, user_id)
+    except Exception:
+        pass  # Never block the app over streak math
+    st.session_state.streak_updated = True
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 6. SESSION STATE — NAVIGATION & UI
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -147,6 +160,7 @@ ctx: Dict = {
     "rept":           state["repartition"],
     "proj":           state["projection"],
     "_q":             lambda demande, **kw: ui_cache.query(audit, demande, user_id, **kw),
+    "streak":         get_streak_data(db, user_id),
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
