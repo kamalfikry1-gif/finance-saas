@@ -663,6 +663,50 @@ summary {{
     opacity: 0.8;
 }}
 
+/* ── Coach panel — unified red zone card ────────────────────────────────── */
+.coach-panel {{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    margin-top: 8px;
+}}
+.cp-header {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px 16px;
+    background: linear-gradient(180deg, var(--primary-glo), transparent 70%);
+}}
+.cp-divider {{
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+}}
+.cp-score {{
+    padding: 10px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}}
+.cp-message {{
+    padding: 14px 20px;
+    font-size: 13.5px;
+    color: var(--text-high);
+    line-height: 1.55;
+    opacity: 0.92;
+}}
+.cp-section {{
+    padding: 14px 20px;
+}}
+.cp-section-lbl {{
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-low);
+    margin-bottom: 10px;
+}}
+
 /* ── FAB Coach — fixed bottom-right, every page ─────────────────────────── */
 /* Marker div injected by app.py via st.markdown; adjacent sibling = button  */
 .fab-anchor {{ display: none; }}

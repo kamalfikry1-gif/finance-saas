@@ -885,6 +885,172 @@ def _render_donut(rept: list) -> None:
     st.plotly_chart(fig, use_container_width=True)
 
 
+def _render_coach_panel(
+    message: str, humeur: str, identite: str,
+    score: dict, audit, user_id: int, mois_sel: str, proj: dict,
+) -> None:
+    """Unified coach panel — 5 sections in one card."""
+    score_val  = float(score.get("score", 0) or 0)
+    score_col  = _score_color(score_val)
+    niveau_fr  = {"EXCELLENT": "Excellent", "BON": "Bon",
+                  "MOYEN": "Moyen", "CRITIQUE": "Critique"}.get(
+                      score.get("niveau", ""), score.get("niveau", ""))
+    initials   = (identite or "?")[:1].upper()
+    mood_cls   = _mood_class(humeur)
+    gauge      = _gauge_svg(score_val, score_col)
+    suggested_ep = max(0.0, float(proj.get("solde_projete", 0) or 0))
+
+    # Goals data
+    try:
+        goals = ui_cache.get_objectifs(audit, user_id)
+    except Exception:
+        goals = []
+    seen, unique_goals = set(), []
+    for g in goals:
+        gid = g.get("id") or g.get("Id")
+        if gid not in seen:
+            seen.add(gid); unique_goals.append(g)
+    first_goal = unique_goals[0] if unique_goals else None
+
+    # Savings status
+    try:
+        ep = audit.db.get_epargne_mois(user_id, mois_sel)
+    except Exception:
+        ep = None
+
+    # ── Goal HTML ─────────────────────────────────────────────────────────────
+    if first_goal:
+        g_target  = float(first_goal.get("montant_cible") or first_goal.get("Montant_Cible") or 0)
+        g_current = float(first_goal.get("montant_actuel") or first_goal.get("Montant_Actuel") or 0)
+        g_pct     = min(100, round(g_current / g_target * 100)) if g_target > 0 else 0
+        g_nom     = first_goal.get("nom") or first_goal.get("Nom") or "Objectif"
+        g_date    = first_goal.get("date_cible") or first_goal.get("Date_Cible") or ""
+        extra     = (f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:8px">'
+                     f'+{len(unique_goals)-1} autre(s)</div>') if len(unique_goals) > 1 else ""
+        goal_html = (
+            f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">'
+            f'  <span style="font-size:13px;font-weight:600;color:{T.TEXT_HIGH}">🎯 {g_nom}</span>'
+            f'  <span style="font-size:11px;color:{T.TEXT_LOW}">{g_date}</span>'
+            f'</div>'
+            f'<div class="cat-bar-v2" style="margin-bottom:8px">'
+            f'  <div class="cat-bar-fill-v2" style="width:{g_pct}%;'
+            f'    background:linear-gradient(90deg,{T.PRIMARY},{T.SUCCESS})"></div>'
+            f'</div>'
+            f'<div style="display:flex;justify-content:space-between;font-size:12px;color:{T.TEXT_MED}">'
+            f'  <span><span style="color:{T.TEXT_HIGH};font-weight:600">{_fmt_dh(g_current)}</span>'
+            f'  / {_fmt_dh(g_target)} DH</span>'
+            f'  <span>{g_pct}%</span>'
+            f'</div>{extra}'
+        )
+    else:
+        goal_html = (
+            f'<div style="color:{T.TEXT_LOW};font-size:12px;text-align:center;padding:4px 0">'
+            f'Aucun objectif défini</div>'
+        )
+
+    # ── Rappel HTML ───────────────────────────────────────────────────────────
+    if ep is not None:
+        reel = float(ep.get("Montant_Reel", 0) or 0)
+        rappel_html = (
+            f'<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'  <div>'
+            f'    <div style="color:{T.SUCCESS};font-size:10px;font-weight:700;'
+            f'      text-transform:uppercase;letter-spacing:1px">💰 Épargne du mois</div>'
+            f'    <div style="color:{T.TEXT_LOW};font-size:12px;margin-top:2px">Enregistrée</div>'
+            f'  </div>'
+            f'  <div style="color:{T.SUCCESS};font-size:18px;font-weight:900">{_dh(reel)}</div>'
+            f'</div>'
+        )
+        rappel_needs_btn = False
+    else:
+        rappel_html = (
+            f'<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'  <div>'
+            f'    <div style="color:{T.WARNING};font-size:10px;font-weight:700;'
+            f'      text-transform:uppercase;letter-spacing:1px">💰 Épargne du mois</div>'
+            f'    <div style="color:{T.TEXT_LOW};font-size:12px;margin-top:2px">Non renseignée</div>'
+            f'  </div>'
+            f'</div>'
+        )
+        rappel_needs_btn = True
+
+    _div = '<div class="cp-divider"></div>'
+
+    # ── Full card ─────────────────────────────────────────────────────────────
+    st.markdown(
+        f'<div class="coach-panel">'
+        # 1 — Header
+        f'  <div class="cp-header">'
+        f'    <div class="coach-avatar-v1">{initials}</div>'
+        f'    <div class="coach-meta-v1">'
+        f'      <div class="name">Coach {identite}</div>'
+        f'      <div class="role">Assistant financier</div>'
+        f'    </div>'
+        f'    <span class="mood-pill-v1 {mood_cls}">{humeur}</span>'
+        f'  </div>'
+        f'{_div}'
+        # 2 — Score
+        f'  <div class="cp-score">'
+        f'    {gauge}'
+        f'    <div style="text-align:center;margin-top:-10px">'
+        f'      <div class="gauge-num" style="color:{score_col}">{score_val:.0f}</div>'
+        f'      <div class="gauge-total">sur 100</div>'
+        f'      <div class="gauge-label" style="color:{score_col}">{niveau_fr}</div>'
+        f'    </div>'
+        f'  </div>'
+        f'{_div}'
+        # 3 — Message
+        f'  <div class="cp-message">{message}</div>'
+        f'{_div}'
+        # 4 — Goal
+        f'  <div class="cp-section">'
+        f'    <div class="cp-section-lbl">Objectif</div>'
+        f'    {goal_html}'
+        f'  </div>'
+        f'{_div}'
+        # 5 — Rappel
+        f'  <div class="cp-section">{rappel_html}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # CTA — always visible
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    if st.button("🤖 Parler au Coach →", key="coach_cta", use_container_width=True):
+        st.session_state.page = "Assistant"
+        st.rerun()
+
+    # Rappel action
+    if rappel_needs_btn:
+        if st.button("💰 Renseigner l'épargne →", key="cp_rappel_btn",
+                     use_container_width=True, type="secondary"):
+            st.session_state._rappel_ep_open = True
+            st.rerun()
+        if st.session_state.get("_rappel_ep_open"):
+            with st.form("form_epargne_panel", clear_on_submit=True):
+                montant_ep = st.number_input(
+                    "Épargne réelle ce mois (DH)", min_value=0.0, step=100.0,
+                    value=round(suggested_ep) if suggested_ep > 0 else 0.0,
+                    format="%.0f",
+                )
+                if st.form_submit_button("Enregistrer", type="primary",
+                                         use_container_width=True):
+                    try:
+                        audit.db.sauvegarder_epargne_mois(user_id, mois_sel, float(montant_ep))
+                        st.session_state._rappel_ep_open = False
+                        _invalider_cache()
+                        st.rerun()
+                    except Exception:
+                        st.error("Enregistrement échoué.")
+
+    # Goal CTA if none defined
+    if not first_goal:
+        if st.button("🎯 Créer un objectif →", key="cp_goal_cta",
+                     use_container_width=True, type="secondary"):
+            st.session_state.page = "Objectif"
+            st.rerun()
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def render(ctx: dict) -> None:
@@ -920,15 +1086,10 @@ def render(ctx: dict) -> None:
     with col_cats:
         _render_categories(rept, ctx)
     with col_right:
-        _render_coach(message, humeur, identite)
-        if st.button("🤖 Parler au Coach →", key="coach_cta",
-                     use_container_width=True):
-            st.session_state.page = "Assistant"
-            st.rerun()
-        _render_score_plan(score, badges)
-        _render_goals(audit, ctx["user_id"])
-        suggested_ep = max(0.0, float(proj.get("solde_projete", 0) or 0))
-        _render_rappels(audit, ctx["user_id"], ctx["mois_sel"], suggested_ep=suggested_ep)
+        _render_coach_panel(
+            message, humeur, identite, score, audit,
+            ctx["user_id"], ctx["mois_sel"], proj,
+        )
         if alertes:
             st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
             for a in alertes[:2]:
