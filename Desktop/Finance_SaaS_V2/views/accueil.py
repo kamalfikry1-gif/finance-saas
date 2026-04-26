@@ -345,7 +345,8 @@ def _sparkline_bg_style(values: list) -> str:
 
 def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
                        sparkline: list = None, epargne_total: float = 0.0,
-                       streak_jours: int = 0, mois_verts: int = 0) -> None:
+                       streak_jours: int = 0, mois_verts: int = 0,
+                       show_epargne: bool = False) -> None:
     """Hero + KPI strip in one card. Sparkline via CSS bg-image (no DOM positioning)."""
     solde      = bilan["solde"]
     sign       = "+" if solde >= 0 else "−"
@@ -357,7 +358,8 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     je         = int(proj.get("jours_ecoules", 0) or 0)
     jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
     reste      = max(0.0, revenus - max(depenses, float(proj_v)))
-    ep_color   = T.PRIMARY if epargne_total > 0 else T.TEXT_LOW
+    ep_color   = T.PRIMARY if (epargne_total > 0 and show_epargne) else T.TEXT_LOW
+    ep_display = _fmt_dh(epargne_total) if show_epargne else "• • • •"
     bg_style   = _sparkline_bg_style(sparkline or [])
 
     # Streak badge for hero top-right
@@ -409,7 +411,8 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
                f'Proj. {_fmt_dh(proj_v)} DH dépensé')
         + _kpi("Épargne Total",
                f'<div style="color:{ep_color};font-size:19px;font-weight:900">'
-               f'{_fmt_dh(epargne_total)} <span style="font-size:11px;font-weight:400">DH</span></div>',
+               f'{ep_display}'
+               f'{"<span style=\\"font-size:11px;font-weight:400\\"> DH</span>" if show_epargne else ""}</div>',
                "Cumulé historique", border=False)
         + '</div>'
     )
@@ -1088,10 +1091,20 @@ def render(ctx: dict) -> None:
     except Exception:
         epargne_total = 0.0
 
+    show_ep = st.session_state.get("show_epargne_total", False)
     _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_total,
-                      streak_jours, mois_verts)
+                      streak_jours, mois_verts, show_epargne=show_ep)
 
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    # Eye toggle — right-aligned, minimal
+    _c1, _c2 = st.columns([9, 1])
+    with _c2:
+        eye_lbl = "👁" if not show_ep else "🙈"
+        if st.button(eye_lbl, key="toggle_epargne",
+                     help="Afficher / masquer l'épargne totale"):
+            st.session_state.show_epargne_total = not show_ep
+            st.rerun()
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     col_cats, col_right = st.columns([3, 2], gap="large")
     with col_cats:
