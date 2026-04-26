@@ -925,8 +925,6 @@ def _render_coach_panel(
         g_pct     = min(100, round(g_current / g_target * 100)) if g_target > 0 else 0
         g_nom     = first_goal.get("nom") or first_goal.get("Nom") or "Objectif"
         g_date    = first_goal.get("date_cible") or first_goal.get("Date_Cible") or ""
-        extra     = (f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:8px">'
-                     f'+{len(unique_goals)-1} autre(s)</div>') if len(unique_goals) > 1 else ""
         goal_html = (
             f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">'
             f'  <span style="font-size:13px;font-weight:600;color:{T.TEXT_HIGH}">🎯 {g_nom}</span>'
@@ -940,7 +938,7 @@ def _render_coach_panel(
             f'  <span><span style="color:{T.TEXT_HIGH};font-weight:600">{_fmt_dh(g_current)}</span>'
             f'  / {_fmt_dh(g_target)} DH</span>'
             f'  <span>{g_pct}%</span>'
-            f'</div>{extra}'
+            f'</div>'
         )
     else:
         goal_html = (
@@ -988,8 +986,7 @@ def _render_coach_panel(
         f'    </div>'
         f'    <span class="mood-pill-v1 {mood_cls}">{humeur}</span>'
         f'  </div>'
-        f'{_div}'
-        # 2 — Score
+        # 2 — Score (no divider — merges visually with header)
         f'  <div class="cp-score">'
         f'    {gauge}'
         f'    <div style="text-align:center;margin-top:-10px">'
@@ -1013,6 +1010,13 @@ def _render_coach_panel(
         f'</div>',
         unsafe_allow_html=True,
     )
+
+    # More goals button (rendered outside card so it's clickable)
+    if first_goal and len(unique_goals) > 1:
+        if st.button(f"Voir les {len(unique_goals)} objectifs →", key="cp_more_goals",
+                     use_container_width=True, type="secondary"):
+            st.session_state.page = "Objectif"
+            st.rerun()
 
     # CTA — always visible
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
