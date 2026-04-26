@@ -79,6 +79,15 @@ def render(audit) -> str:
             )
 
         if not sb_exp:
+            # Narrow the sidebar to a thin strip so main content expands
+            st.markdown("""<style>
+section[data-testid="stSidebar"] > div:first-child {
+    min-width: 68px !important;
+    max-width: 68px !important;
+    width: 68px !important;
+    overflow: hidden !important;
+}
+</style>""", unsafe_allow_html=True)
             now = datetime.now()
             return f"{now.month:02d}/{now.year}"
 

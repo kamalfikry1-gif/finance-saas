@@ -28,15 +28,13 @@ div[data-testid="stToolbar"]  {{ display: none !important; }}
 #MainMenu {{ visibility: hidden !important; }}
 footer    {{ visibility: hidden !important; }}
 
-/* Force sidebar always visible — native collapse disabled, topbar ☰ controls content */
+/* Prevent native slide-out — content width controlled by sb_expanded session state */
 section[data-testid="stSidebar"] {{
     transform: translateX(0) !important;
     display: block !important;
     visibility: visible !important;
-    min-width: 244px !important;
-    width: 244px !important;
 }}
-/* Hide native collapse arrow (our topbar handles toggling) */
+/* Hide native collapse arrow — topbar ☰ owns the toggle */
 div[data-testid="stSidebarCollapsedControl"] {{
     display: none !important;
 }}
