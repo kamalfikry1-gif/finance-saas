@@ -34,15 +34,16 @@ _DATA_KEY = "ob2_data"   # collected wizard data (revenu, estimations)
 
 # ── Recurring expense presets for step 2 ────────────────────────────────────
 RECURRENT_PRESETS = [
-    {"key": "loyer",     "label": "Loyer / Crédit logement",     "icon": "🏠"},
-    {"key": "internet",  "label": "Internet",                    "icon": "📡"},
-    {"key": "telephone", "label": "Téléphone",                   "icon": "📱"},
-    {"key": "streaming", "label": "Streaming (Netflix, Spotify…)", "icon": "📺"},
-    {"key": "gym",       "label": "Gym / Sport",                 "icon": "🏋️"},
-    {"key": "banque",    "label": "Frais bancaires mensuels",    "icon": "🏦"},
-    {"key": "assurance", "label": "Assurance",                   "icon": "🛡️"},
-    {"key": "credit",    "label": "Crédit (autre)",              "icon": "💳"},
-    {"key": "daret",     "label": "Daret (montant mensuel)",     "icon": "🔄"},
+    {"key": "loyer",     "label": "Loyer / Crédit logement",            "icon": "🏠"},
+    {"key": "utilities", "label": "Électricité + Eau (utilities)",      "icon": "⚡"},
+    {"key": "internet",  "label": "Internet",                           "icon": "📡"},
+    {"key": "telephone", "label": "Téléphone",                          "icon": "📱"},
+    {"key": "streaming", "label": "Streaming (Netflix, Spotify…)",      "icon": "📺"},
+    {"key": "gym",       "label": "Gym / Sport",                        "icon": "🏋️"},
+    {"key": "banque",    "label": "Frais bancaires mensuels",           "icon": "🏦"},
+    {"key": "assurance", "label": "Assurance",                          "icon": "🛡️"},
+    {"key": "credit",    "label": "Crédit (autre)",                     "icon": "💳"},
+    {"key": "daret",     "label": "Daret (montant mensuel)",            "icon": "🔄"},
 ]
 
 _TOTAL_STEPS = 4
@@ -357,6 +358,60 @@ def _create_recurrent_transactions(audit) -> int:
     return count
 
 
+# ── Donut renderer for step 3 — live visual feedback ───────────────────────
+def _render_estimation_donut(
+    entretien: float, alimentation: float, transport: float,
+    envies: float, epargne: float, reste: float, revenu: float,
+) -> None:
+    """Plotly donut that takes shape as user moves the sliders."""
+    if revenu <= 0:
+        return
+
+    import plotly.graph_objects as go
+
+    labels = ["🔧 Entretien", "🛒 Alimentation", "🚗 Transport",
+              "🎁 Envies", "💰 Épargne", "🆓 Reste"]
+    values = [entretien, alimentation, transport, envies, epargne, reste]
+    colors = [T.WARNING, T.PRIMARY, T.BLUE, T.PURPLE, T.SUCCESS, T.TEXT_MUTED]
+
+    fig = go.Figure(data=[go.Pie(
+        labels=labels,
+        values=values,
+        hole=0.65,
+        marker=dict(colors=colors, line=dict(color=T.BG_PAGE, width=2)),
+        textinfo="none",
+        hovertemplate="%{label}<br>%{value:,.0f} DH<br>%{percent}<extra></extra>",
+        sort=False,
+    )])
+
+    fig.update_layout(
+        showlegend=True,
+        legend=dict(
+            orientation="v",
+            yanchor="middle", y=0.5,
+            xanchor="left",   x=1.05,
+            font=dict(color=T.TEXT_MED, size=11),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        paper_bgcolor=T.BG_PAGE,
+        plot_bgcolor=T.BG_PAGE,
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=240,
+        annotations=[
+            dict(
+                text=f"<b style='color:{T.TEXT_HIGH};font-size:18px'>"
+                     f"{_dh(revenu)} DH</b><br>"
+                     f"<span style='color:{T.TEXT_LOW};font-size:11px'>revenu mensuel</span>",
+                x=0.5, y=0.5,
+                showarrow=False,
+                font=dict(color=T.TEXT_HIGH),
+            )
+        ],
+    )
+
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # STEP 3 — Estimation rapide (4 sliders incl. Envies)
 # ════════════════════════════════════════════════════════════════════════════
@@ -417,9 +472,15 @@ def _step3_estimation(audit) -> None:
     reste = revenu - entretien - alimentation - transport - envies - epargne
     reste_color = T.SUCCESS if reste >= 0 else T.DANGER
     reste_lbl   = "Marge" if reste >= 0 else "Dépassement"
+
+    # Live donut — takes shape as the user moves sliders
+    _render_estimation_donut(
+        entretien, alimentation, transport, envies, epargne, max(0.0, reste), revenu
+    )
+
     st.markdown(
         f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-        f'border-radius:{T.RADIUS_MD};padding:14px 16px;margin:18px 0">'
+        f'border-radius:{T.RADIUS_MD};padding:14px 16px;margin:14px 0">'
         f'  <div style="display:flex;justify-content:space-between">'
         f'    <span style="color:{T.TEXT_LOW};font-size:11px;font-weight:700;'
         f'      text-transform:uppercase;letter-spacing:1px">{reste_lbl}</span>'

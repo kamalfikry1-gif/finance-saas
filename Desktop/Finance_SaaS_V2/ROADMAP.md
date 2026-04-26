@@ -43,10 +43,14 @@ See "CURRENT SPRINT" above.
 ### Sprint 2 — Onboarding wizard v2 + coach copy
 - [x] Wizard v2 shell + badges/hints foundations (commit 1)
 - [x] Wizard v2 full content: 4 steps, real récurrents form, 4 sliders, score reveal (commit 2)
+- [x] Step 2 utilities (Électricité + Eau) + step 3 live donut (commit 2.1)
+- [ ] **Write the 5 status-level coach messages first** (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT) — replaces `[À écrire]` at the score reveal climax
+- [ ] Replace remaining 19 `[À écrire]` in `core/coach_messages.py`
 - [ ] Sprinkle 6 hints throughout app + delete legacy onboarding (commit 3)
-- [ ] Replace all `[À écrire]` in `core/coach_messages.py` (24 messages)
 - [ ] Add "abonnement detection" popup on duplicate sub-categories
 - [ ] Build mini-onboarding catch-up flow (when `jours_inactif >= 7`)
+- [ ] **Dashboard preview screen before "Découvrir l'app"** — small mockup of Accueil with their data ("voici ce qui t'attend") to reduce post-onboarding shock
+- [ ] **Reference points on estimation sliders** — "Moyenne MA pour ce revenu = X DH" hints to help users who don't know their numbers
 
 ### Sprint 3 — Mon compte + month visibility lite + Daret Manager
 - [ ] Mon compte: real name, email, change password (bcrypt-aware)
