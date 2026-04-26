@@ -32,9 +32,14 @@ from typing import Any, Dict, List, Optional
 #     "reste_a_vivre":      float,    # revenus − dépenses − abonnements (DH)
 #     "reste_ratio":        float,    # reste_a_vivre / revenus (0–1)
 #
-#     # Factor 2 — Épargne
+#     # Factor 2 — Épargne (ce mois + fonds d'urgence cumulé)
 #     "epargne_mois":       float,    # épargne réelle ce mois (DH)
 #     "taux_epargne":       float,    # epargne_mois / revenus (0–1)
+#     "epargne_libre":      float,    # épargne_totale − allouée (DH)
+#     "depense_moy_mois":   float,    # avg monthly expenses (3 derniers mois)
+#     "mois_securite":      float,    # epargne_libre / depense_moy_mois
+#     "target_mois_secu":   float,    # user-customizable target (default 3.0)
+#     "ratio_target":       float,    # mois_securite / target_mois_secu (0–1+)
 #
 #     # Factor 3 — Règle 50/30/20 (only valid if onboarding_done)
 #     "pct_besoins":        float,    # actual share (0–1)
@@ -52,6 +57,11 @@ from typing import Any, Dict, List, Optional
 #     # Optional extras for advice tailoring
 #     "categorie_top_dep":  str,      # most expensive category (for advice)
 # }
+
+
+# ── Default emergency fund target (months of expenses) ───────────────────────
+# User can customize via PREFERENCES["fonds_urgence_target_mois"]
+DEFAULT_TARGET_MOIS_SECURITE = 3.0
 
 
 COACH_MESSAGES: List[Dict[str, Any]] = [
@@ -142,6 +152,26 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "advice":   "[À écrire — automatise un virement mensuel]",
     },
 
+    # Fonds d'urgence — inexistant (< 17% du target)
+    {
+        "id":       "factor_fonds_urgence_inexistant",
+        "when":     lambda c: c["ratio_target"] < 0.17,
+        "category": "factor",
+        "priority": 4,
+        "message":  "[À écrire — aucune réserve, vise 1 mois d'abord]",
+        "advice":   "[À écrire — premier palier: 1 mois de dépenses]",
+    },
+
+    # Fonds d'urgence — faible (17%–66% du target, donc 0.5–2 mois si target=3)
+    {
+        "id":       "factor_fonds_urgence_faible",
+        "when":     lambda c: 0.17 <= c["ratio_target"] < 0.66,
+        "category": "factor",
+        "priority": 6,
+        "message":  "[À écrire — réserve insuffisante, {mois_securite:.1f} mois sur {target_mois_secu:.0f}]",
+        "advice":   "[À écrire — continue, vise {target_mois_secu:.0f} mois]",
+    },
+
     # Engagement faible — pas connecté
     {
         "id":       "factor_engagement_inactif",
@@ -210,6 +240,14 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
     # POSITIVE REINFORCEMENT — only when nothing else needs attention
     # ═══════════════════════════════════════════════════════════════════════════
 
+    {
+        "id":       "positive_fonds_urgence_atteint",
+        "when":     lambda c: c["ratio_target"] >= 1.0,
+        "category": "positive",
+        "priority": 12,
+        "message":  "[À écrire — objectif fonds d'urgence atteint, {mois_securite:.1f} mois couverts]",
+        "advice":   "[À écrire — tu peux dormir tranquille, prochain défi: investir]",
+    },
     {
         "id":       "positive_streak_milestone",
         "when":     lambda c: c["streak_jours"] in (7, 14, 30, 60, 100),
