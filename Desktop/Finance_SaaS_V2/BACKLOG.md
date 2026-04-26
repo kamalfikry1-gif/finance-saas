@@ -8,6 +8,40 @@ else lives here so nothing is forgotten — but nothing is in the way either.
 
 ---
 
+## ⭐ Flagship v1.5 launch — Daret Command Center
+
+> The killer differentiator. No MA fintech does this. Solves the universal
+> WhatsApp Daret chaos pain point. Built-in viral loop (each manager onboards
+> 5–15 members for free). Natural paid-tier wedge.
+
+**The pitch (for marketing & investor talk):**
+
+The idea isn't to explain what a Daret is — it's to **fix how it's managed**.
+
+- **Zero Casse-Tête.** No more scrolling through 200 WhatsApp messages to find who sent a screenshot.
+- **The "Bloomberg" Table.** A single shared screen. 🟢 Green = Paid. 🟡 Yellow = Declared. 🔴 Red = Pending. Total transparency for everyone.
+- **The Oracle (Manager).** Only the manager has the "Validate" button. You see the money in your bank, you click, the group is updated instantly.
+- **Fair Play.** The app handles the Tirage au sort (Digital Draw). No favoritism, no "I wanted the first month" — the algorithm decides, and it's final.
+- **The Viral Link.** You create a Daret, send a link to your group, they join. Boom. The Daret is live and professional in 30 seconds.
+
+**What it requires (be honest):**
+- Real-time sync (Supabase realtime or WebSockets) — Streamlit can't do this well
+- Magic link / invite link auth + URL routing
+- RBAC: manager vs member roles + permission checks at every endpoint
+- Notification system (push, email, or SMS) — when a member declares payment, manager and others see immediately
+- Cryptographically fair draw with audit trail (so any member can verify "this was fair")
+- Mobile-first UX (5 friends checking the table on phones daily)
+
+**Why post-beta:** practically forces the Next.js + FastAPI migration to ship properly. Estimate: 4–6 weeks of focused work after migration is done.
+
+**Pricing wedge:**
+- Solo Daret tracker (current) → free tier
+- Daret Command Center (multi-user, manager dashboard, invite links) → paid tier (50 DH/month)
+
+**Strategic positioning:** the v1.5 launch story. What you announce to drive press and signups after the private beta is stable.
+
+---
+
 ## 🚀 Post-beta v2 features
 
 ### Banking integration
@@ -45,7 +79,7 @@ else lives here so nothing is forgotten — but nothing is in the way either.
 - [ ] Multi-account aggregation (link multiple bank cards)
 - [ ] Family/couple shared budget
 - [ ] Tax export (compatible with MA tax filing)
-- [ ] Advanced Daret features (multi-Daret tracking, shared between members)
+- [ ] Advanced Daret features (multi-Daret tracking) — see also flagship "Daret Command Center" above
 
 ### Trust & compliance
 - [ ] Security audit by external firm (badge for landing page)
