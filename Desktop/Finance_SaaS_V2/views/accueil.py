@@ -360,6 +360,7 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     reste      = max(0.0, revenus - max(depenses, float(proj_v)))
     ep_color   = T.PRIMARY if (epargne_total > 0 and show_epargne) else T.TEXT_LOW
     ep_display = _fmt_dh(epargne_total) if show_epargne else "• • • •"
+    ep_unit    = '<span style="font-size:11px;font-weight:400"> DH</span>' if show_epargne else ""
     bg_style   = _sparkline_bg_style(sparkline or [])
 
     # Streak badge for hero top-right
@@ -411,8 +412,7 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
                f'Proj. {_fmt_dh(proj_v)} DH dépensé')
         + _kpi("Épargne Total",
                f'<div style="color:{ep_color};font-size:19px;font-weight:900">'
-               f'{ep_display}'
-               f'{"<span style=\\"font-size:11px;font-weight:400\\"> DH</span>" if show_epargne else ""}</div>',
+               f'{ep_display}{ep_unit}</div>',
                "Cumulé historique", border=False)
         + '</div>'
     )
