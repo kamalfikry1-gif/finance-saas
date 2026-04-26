@@ -974,9 +974,14 @@ def _render_coach_panel(
     _div = '<div class="cp-divider"></div>'
 
     # ── Full card ─────────────────────────────────────────────────────────────
+    extra_goals_lbl = (
+        f'<div style="color:{T.PRIMARY};font-size:11px;font-weight:600;margin-top:10px">'
+        f'Voir les {len(unique_goals)} objectifs ›</div>'
+    ) if first_goal and len(unique_goals) > 1 else ""
+
     st.markdown(
         f'<div class="coach-panel">'
-        # 1 — Header
+        # 1 — Header (💬 icon signals clickability)
         f'  <div class="cp-header">'
         f'    <div class="coach-avatar-v1">{initials}</div>'
         f'    <div class="coach-meta-v1">'
@@ -984,6 +989,7 @@ def _render_coach_panel(
         f'      <div class="role">Assistant financier</div>'
         f'    </div>'
         f'    <span class="mood-pill-v1 {mood_cls}">{humeur}</span>'
+        f'    <span style="font-size:18px;margin-left:6px;opacity:0.55">💬</span>'
         f'  </div>'
         # 2 — Score bar (compact horizontal — no divider, merges with header)
         f'  <div class="cp-score-row">'
@@ -1002,32 +1008,30 @@ def _render_coach_panel(
         # 3 — Message
         f'  <div class="cp-message">{message}</div>'
         f'{_div}'
-        # 4 — Goal
+        # 4 — Goal (with "voir plus" inline, no rappel section)
         f'  <div class="cp-section">'
-        f'    <div class="cp-section-lbl">Objectif</div>'
+        f'    <div class="cp-section-lbl">Objectif ›</div>'
         f'    {goal_html}'
+        f'    {extra_goals_lbl}'
         f'  </div>'
-        f'{_div}'
-        # 5 — Rappel
-        f'  <div class="cp-section">{rappel_html}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    # More goals button (rendered outside card so it's clickable)
+    # "Voir les X objectifs" — clickable, sits flush under the card
     if first_goal and len(unique_goals) > 1:
         if st.button(f"Voir les {len(unique_goals)} objectifs →", key="cp_more_goals",
                      use_container_width=True, type="secondary"):
             st.session_state.page = "Objectif"
             st.rerun()
 
-    # CTA — always visible
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-    if st.button("🤖 Parler au Coach →", key="coach_cta", use_container_width=True):
+    # Coach CTA — 💬 icon style, sits under card
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+    if st.button("💬 Parler au Coach", key="coach_cta", use_container_width=True):
         st.session_state.page = "Assistant"
         st.rerun()
 
-    # Rappel action
+    # Rappel action — unchanged (4)
     if rappel_needs_btn:
         if st.button("💰 Renseigner l'épargne →", key="cp_rappel_btn",
                      use_container_width=True, type="secondary"):
