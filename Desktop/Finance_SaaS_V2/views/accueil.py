@@ -889,6 +889,7 @@ def _render_donut(rept: list) -> None:
 def _render_coach_panel(
     message: str, humeur: str, identite: str,
     score: dict, audit, user_id: int, mois_sel: str, proj: dict,
+    epargne_total: float = 0.0,
 ) -> None:
     """Unified coach panel — 5 sections in one card."""
     score_val  = float(score.get("score", 0) or 0)
@@ -1009,11 +1010,22 @@ def _render_coach_panel(
         # 3 — Message
         f'  <div class="cp-message">{message}</div>'
         f'{_div}'
-        # 4 — Goal (with "voir plus" inline, no rappel section)
+        # 4 — Goal
         f'  <div class="cp-section">'
         f'    <div class="cp-section-lbl">Objectif ›</div>'
         f'    {goal_html}'
         f'    {extra_goals_lbl}'
+        f'  </div>'
+        f'{_div}'
+        # 5 — Épargne totale cumulée
+        f'  <div class="cp-section">'
+        f'    <div class="cp-section-lbl">Épargne totale</div>'
+        f'    <div style="display:flex;justify-content:space-between;align-items:center">'
+        f'      <span style="color:{T.TEXT_LOW};font-size:12px">Cumulé historique</span>'
+        f'      <span style="color:{T.PRIMARY};font-size:18px;font-weight:900">'
+        f'        {_fmt_dh(epargne_total)} <span style="font-size:11px;font-weight:400;color:{T.TEXT_MED}">DH</span>'
+        f'      </span>'
+        f'    </div>'
         f'  </div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -1099,27 +1111,6 @@ def render(ctx: dict) -> None:
     _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_mois,
                       streak_jours, mois_verts)
 
-    # Eye toggle — reveals Épargne Total (cumulative), hidden by default
-    show_ep = st.session_state.get("show_epargne_total", False)
-    _c1, _c2 = st.columns([9, 1])
-    with _c2:
-        if st.button("👁" if not show_ep else "🙈", key="toggle_epargne",
-                     help="Épargne totale cumulée"):
-            st.session_state.show_epargne_total = not show_ep
-            st.rerun()
-    if show_ep:
-        st.markdown(
-            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
-            f'border-radius:{T.RADIUS_MD};padding:10px 16px;'
-            f'display:flex;justify-content:space-between;align-items:center">'
-            f'<span style="color:{T.TEXT_LOW};font-size:11px;font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:1px">Épargne totale cumulée</span>'
-            f'<span style="color:{T.PRIMARY};font-size:16px;font-weight:900">'
-            f'{_fmt_dh(epargne_total)} DH</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     col_cats, col_right = st.columns([3, 2], gap="large")
@@ -1129,6 +1120,7 @@ def render(ctx: dict) -> None:
         _render_coach_panel(
             message, humeur, identite, score, audit,
             ctx["user_id"], ctx["mois_sel"], proj,
+            epargne_total=epargne_total,
         )
         if alertes:
             st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
