@@ -1112,6 +1112,40 @@ class DatabaseManager:
         except Exception:
             return 0.0
 
+    def reset_user_data(self, user_id: int) -> dict:
+        """
+        DESTRUCTIVE: deletes all user-scoped data, keeps the UTILISATEURS row.
+        Returns a dict with delete counts per table.
+
+        Used by the admin reset button to start fresh as a new user
+        (re-trigger onboarding flow).
+        """
+        counts = {}
+        # Order matters for FK consistency; deletes are scoped per user_id.
+        tables = [
+            "TRANSACTIONS",
+            "PREFERENCES",
+            "OBJECTIFS",
+            "DARETS",
+            "BUDGETS_MENSUELS",
+            "EPARGNE_HISTO",
+            "A_CLASSIFIER",
+            "JOURNAL_HUMEUR",
+            "REGLES_UTILISATEUR",
+            "AUDIT_LOG",
+        ]
+        with self.connexion() as conn:
+            for table in tables:
+                try:
+                    cur = conn.execute(
+                        f"DELETE FROM {table} WHERE user_id = %s", (user_id,)
+                    )
+                    counts[table] = cur.rowcount if cur.rowcount is not None else 0
+                except Exception as e:
+                    # Table might not exist or have user_id column — skip silently
+                    counts[table] = f"skipped ({type(e).__name__})"
+        return counts
+
     def get_user_date_creation(self, user_id: int):
         """Signup date of the user (returns date or None)."""
         try:

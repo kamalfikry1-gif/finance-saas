@@ -25,9 +25,10 @@ def render(ctx: dict) -> None:
 
     render_page_header("⚙️", "Administration", "Gestion des données et règles")
 
-    tab_dico, tab_ref, tab_clf, tab_log = st.tabs([
+    tab_dico, tab_ref, tab_clf, tab_log, tab_reset = st.tabs([
         "📖 DICO_MATCHING", "📊 Référentiel",
-        "🔍 À Classifier (global)", "📋 Audit Log"
+        "🔍 À Classifier (global)", "📋 Audit Log",
+        "🚨 Reset (test)"
     ])
 
     with tab_dico:
@@ -41,6 +42,9 @@ def render(ctx: dict) -> None:
 
     with tab_log:
         _render_audit_log(db)
+
+    with tab_reset:
+        _render_reset_data(db, audit)
 
 
 # ── Tab 1 : DICO_MATCHING ────────────────────────────────────────────────────
@@ -398,3 +402,117 @@ def _get_cats(audit) -> list:
 def _get_scats(audit, cat: str) -> list:
     from core.cache import get_sous_categories
     return get_sous_categories(audit, cat, audit.user_id)
+
+
+# ── Tab 5 : Reset data (test only) ──────────────────────────────────────────
+
+def _render_reset_data(db, audit) -> None:
+    """Destructive: deletes all user-scoped data, keeps the account login itself.
+
+    Triple safety: must type RESET to confirm.
+    Used for testing the onboarding flow as a fresh user.
+    """
+    from core.cache import invalider as _invalider_cache
+
+    st.markdown(
+        f'<div style="background:{T.DANGER_GLO};border:1px solid {T.DANGER}40;'
+        f'border-left:3px solid {T.DANGER};border-radius:{T.RADIUS_MD};'
+        f'padding:14px 18px;margin-bottom:16px">'
+        f'  <div style="color:{T.DANGER};font-size:13px;font-weight:700;margin-bottom:6px">'
+        f'    🚨 Zone destructive — admin / test only</div>'
+        f'  <div style="color:{T.TEXT_MED};font-size:12px;line-height:1.55">'
+        f'    Supprime <b>toutes tes données</b> (transactions, objectifs, daret, épargne, '
+        f'    préférences, badges, hints, audit log) pour repartir comme un nouvel utilisateur. '
+        f'    Ton compte (login) est conservé. Cette action est <b>irréversible</b>.'
+        f'  </div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Show what will be deleted (counts per table)
+    st.markdown(
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">'
+        f'État actuel de tes données</div>',
+        unsafe_allow_html=True,
+    )
+
+    counts_now = _scan_user_data(db, audit.user_id)
+    rows = ""
+    for table, n in counts_now.items():
+        rows += (
+            f'<div style="display:flex;justify-content:space-between;'
+            f'padding:6px 0;border-bottom:1px solid {T.BORDER}">'
+            f'  <span style="color:{T.TEXT_MED};font-size:12px">{table}</span>'
+            f'  <span style="color:{T.TEXT_HIGH};font-size:12px;font-weight:600;'
+            f'    font-variant-numeric:tabular-nums">{n} ligne(s)</span>'
+            f'</div>'
+        )
+    st.markdown(
+        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+        f'border-radius:{T.RADIUS_MD};padding:8px 16px;margin-bottom:18px">{rows}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Confirmation input
+    st.markdown(
+        f'<div style="color:{T.TEXT_HIGH};font-size:13px;margin-bottom:6px">'
+        f"  Pour confirmer, tape <b>RESET</b> dans le champ ci-dessous puis clique sur le bouton."
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    confirm = st.text_input(
+        "Tape RESET pour confirmer",
+        key="admin_reset_confirm",
+        placeholder="RESET",
+        label_visibility="collapsed",
+    )
+
+    enabled = confirm.strip() == "RESET"
+    if st.button(
+        "🚨 Reset toutes mes données maintenant",
+        key="admin_reset_go",
+        type="primary",
+        use_container_width=True,
+        disabled=not enabled,
+    ):
+        result = db.reset_user_data(audit.user_id)
+        _invalider_cache()
+
+        # Clear all session state (so user starts truly fresh)
+        keys_to_clear = list(st.session_state.keys())
+        for k in keys_to_clear:
+            if k != "logged_in" and k != "user_id" and k != "username" and k != "audit" and k != "is_admin":
+                st.session_state.pop(k, None)
+
+        st.success(f"✅ Reset complet — {sum(v for v in result.values() if isinstance(v, int))} lignes supprimées")
+        st.json(result)
+        st.markdown(
+            f'<div style="background:{T.PRIMARY_GLO};border-left:3px solid {T.PRIMARY};'
+            f'padding:12px 16px;border-radius:{T.RADIUS_MD};margin-top:14px">'
+            f'  <div style="color:{T.TEXT_HIGH};font-size:13px;font-weight:600">'
+            f'    🔄 Recharge la page pour relancer l\'onboarding'
+            f'  </div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def _scan_user_data(db, user_id: int) -> dict:
+    """Count rows per table for the current user (read-only preview before reset)."""
+    tables = [
+        "TRANSACTIONS", "PREFERENCES", "OBJECTIFS", "DARETS",
+        "BUDGETS_MENSUELS", "EPARGNE_HISTO", "A_CLASSIFIER",
+        "JOURNAL_HUMEUR", "REGLES_UTILISATEUR", "AUDIT_LOG",
+    ]
+    counts = {}
+    for table in tables:
+        try:
+            with db.connexion() as conn:
+                row = conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE user_id = %s", (user_id,)
+                ).fetchone()
+            counts[table] = int(row[0] or 0) if row else 0
+        except Exception:
+            counts[table] = "—"
+    return counts
