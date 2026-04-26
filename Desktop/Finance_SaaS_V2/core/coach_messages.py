@@ -234,40 +234,52 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["statut"] == "CRITIQUE",
         "category": "status",
         "priority": 10,
-        "message":  "[À écrire — situation critique, panique douce]",
-        "advice":   "[À écrire — par où commencer]",
+        "message":  "On va être direct : ta situation financière est sous tension. "
+                    "Pas de panique — c'est exactement le bon moment pour reconstruire, "
+                    "pierre par pierre.",
+        "advice":   "Commence par UNE chose : identifie ta plus grosse dépense ce mois. "
+                    "Est-ce qu'elle est vraiment négociable ?",
     },
     {
         "id":       "status_faible",
         "when":     lambda c: c["statut"] == "FAIBLE",
         "category": "status",
         "priority": 10,
-        "message":  "[À écrire — situation fragile]",
-        "advice":   "[À écrire — un cran à passer]",
+        "message":  "Tu tiens debout, mais la marge est mince. La bonne nouvelle : "
+                    "un mois, deux ajustements, et tu passes au cran supérieur. "
+                    "C'est faisable.",
+        "advice":   "Vise UN changement cette semaine : réduire une catégorie de "
+                    "dépense, ou mettre 100 DH de côté. Petit, mais concret.",
     },
     {
         "id":       "status_moyen",
         "when":     lambda c: c["statut"] == "MOYEN",
         "category": "status",
         "priority": 10,
-        "message":  "[À écrire — moyen, peut mieux faire]",
-        "advice":   "[À écrire — quoi améliorer en priorité]",
+        "message":  "Solide, mais sans filet de sécurité confortable. Le palier "
+                    "suivant est à portée — il manque juste un peu de structure.",
+        "advice":   "Identifie le facteur le plus faible dans ton score et "
+                    "concentre-toi dessus ce mois. Un seul à la fois.",
     },
     {
         "id":       "status_bon",
         "when":     lambda c: c["statut"] == "BON",
         "category": "status",
         "priority": 10,
-        "message":  "[À écrire — bon, encouragement]",
-        "advice":   "[À écrire — comment atteindre excellent]",
+        "message":  "Belle gestion. Tu as les bons réflexes et de la marge. "
+                    "Encore quelques pierres et tu atteins l'excellence.",
+        "advice":   "Renforce ton fonds d'urgence si pas encore à 3 mois, ou "
+                    "augmente ton taux d'épargne de 5%. Au choix.",
     },
     {
         "id":       "status_excellent",
         "when":     lambda c: c["statut"] == "EXCELLENT",
         "category": "status",
         "priority": 10,
-        "message":  "[À écrire — excellent, félicitations]",
-        "advice":   "[À écrire — prochain défi]",
+        "message":  "Bravo. Discipline maîtrisée, fondations solides. Maintenant "
+                    "le défi devient la croissance — plus la survie.",
+        "advice":   "Pense investissement long terme (immobilier, bourse) ou "
+                    "objectifs ambitieux. Tu as les bases pour viser plus haut.",
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
