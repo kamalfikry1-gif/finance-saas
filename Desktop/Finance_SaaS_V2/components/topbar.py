@@ -24,16 +24,9 @@ def render(ctx: dict) -> None:
     mois_fr  = _MOIS_FR.get(mois_en, mois_en)
     annee    = parts[1] if len(parts) > 1 else ""
 
-    c_sb, c_home, c_dep, c_rev, c_moi, c_hist, c_space, c_mois, c_annee = st.columns(
-        [0.5, 0.6, 1.6, 1.4, 0.9, 1.3, 1.0, 1.1, 0.8], gap="small"
+    c_home, c_dep, c_rev, c_moi, c_hist, c_space, c_mois, c_annee = st.columns(
+        [0.6, 1.6, 1.4, 0.9, 1.3, 1.5, 1.1, 0.8], gap="small"
     )
-
-    with c_sb:
-        sb_exp = st.session_state.get("sb_expanded", True)
-        if st.button("☰" if not sb_exp else "✕", key="tb_sb_toggle",
-                     use_container_width=True):
-            st.session_state.sb_expanded = not sb_exp
-            st.rerun()
 
     with c_home:
         if st.button("🏠", key="tb_home", use_container_width=True):

@@ -49,26 +49,10 @@ def render(audit) -> str:
 
         _username = (st.session_state.get("username") or "").capitalize()
 
-        if "sb_expanded" not in st.session_state:
-            st.session_state.sb_expanded = True
-        sb_exp = st.session_state.sb_expanded
-
-        # ── 1. Title bar: logo + toggle (always rendered) ────────────────────
-        c_logo, c_toggle = st.columns([5, 1], gap="small")
-        with c_logo:
-            if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
-                st.session_state.page = "Accueil"
-                st.rerun()
-        with c_toggle:
-            if st.button("✕" if sb_exp else "☰", key="sb_toggle",
-                         use_container_width=True):
-                st.session_state.sb_expanded = not sb_exp
-                st.rerun()
-
-        # When collapsed, render only the title bar — skip the rest
-        if not sb_exp:
-            now = datetime.now()
-            return f"{now.month:02d}/{now.year}"
+        # ── 1. Logo → Accueil ────────────────────────────────────────────────
+        if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
+            st.session_state.page = "Accueil"
+            st.rerun()
 
         # Username — centered under logo with rule lines: ─── Kamal ───
         if _username:
