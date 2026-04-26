@@ -634,7 +634,7 @@ def _render_rappels(audit, user_id: int, mois_sel: str, suggested_ep: float = 0.
                 )
                 montant_ep = st.number_input(
                     "Montant épargné", min_value=0.0, step=100.0,
-                    value=round(suggested_ep) if suggested_ep > 0 else 0.0,
+                    value=float(round(suggested_ep)) if suggested_ep > 0 else 0.0,
                     format="%.0f", label_visibility="collapsed",
                 )
                 submitted = st.form_submit_button("Enregistrer", type="primary",
@@ -1037,7 +1037,7 @@ def _render_coach_panel(
             with st.form("form_epargne_panel", clear_on_submit=True):
                 montant_ep = st.number_input(
                     "Épargne réelle ce mois (DH)", min_value=0.0, step=100.0,
-                    value=round(suggested_ep) if suggested_ep > 0 else 0.0,
+                    value=float(round(suggested_ep)) if suggested_ep > 0 else 0.0,
                     format="%.0f",
                 )
                 if st.form_submit_button("Enregistrer", type="primary",
