@@ -40,9 +40,11 @@ Anything beyond is **post-beta v2** → goes to `BACKLOG.md`.
 ### Sprint 1 — Wire the brain + clean up _(current)_
 See "CURRENT SPRINT" above.
 
-### Sprint 2 — Write the coach + onboarding copy
+### Sprint 2 — Onboarding wizard v2 + coach copy
+- [x] Wizard v2 shell + badges/hints foundations (commit 1)
+- [x] Wizard v2 full content: 4 steps, real récurrents form, 4 sliders, score reveal (commit 2)
+- [ ] Sprinkle 6 hints throughout app + delete legacy onboarding (commit 3)
 - [ ] Replace all `[À écrire]` in `core/coach_messages.py` (24 messages)
-- [ ] Polish onboarding wizard (3 steps already exist)
 - [ ] Add "abonnement detection" popup on duplicate sub-categories
 - [ ] Build mini-onboarding catch-up flow (when `jours_inactif >= 7`)
 
