@@ -32,9 +32,9 @@ footer    {{ visibility: hidden !important; }}
 div[data-testid="stSidebarCollapsedControl"] {{
     display: flex !important;
     visibility: visible !important;
-    background: {T.BG_CARD} !important;
-    border-radius: 0 {T.RADIUS_MD} {T.RADIUS_MD} 0 !important;
-    border: 1px solid {T.BORDER} !important;
+    background: var(--bg-card) !important;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+    border: 1px solid var(--border) !important;
     border-left: none !important;
     top: 12px !important;
     width: 20px !important;
@@ -42,7 +42,7 @@ div[data-testid="stSidebarCollapsedControl"] {{
     box-shadow: 2px 0 8px rgba(0,0,0,0.4) !important;
 }}
 div[data-testid="stSidebarCollapsedControl"] button {{
-    color: {T.PRIMARY} !important;
+    color: var(--primary) !important;
     font-size: 14px !important;
 }}
 
