@@ -53,16 +53,32 @@ def render(audit) -> str:
             st.session_state.sb_expanded = True
         sb_exp = st.session_state.sb_expanded
 
-        # ── 1. Title bar: logo + toggle ───────────────────────────────────────
+        # ── COLLAPSED state: thin strip with just the ☰ toggle ───────────────
+        if not sb_exp:
+            st.markdown("""<style>
+section[data-testid="stSidebar"] > div:first-child {
+    min-width: 68px !important;
+    max-width: 68px !important;
+    width: 68px !important;
+    overflow: hidden !important;
+}
+</style>""", unsafe_allow_html=True)
+            if st.button("☰", key="sb_toggle", use_container_width=True):
+                st.session_state.sb_expanded = True
+                st.rerun()
+            now = datetime.now()
+            return f"{now.month:02d}/{now.year}"
+
+        # ── EXPANDED state ───────────────────────────────────────────────────
+        # 1. Title bar: logo + toggle
         c_logo, c_toggle = st.columns([5, 1], gap="small")
         with c_logo:
             if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
                 st.session_state.page = "Accueil"
                 st.rerun()
         with c_toggle:
-            if st.button("✕" if sb_exp else "☰", key="sb_toggle",
-                         use_container_width=True):
-                st.session_state.sb_expanded = not sb_exp
+            if st.button("✕", key="sb_toggle", use_container_width=True):
+                st.session_state.sb_expanded = False
                 st.rerun()
 
         # Username — centered under logo with rule lines: ─── Kamal ───
@@ -77,19 +93,6 @@ def render(audit) -> str:
                 f'</div>',
                 unsafe_allow_html=True,
             )
-
-        if not sb_exp:
-            # Narrow the sidebar to a thin strip so main content expands
-            st.markdown("""<style>
-section[data-testid="stSidebar"] > div:first-child {
-    min-width: 68px !important;
-    max-width: 68px !important;
-    width: 68px !important;
-    overflow: hidden !important;
-}
-</style>""", unsafe_allow_html=True)
-            now = datetime.now()
-            return f"{now.month:02d}/{now.year}"
 
         # ── PARAMÈTRES — collapsible section ──────────────────────────────────
         if "sb_params_exp" not in st.session_state:
