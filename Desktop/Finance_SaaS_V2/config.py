@@ -142,15 +142,96 @@ NB_MOIS_EVOLUTION: int = 6
 # Le score est calculé dans MoteurAnalyse.get_score_sante_financiere().
 # Ces pondérations sont définies ici pour faciliter l'ajustement.
 
-SCORE_POIDS_EPARGNE:  float = 40.0   # pts max pour le taux d'épargne
-SCORE_POIDS_BUDGET:   float = 40.0   # pts max pour le respect du budget
-SCORE_POIDS_DIVERS:   float = 20.0   # pts max (transactions classifiées, etc.)
+SCORE_POIDS_EPARGNE:  float = 40.0   # pts max pour le taux d'épargne (LEGACY)
+SCORE_POIDS_BUDGET:   float = 40.0   # pts max pour le respect du budget (LEGACY)
+SCORE_POIDS_DIVERS:   float = 20.0   # pts max (transactions classifiées, etc.) (LEGACY)
 
-# Niveaux de score (bornes inférieures)
+# ── Nouveau scoring v2 (5 facteurs) ─────────────────────────────────────────
+# Total 100 pts. Si onboarding pas fait, les 25 pts du 50/30/20 redistribués:
+# +15 reste, +5 flow, +5 stock.
+SCORE_V2_POIDS_RESTE:          float = 25.0   # reste à vivre post-abonnements
+SCORE_V2_POIDS_EPARGNE_FLOW:   float = 15.0   # épargne du mois
+SCORE_V2_POIDS_FONDS_URGENCE:  float = 20.0   # cumul vs target_mois_secu
+SCORE_V2_POIDS_503020:         float = 25.0   # règle 50/30/20 (si onboarding)
+SCORE_V2_POIDS_ENGAGEMENT:     float = 15.0   # streak quotidien
+
+# Cibles (seuils pour atteindre les pts max d'un facteur)
+SCORE_V2_RESTE_RATIO_TARGET:   float = 0.30   # 30% reste/revenus = full
+SCORE_V2_TAUX_EPARGNE_TARGET:  float = 0.20   # 20% épargne/revenus = full
+SCORE_V2_STREAK_DAYS_TARGET:   int   = 7      # 7 jours consécutifs = full
+DEFAULT_TARGET_MOIS_SECURITE:  float = 3.0    # 3 mois fonds d'urgence = full
+
+# Caps & flags
+SCORE_V2_CAP_RESTE_NEGATIF:    float = 40.0   # reste < 0 → score plafonné à FAIBLE max
+SCORE_V2_BASELINE_PREMIER_MOIS: float = 50.0  # nouveaux comptes < 30j sans data
+SCORE_V2_STALE_DAYS:           int   = 5      # jours_inactif ≥ ce seuil → score_stale=True
+
+# 5 niveaux (bornes inférieures)
 SCORE_NIVEAU_EXCELLENT: float = 80.0
 SCORE_NIVEAU_BON:       float = 60.0
 SCORE_NIVEAU_MOYEN:     float = 40.0
-# En dessous de MOYEN → niveau "FAIBLE"
+SCORE_NIVEAU_FAIBLE:    float = 20.0
+# En dessous de FAIBLE → niveau "CRITIQUE"
+
+
+# ==============================================================================
+# RÈGLE 50/30/20 — MAPPING DÉFAUT DES CATÉGORIES
+# ==============================================================================
+# Mapping par défaut: catégorie → type (Besoin / Envie / Épargne).
+# L'utilisateur peut override individuellement (à venir: champ Type_503020 dans CATEGORIES).
+
+CAT_TYPE_BESOIN  = "BESOIN"
+CAT_TYPE_ENVIE   = "ENVIE"
+CAT_TYPE_EPARGNE = "EPARGNE"
+
+# Mapping conservateur — tout ce qui est essentiel/contraint = Besoin
+DEFAULT_503020_MAPPING: dict = {
+    # ── BESOINS (50% cible) ── ce que tu DOIS payer pour vivre
+    "Loyer":              CAT_TYPE_BESOIN,
+    "Charges":            CAT_TYPE_BESOIN,
+    "Eau":                CAT_TYPE_BESOIN,
+    "Électricité":        CAT_TYPE_BESOIN,
+    "Internet":           CAT_TYPE_BESOIN,
+    "Téléphone":          CAT_TYPE_BESOIN,
+    "Télécom & Internet": CAT_TYPE_BESOIN,
+    "Alimentation":       CAT_TYPE_BESOIN,
+    "Courses":            CAT_TYPE_BESOIN,
+    "Vie Quotidienne":    CAT_TYPE_BESOIN,
+    "Transport":          CAT_TYPE_BESOIN,
+    "Carburant":          CAT_TYPE_BESOIN,
+    "Assurance":          CAT_TYPE_BESOIN,
+    "Santé":              CAT_TYPE_BESOIN,
+    "Pharmacie":          CAT_TYPE_BESOIN,
+    "Médecin":            CAT_TYPE_BESOIN,
+    "Éducation":          CAT_TYPE_BESOIN,
+    "Crédit":             CAT_TYPE_BESOIN,
+    "Remboursement":      CAT_TYPE_BESOIN,
+    "Abonnements":        CAT_TYPE_BESOIN,  # subscriptions essentiels (déjà nécessaires)
+
+    # ── ENVIES (30% cible) ── plaisir, optionnel
+    "Restaurant":         CAT_TYPE_ENVIE,
+    "Café":               CAT_TYPE_ENVIE,
+    "Loisirs":            CAT_TYPE_ENVIE,
+    "Sortie":             CAT_TYPE_ENVIE,
+    "Voyage":             CAT_TYPE_ENVIE,
+    "Vacances":           CAT_TYPE_ENVIE,
+    "Shopping":           CAT_TYPE_ENVIE,
+    "Vêtements":          CAT_TYPE_ENVIE,
+    "Mode":               CAT_TYPE_ENVIE,
+    "Beauté":             CAT_TYPE_ENVIE,
+    "Cadeaux":            CAT_TYPE_ENVIE,
+    "Divers":             CAT_TYPE_ENVIE,  # par défaut "envie" si non classé
+    "Hobby":              CAT_TYPE_ENVIE,
+    "Sport":              CAT_TYPE_ENVIE,
+    "Streaming":          CAT_TYPE_ENVIE,  # Netflix/Spotify = envie
+    "Jeux":               CAT_TYPE_ENVIE,
+
+    # ── ÉPARGNE (20% cible) ── argent qui sort vers le futur
+    "Épargne":            CAT_TYPE_EPARGNE,
+    "Investissement":     CAT_TYPE_EPARGNE,
+    "Daret":              CAT_TYPE_EPARGNE,
+    "Objectif":           CAT_TYPE_EPARGNE,
+}
 
 # ==============================================================================
 # INTERFACE (app.py)

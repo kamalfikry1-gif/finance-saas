@@ -1112,6 +1112,21 @@ class DatabaseManager:
         except Exception:
             return 0.0
 
+    def get_user_date_creation(self, user_id: int):
+        """Signup date of the user (returns date or None)."""
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT date_creation FROM UTILISATEURS WHERE id = %s",
+                    (user_id,),
+                ).fetchone()
+            if not row or row[0] is None:
+                return None
+            val = row[0]
+            return val.date() if hasattr(val, "date") else val
+        except Exception:
+            return None
+
     def sauvegarder_epargne_mois(self, user_id: int, mois: str,
                                   montant_reel: float,
                                   montant_vise: float = 0.0) -> None:

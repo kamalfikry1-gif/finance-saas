@@ -682,3 +682,292 @@ class AssistantEngine:
             for child_id in node.get("children", []):
                 mapping[child_id] = nid
         return mapping
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COACH SCORING ENGINE (v2 — 5 facteurs, ctx pour core/coach_messages.py)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from datetime import date as _date, datetime as _dt
+from config import (
+    SCORE_V2_POIDS_RESTE,
+    SCORE_V2_POIDS_EPARGNE_FLOW,
+    SCORE_V2_POIDS_FONDS_URGENCE,
+    SCORE_V2_POIDS_503020,
+    SCORE_V2_POIDS_ENGAGEMENT,
+    SCORE_V2_RESTE_RATIO_TARGET,
+    SCORE_V2_TAUX_EPARGNE_TARGET,
+    SCORE_V2_STREAK_DAYS_TARGET,
+    SCORE_V2_CAP_RESTE_NEGATIF,
+    SCORE_V2_BASELINE_PREMIER_MOIS,
+    SCORE_V2_STALE_DAYS,
+    DEFAULT_TARGET_MOIS_SECURITE,
+    DEFAULT_503020_MAPPING,
+    CAT_TYPE_BESOIN, CAT_TYPE_ENVIE, CAT_TYPE_EPARGNE,
+    SCORE_NIVEAU_EXCELLENT, SCORE_NIVEAU_BON,
+    SCORE_NIVEAU_MOYEN, SCORE_NIVEAU_FAIBLE,
+)
+
+
+def _statut_from_score(score: float) -> str:
+    if score >= SCORE_NIVEAU_EXCELLENT: return "EXCELLENT"
+    if score >= SCORE_NIVEAU_BON:       return "BON"
+    if score >= SCORE_NIVEAU_MOYEN:     return "MOYEN"
+    if score >= SCORE_NIVEAU_FAIBLE:    return "FAIBLE"
+    return "CRITIQUE"
+
+
+def _jours_depuis_iso(iso_date_str: Optional[str]) -> int:
+    """Days since an ISO date string (YYYY-MM-DD). Returns 999 if invalid/None."""
+    if not iso_date_str:
+        return 999
+    try:
+        d = _dt.strptime(iso_date_str, "%Y-%m-%d").date()
+        return (_date.today() - d).days
+    except Exception:
+        return 999
+
+
+def _compute_503020_split(audit, mois: str) -> tuple:
+    """
+    Compute (pct_besoins, pct_envies, pct_epargne_split, nb_unclassified, top_dep_cat).
+
+    Algo:
+      - For each category in this month's spending:
+        - If in DEFAULT_503020_MAPPING (or override): bucket the amount
+        - Else: count as unclassified (do NOT include in pct calc)
+      - Pct computed only over classified amounts.
+      - Returns the most-spending category (for advice tailoring).
+    """
+    try:
+        repart = audit.moteur.get_repartition_par_categorie(mois)
+    except Exception:
+        return (0.0, 0.0, 0.0, 0, "")
+
+    if repart.empty:
+        return (0.0, 0.0, 0.0, 0, "")
+
+    sums = {CAT_TYPE_BESOIN: 0.0, CAT_TYPE_ENVIE: 0.0, CAT_TYPE_EPARGNE: 0.0}
+    nb_unclassified = 0
+
+    for _, row in repart.iterrows():
+        cat = row.get("Categorie") or ""
+        amt = float(row.get("Total_DH") or 0)
+        cat_type = DEFAULT_503020_MAPPING.get(cat)
+        if cat_type is None:
+            nb_unclassified += 1
+            continue
+        sums[cat_type] += amt
+
+    total_classified = sum(sums.values())
+    if total_classified <= 0:
+        return (0.0, 0.0, 0.0, nb_unclassified,
+                str(repart.iloc[0]["Categorie"]) if not repart.empty else "")
+
+    return (
+        sums[CAT_TYPE_BESOIN]  / total_classified,
+        sums[CAT_TYPE_ENVIE]   / total_classified,
+        sums[CAT_TYPE_EPARGNE] / total_classified,
+        nb_unclassified,
+        str(repart.iloc[0]["Categorie"]),
+    )
+
+
+def compute_score(audit, mois: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Coach scoring engine v2 — returns the full ctx for core.coach_messages.
+
+    5 factors (100 pts total):
+      1. Reste à vivre   (25 pts) — post-abonnements ratio
+      2. Épargne du mois (15 pts) — flow
+      3. Fonds d'urgence (20 pts) — stock vs target_mois_secu
+      4. Règle 50/30/20  (25 pts) — only if onboarding done AND no unclassified cats
+      5. Engagement      (15 pts) — daily streak
+
+    Edge cases applied:
+      - Reste négatif → score capped at SCORE_V2_CAP_RESTE_NEGATIF (40 = FAIBLE max)
+      - Compte < 30j sans data → SCORE_V2_BASELINE_PREMIER_MOIS (50)
+      - Onboarding pas fait → 25 pts du 50/30/20 redistribués (+15 reste, +5 flow, +5 stock)
+      - jours_inactif ≥ SCORE_V2_STALE_DAYS → score_stale = True (UI flag, pas pénalité)
+    """
+    user_id = audit.user_id
+    db      = audit.db
+    moteur  = audit.moteur
+
+    if mois is None:
+        now = _dt.now()
+        mois = f"{now.month:02d}/{now.year}"
+
+    # ── Pull raw data via existing helpers ────────────────────────────────────
+    try:
+        bilan = moteur.get_bilan_mensuel(mois)
+        revenus  = float(getattr(bilan, "revenus", 0) or 0)
+        depenses = float(getattr(bilan, "depenses", 0) or 0)
+    except Exception:
+        revenus, depenses = 0.0, 0.0
+
+    # Abonnements (charges fixes auto-détectées, ≥ 2 mois)
+    try:
+        cf = moteur.get_charges_fixes(nb_mois_min=2)
+        abonnements = float(cf["Montant_Moyen"].sum()) if not cf.empty else 0.0
+    except Exception:
+        abonnements = 0.0
+
+    # Épargne du mois
+    try:
+        ep_rec = db.get_epargne_mois(user_id, mois)
+        epargne_mois = float(ep_rec.get("Montant_Reel", 0) or 0) if ep_rec else 0.0
+    except Exception:
+        epargne_mois = 0.0
+
+    # Épargne libre (totale - allouée aux objectifs)
+    try:
+        epargne_total = db.get_cumul_epargne(user_id)
+    except Exception:
+        epargne_total = 0.0
+    try:
+        goals = db.get_objectifs(user_id)
+        epargne_allouee = sum(
+            float(g.get("montant_actuel") or g.get("Montant_Actuel") or 0) for g in goals
+        )
+    except Exception:
+        epargne_allouee = 0.0
+    epargne_libre = max(0.0, epargne_total - epargne_allouee)
+
+    # Dépense moyenne 3 mois (pour fonds d'urgence)
+    try:
+        depense_moy = float(moteur._depenses_mensuelles_moyennes(nb_mois=3))
+    except Exception:
+        depense_moy = depenses if depenses > 0 else 1.0
+
+    # Engagement
+    streak_jours = int(db.get_preference("streak_jours", user_id, "0") or 0)
+    streak_last  = db.get_preference("streak_last_active", user_id, None)
+    jours_inactif = _jours_depuis_iso(streak_last) if streak_last else 0
+
+    # Onboarding & inscription
+    onboarding_done = (db.get_preference("onboarding_done", user_id, "0") or "0") in ("1", "True", "true")
+    date_inscription = db.get_user_date_creation(user_id)
+    jours_depuis_inscription = (
+        (_date.today() - date_inscription).days if date_inscription else 999
+    )
+
+    # Mois verts
+    mois_verts = int(db.get_preference("mois_verts", user_id, "0") or 0)
+
+    # Target fonds d'urgence (customizable per user)
+    target_mois_secu = float(
+        db.get_preference("fonds_urgence_target_mois", user_id, str(DEFAULT_TARGET_MOIS_SECURITE))
+        or DEFAULT_TARGET_MOIS_SECURITE
+    )
+
+    # 50/30/20 split + unclassified count
+    pct_besoins, pct_envies, pct_epargne_split, nb_unclassified, cat_top = (
+        _compute_503020_split(audit, mois)
+    )
+
+    # ── Derived ratios ────────────────────────────────────────────────────────
+    reste_a_vivre = revenus - depenses - abonnements
+    reste_ratio   = (reste_a_vivre / revenus) if revenus > 0 else 0.0
+    taux_epargne  = (epargne_mois / revenus) if revenus > 0 else 0.0
+    mois_securite = (epargne_libre / depense_moy) if depense_moy > 0 else 0.0
+    ratio_target  = (mois_securite / target_mois_secu) if target_mois_secu > 0 else 0.0
+
+    # ── Compute factor points ────────────────────────────────────────────────
+    pts_reste = min(
+        SCORE_V2_POIDS_RESTE,
+        max(0.0, reste_ratio / SCORE_V2_RESTE_RATIO_TARGET * SCORE_V2_POIDS_RESTE),
+    )
+    pts_ep_flow = min(
+        SCORE_V2_POIDS_EPARGNE_FLOW,
+        max(0.0, taux_epargne / SCORE_V2_TAUX_EPARGNE_TARGET * SCORE_V2_POIDS_EPARGNE_FLOW),
+    )
+    pts_fonds = min(
+        SCORE_V2_POIDS_FONDS_URGENCE,
+        max(0.0, ratio_target * SCORE_V2_POIDS_FONDS_URGENCE),
+    )
+
+    # 50/30/20 — locked at 0 if unclassified or onboarding not done
+    if onboarding_done and nb_unclassified == 0 and (pct_besoins + pct_envies + pct_epargne_split) > 0:
+        # Distance from ideal (0.50 / 0.30 / 0.20). Max ~2.0 (way off), 0 = perfect.
+        dist = (
+            abs(pct_besoins - 0.50) +
+            abs(pct_envies  - 0.30) +
+            abs(pct_epargne_split - 0.20)
+        )
+        pts_503020 = max(0.0, SCORE_V2_POIDS_503020 * (1 - dist / 2))
+    else:
+        pts_503020 = 0.0
+        # Redistribute 25 pts if onboarding NOT done (independent of unclassified state)
+        if not onboarding_done:
+            pts_reste   = min(SCORE_V2_POIDS_RESTE + 15, pts_reste + 15)
+            pts_ep_flow = min(SCORE_V2_POIDS_EPARGNE_FLOW + 5, pts_ep_flow + 5)
+            pts_fonds   = min(SCORE_V2_POIDS_FONDS_URGENCE + 5, pts_fonds + 5)
+
+    # Engagement — streak / 7 = full
+    pts_engagement = min(
+        SCORE_V2_POIDS_ENGAGEMENT,
+        max(0.0, streak_jours / SCORE_V2_STREAK_DAYS_TARGET * SCORE_V2_POIDS_ENGAGEMENT),
+    )
+
+    # ── Total + edge cases ───────────────────────────────────────────────────
+    score = pts_reste + pts_ep_flow + pts_fonds + pts_503020 + pts_engagement
+
+    # First-month grace: nouveau compte sans data réelle → baseline 50
+    if jours_depuis_inscription < 30 and revenus < 100 and depenses < 100:
+        score = SCORE_V2_BASELINE_PREMIER_MOIS
+
+    # Reste à vivre négatif → cap au max FAIBLE (40)
+    if reste_a_vivre < 0:
+        score = min(score, SCORE_V2_CAP_RESTE_NEGATIF)
+
+    score = round(min(100.0, max(0.0, score)), 1)
+    statut = _statut_from_score(score)
+    score_stale = jours_inactif >= SCORE_V2_STALE_DAYS
+
+    return {
+        # Score & status
+        "score":   score,
+        "statut":  statut,
+        "score_stale": score_stale,
+
+        # Factor 1
+        "reste_a_vivre": round(reste_a_vivre, 2),
+        "reste_ratio":   round(reste_ratio, 4),
+
+        # Factor 2 + 3
+        "epargne_mois":     round(epargne_mois, 2),
+        "taux_epargne":     round(taux_epargne, 4),
+        "epargne_libre":    round(epargne_libre, 2),
+        "depense_moy_mois": round(depense_moy, 2),
+        "mois_securite":    round(mois_securite, 2),
+        "target_mois_secu": target_mois_secu,
+        "ratio_target":     round(ratio_target, 4),
+
+        # Factor 4
+        "pct_besoins":          round(pct_besoins, 4),
+        "pct_envies":           round(pct_envies, 4),
+        "pct_epargne_split":    round(pct_epargne_split, 4),
+        "nb_unclassified_cats": nb_unclassified,
+
+        # Factor 5
+        "streak_jours":  streak_jours,
+        "jours_inactif": jours_inactif,
+
+        # State
+        "onboarding_done":          onboarding_done,
+        "jours_depuis_inscription": jours_depuis_inscription,
+        "mois_verts":               mois_verts,
+
+        # Advice tailoring
+        "categorie_top_dep": cat_top,
+
+        # Internal breakdown (for debug / UI)
+        "details_score": {
+            "pts_reste":      round(pts_reste, 1),
+            "pts_ep_flow":    round(pts_ep_flow, 1),
+            "pts_fonds":      round(pts_fonds, 1),
+            "pts_503020":     round(pts_503020, 1),
+            "pts_engagement": round(pts_engagement, 1),
+        },
+    }

@@ -41,18 +41,21 @@ from typing import Any, Dict, List, Optional
 #     "target_mois_secu":   float,    # user-customizable target (default 3.0)
 #     "ratio_target":       float,    # mois_securite / target_mois_secu (0–1+)
 #
-#     # Factor 3 — Règle 50/30/20 (only valid if onboarding_done)
+#     # Factor 3 — Règle 50/30/20 (only valid if onboarding_done AND nb_unclassified_cats == 0)
 #     "pct_besoins":        float,    # actual share (0–1)
 #     "pct_envies":         float,    # actual share (0–1)
 #     "pct_epargne_split":  float,    # actual share (0–1)
+#     "nb_unclassified_cats": int,    # categories pending Besoin/Envie/Épargne classification
 #
 #     # Factor 4 — Engagement
 #     "streak_jours":       int,
 #     "jours_inactif":      int,      # days since last activity
 #
 #     # State
-#     "onboarding_done":    bool,
-#     "mois_verts":         int,
+#     "onboarding_done":         bool,
+#     "jours_depuis_inscription": int,
+#     "mois_verts":              int,
+#     "score_stale":             bool,    # true if jours_inactif >= 5
 #
 #     # Optional extras for advice tailoring
 #     "categorie_top_dep":  str,      # most expensive category (for advice)
@@ -80,12 +83,33 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
     },
 
     {
-        "id":       "behavior_onboarding_pending",
-        "when":     lambda c: not c["onboarding_done"],
+        # Only nag during the first month — after that, user has decided
+        "id":       "behavior_onboarding_pending_first_month",
+        "when":     lambda c: not c["onboarding_done"] and c["jours_depuis_inscription"] < 30,
         "category": "behavior",
         "priority": 2,
-        "message":  "[À écrire — onboarding pas fini, conseils limités]",
-        "advice":   "[À écrire — termine l'onboarding pour précision]",
+        "message":  "[À écrire — onboarding pas fini, score limité]",
+        "advice":   "[À écrire — termine l'onboarding pour score précis]",
+    },
+
+    # Score peut-être obsolète (3–6 jours inactif)
+    {
+        "id":       "behavior_score_obsolete",
+        "when":     lambda c: 3 <= c["jours_inactif"] < 7,
+        "category": "behavior",
+        "priority": 3,
+        "message":  "[À écrire — score peut être obsolète, {jours_inactif}j sans log]",
+        "advice":   "[À écrire — log tes dépenses récentes pour fiabilité]",
+    },
+
+    # Mini-onboarding catch-up offer (>= 7 jours inactif)
+    {
+        "id":       "behavior_mini_onboarding_offer",
+        "when":     lambda c: c["jours_inactif"] >= 7,
+        "category": "behavior",
+        "priority": 3,
+        "message":  "[À écrire — long silence ({jours_inactif}j), faisons un point rapide]",
+        "advice":   "[À écrire — bouton: démarrer mini-onboarding catch-up]",
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -122,10 +146,20 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "advice":   "[À écrire — augmenter à 10–20%]",
     },
 
+    # 50/30/20 verrouillé — catégories non classifiées (gamification: 1–5 pts par classification)
+    {
+        "id":       "factor_categories_a_classifier",
+        "when":     lambda c: c.get("nb_unclassified_cats", 0) > 0,
+        "category": "factor",
+        "priority": 6,
+        "message":  "[À écrire — {nb_unclassified_cats} catégories à classer en Besoin/Envie/Épargne]",
+        "advice":   "[À écrire — classe-les pour débloquer 25 pts du score 50/30/20]",
+    },
+
     # 50/30/20 — Besoins trop élevés
     {
         "id":       "factor_503020_besoins_eleves",
-        "when":     lambda c: c["onboarding_done"] and c["pct_besoins"] > 0.55,
+        "when":     lambda c: c["onboarding_done"] and c.get("nb_unclassified_cats", 0) == 0 and c["pct_besoins"] > 0.55,
         "category": "factor",
         "priority": 7,
         "message":  "[À écrire — besoins dépassent 50%]",
@@ -135,7 +169,7 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
     # 50/30/20 — Envies trop élevées
     {
         "id":       "factor_503020_envies_elevees",
-        "when":     lambda c: c["onboarding_done"] and c["pct_envies"] > 0.35,
+        "when":     lambda c: c["onboarding_done"] and c.get("nb_unclassified_cats", 0) == 0 and c["pct_envies"] > 0.35,
         "category": "factor",
         "priority": 7,
         "message":  "[À écrire — envies dépassent 30%]",
@@ -145,7 +179,7 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
     # 50/30/20 — Épargne split sous 15%
     {
         "id":       "factor_503020_epargne_split_faible",
-        "when":     lambda c: c["onboarding_done"] and c["pct_epargne_split"] < 0.15,
+        "when":     lambda c: c["onboarding_done"] and c.get("nb_unclassified_cats", 0) == 0 and c["pct_epargne_split"] < 0.15,
         "category": "factor",
         "priority": 7,
         "message":  "[À écrire — épargne sous 20% (cible 50/30/20)]",
