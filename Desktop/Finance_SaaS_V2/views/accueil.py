@@ -449,7 +449,7 @@ def _render_categories(rept: list, ctx: dict) -> None:
 
     st.markdown(
         f'<div style="display:flex;justify-content:space-between;align-items:baseline;'
-        f'margin:18px 0 10px">'
+        f'margin:6px 0 10px">'
         f'<span class="v1-sec-head" style="margin:0">Dépenses par catégorie</span>'
         f'<span style="color:{T.TEXT_LOW};font-size:11px">'
         f'{nb} catégorie{"s" if nb != 1 else ""} · {_fmt_dh(total_dep)} DH</span>'
@@ -1148,8 +1148,6 @@ def render(ctx: dict) -> None:
 
     _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_mois,
                       streak_jours, mois_verts)
-
-    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     col_cats, col_right = st.columns([3, 2], gap="large")
     with col_cats:

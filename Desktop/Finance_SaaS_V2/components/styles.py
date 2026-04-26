@@ -41,7 +41,7 @@ section[data-testid="stSidebar"] > div {{
 
 /* Reduce Streamlit default padding — minimize gap between sidebar & content */
 .block-container {{
-    padding: 0.5rem 1rem 1rem 1rem !important;
+    padding: 0.5rem 0.5rem 1rem 0.5rem !important;
     max-width: none !important;
     width: 100% !important;
 }}
@@ -327,7 +327,7 @@ summary {{
     border-radius: var(--radius-xl);
     position: relative;
     overflow: hidden;
-    margin-bottom: 18px;
+    margin-bottom: 6px;
 }}
 .v1-hero-label {{
     font-size: 11px;
@@ -686,7 +686,7 @@ summary {{
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
     overflow: hidden;
-    margin-top: 8px;
+    margin-top: 0;
 }}
 .cp-header {{
     display: flex;
