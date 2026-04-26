@@ -28,17 +28,15 @@ div[data-testid="stToolbar"]  {{ display: none !important; }}
 #MainMenu {{ visibility: hidden !important; }}
 footer    {{ visibility: hidden !important; }}
 
-/* Style the native sidebar collapsed-control so user can always restore */
-div[data-testid="stSidebarCollapsedControl"] {{
-    background: var(--bg-card) !important;
-    border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
-    border: 1px solid var(--border) !important;
-    border-left: none !important;
-    box-shadow: 2px 0 12px rgba(0,0,0,0.5) !important;
-    z-index: 999 !important;
+/* Force sidebar always visible — prevent native collapse from hiding it */
+section[data-testid="stSidebar"] {{
+    transform: translateX(0) !important;
+    display: block !important;
+    visibility: visible !important;
+    min-width: 244px !important;
 }}
-div[data-testid="stSidebarCollapsedControl"] button {{
-    color: var(--primary) !important;
+section[data-testid="stSidebar"] > div {{
+    visibility: visible !important;
 }}
 
 /* Reduce Streamlit default padding — minimize gap between sidebar & content */
