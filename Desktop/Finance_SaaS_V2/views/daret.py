@@ -25,6 +25,16 @@ def render(ctx: dict) -> None:
 
     render_page_header("🔄", "Daret & Tontine", "Gérez vos cercles d'épargne communautaire")
 
+    # First-visit hint — explain the current solo Daret + V2 roadmap
+    from components.hints import show_hint
+    show_hint(
+        audit,
+        hint_id="hint_daret_solo_v1",
+        title="Daret simplifié",
+        body="Pour l'instant, tu logues manuellement qui a payé chaque mois. Une version multi-utilisateurs avec invite link et table partagée arrive plus tard.",
+        icon="🔄",
+    )
+
     try:
         darets = _get_darets(audit, audit.user_id)
     except Exception:

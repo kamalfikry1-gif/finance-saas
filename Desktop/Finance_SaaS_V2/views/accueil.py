@@ -493,6 +493,16 @@ def _render_categories(rept: list, ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
+    # First-visit hint — explain categories are clickable
+    from components.hints import show_hint
+    show_hint(
+        ctx["audit"],
+        hint_id="hint_categories_clickable",
+        title="Clique sur une catégorie",
+        body="Chaque ligne s'ouvre pour montrer le détail des sous-catégories de ce mois.",
+        icon="👆",
+    )
+
     res_sous  = ctx["_q"]("detail_sous_categories", mois=ctx["mois_sel"])
     sous_data = res_sous.get("resultat", []) if "resultat" in res_sous else []
     sous_par_cat: dict = {}
@@ -934,6 +944,15 @@ def _render_coach_panel(
     (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT). Falls back to legacy 'niveau'
     for backward compat.
     """
+    # First-visit hint — explain the 5-factor scoring
+    from components.hints import show_hint
+    show_hint(
+        audit,
+        hint_id="hint_coach_panel_5_factors",
+        title="Ton coach analyse 5 facteurs",
+        body="Reste à vivre, épargne du mois, fonds d'urgence, dépenses équilibrées, engagement. Chaque facteur = une pierre. L'ensemble fait ta solidité.",
+        icon="🧠",
+    )
     score_val  = float(score.get("score", 0) or 0)
     statut     = score.get("statut") or score.get("niveau") or "MOYEN"
     score_col  = _statut_color(statut)
@@ -1169,6 +1188,23 @@ def render(ctx: dict) -> None:
     identite = ctx["identite_active"]
     audit    = ctx["audit"]
     streak_jours, mois_verts = ctx.get("streak", (0, 0))
+
+    # First-visit hints (one-shot, dismissible) — Accueil welcome + quick add
+    from components.hints import show_hint
+    show_hint(
+        audit,
+        hint_id="hint_accueil_welcome",
+        title="Bienvenue sur ton tableau de bord",
+        body="Score, dépenses, conseils — tout ici. Le coach analyse en temps réel tes 5 facteurs.",
+        icon="👋",
+    )
+    show_hint(
+        audit,
+        hint_id="hint_topbar_quick_add",
+        title="Ajoute une dépense en 3 clics",
+        body="Le bouton 💸 Dépense en haut ouvre un mini-formulaire. Plus tu logues souvent, plus ton score est fiable.",
+        icon="💸",
+    )
 
     try:
         sparkline_data = audit.db.get_solde_7j(ctx["user_id"])

@@ -46,7 +46,8 @@ See "CURRENT SPRINT" above.
 - [x] Step 2 utilities (Électricité + Eau) + step 3 live donut (commit 2.1)
 - [ ] **Write the 5 status-level coach messages first** (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT) — replaces `[À écrire]` at the score reveal climax
 - [ ] Replace remaining 19 `[À écrire]` in `core/coach_messages.py`
-- [ ] Sprinkle 6 hints throughout app + delete legacy onboarding (commit 3)
+- [x] Sprinkle 6 contextual hints throughout app (commit 3a)
+- [ ] Delete legacy `views/onboarding.py` once v2 confirmed stable (commit 3b)
 - [ ] Add "abonnement detection" popup on duplicate sub-categories
 - [ ] Build mini-onboarding catch-up flow (when `jours_inactif >= 7`)
 - [ ] **Dashboard preview screen before "Découvrir l'app"** — small mockup of Accueil with their data ("voici ce qui t'attend") to reduce post-onboarding shock

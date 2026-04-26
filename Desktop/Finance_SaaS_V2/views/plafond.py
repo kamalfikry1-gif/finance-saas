@@ -144,6 +144,16 @@ def render(ctx: dict) -> None:
 
     render_page_header("🔔", "Plafonds Budgétaires", f"Limites par sous-catégorie · {mois_lbl}")
 
+    # First-visit hint — explain the plafond concept
+    from components.hints import show_hint
+    show_hint(
+        audit,
+        hint_id="hint_plafond_concept",
+        title="Plafond : ton garde-fou",
+        body="Définis le maximum acceptable par sous-catégorie. Le coach t'alerte avant le dépassement. C'est un engagement, différent de l'estimation.",
+        icon="🚨",
+    )
+
     try:
         cats     = _get_plafonds(audit, audit.user_id)
         depenses = _get_dep(audit, mois_sel, audit.user_id)
