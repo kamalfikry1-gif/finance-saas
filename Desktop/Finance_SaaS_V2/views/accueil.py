@@ -448,7 +448,7 @@ def _render_categories(rept: list, ctx: dict) -> None:
 
     st.markdown(
         f'<div style="display:flex;justify-content:space-between;align-items:baseline;'
-        f'margin:18px 0 12px">'
+        f'margin:18px 0 10px">'
         f'<span class="v1-sec-head" style="margin:0">Dépenses par catégorie</span>'
         f'<span style="color:{T.TEXT_LOW};font-size:11px">'
         f'{nb} catégorie{"s" if nb != 1 else ""} · {_fmt_dh(total_dep)} DH</span>'
@@ -456,30 +456,53 @@ def _render_categories(rept: list, ctx: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    # Single markdown call = no per-row rerun overhead
-    html = '<div class="cat-list">'
+    res_sous  = ctx["_q"]("detail_sous_categories", mois=ctx["mois_sel"])
+    sous_data = res_sous.get("resultat", []) if "resultat" in res_sous else []
+    sous_par_cat: dict = {}
+    for sc in sous_data:
+        sous_par_cat.setdefault(sc["Categorie"], []).append(sc)
+
     for i, row in enumerate(rept):
         cat   = row["Categorie"] or "Non classé"
         color = CAT_COLORS[i % len(CAT_COLORS)]
         total = float(row.get("Total_DH") or 0)
         poids = float(row.get("Poids_Pct") or 0)
         bar_w = min(poids, 100)
-        html += (
-            f'<div class="cat-card">'
-            f'  <div class="cat-card-main">'
-            f'    <span class="cat-swatch-v2" style="background:{color}"></span>'
-            f'    <span class="cat-card-name">{cat}</span>'
-            f'    <span class="cat-card-amt">{_fmt_dh(total)}'
-            f'      <span class="cat-card-unit">DH</span></span>'
-            f'    <span class="cat-card-pct">{poids:.1f}%</span>'
-            f'  </div>'
-            f'  <div class="cat-bar-v2">'
-            f'    <div class="cat-bar-fill-v2" style="width:{bar_w:.1f}%;background:{color}"></div>'
-            f'  </div>'
-            f'</div>'
-        )
-    html += '</div>'
-    st.markdown(html, unsafe_allow_html=True)
+        sous  = sous_par_cat.get(cat, [])
+
+        with st.expander(f"**{cat}**  ·  {_fmt_dh(total)} DH  ·  {poids:.1f}%", expanded=False):
+            # Colored accent line + progress bar at top of expanded content
+            st.markdown(
+                f'<div style="height:2px;background:{color};border-radius:99px;'
+                f'margin:0 0 12px;opacity:0.7"></div>'
+                f'<div class="cat-bar-v2" style="margin-bottom:14px">'
+                f'<div class="cat-bar-fill-v2" style="width:{bar_w:.1f}%;background:{color}"></div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            if not sous:
+                st.markdown(
+                    f'<div style="color:{T.TEXT_LOW};font-size:12px">Aucun détail.</div>',
+                    unsafe_allow_html=True,
+                )
+                continue
+
+            total_cat = total or 1
+            rows_html = ""
+            for sc in sous:
+                sc_total = float(sc.get("Total_DH") or 0)
+                sc_pct   = sc_total / total_cat * 100
+                sc_bar   = min(sc_pct, 100)
+                rows_html += (
+                    f'<div class="cat-sub-row">'
+                    f'  <div class="n">{sc["Sous_Categorie"]}</div>'
+                    f'  <div class="b"><div class="bf" style="width:{sc_bar:.1f}%;background:{color}"></div></div>'
+                    f'  <div class="a" style="color:{color}">{_fmt_dh(sc_total)} DH</div>'
+                    f'  <div class="p">{sc_pct:.0f}%</div>'
+                    f'</div>'
+                )
+            st.markdown(rows_html, unsafe_allow_html=True)
 
 
 def _render_coach(message: str, humeur: str, identite: str) -> None:

@@ -264,11 +264,17 @@ details {{
     background: var(--bg-card) !important;
     border-radius: var(--radius-md) !important;
     border: 1px solid var(--border) !important;
+    margin-bottom: 6px !important;
+    transition: border-color 0.18s !important;
+}}
+details[open] {{
+    border-color: var(--border-glow) !important;
 }}
 summary {{
-    color: var(--text-med) !important;
+    color: var(--text-high) !important;
     font-weight: 600 !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
+    padding: 13px 16px !important;
 }}
 
 /* ── Scrollbar ──────────────────────────────────────────────────────────────── */
