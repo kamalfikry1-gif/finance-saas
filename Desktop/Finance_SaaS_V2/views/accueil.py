@@ -344,9 +344,8 @@ def _sparkline_bg_style(values: list) -> str:
 
 
 def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
-                       sparkline: list = None, epargne_total: float = 0.0,
-                       streak_jours: int = 0, mois_verts: int = 0,
-                       show_epargne: bool = False) -> None:
+                       sparkline: list = None, epargne_mois: float = 0.0,
+                       streak_jours: int = 0, mois_verts: int = 0) -> None:
     """Hero + KPI strip in one card. Sparkline via CSS bg-image (no DOM positioning)."""
     solde      = bilan["solde"]
     sign       = "+" if solde >= 0 else "−"
@@ -358,9 +357,8 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     je         = int(proj.get("jours_ecoules", 0) or 0)
     jours_rest = max(0, int(proj.get("jours_total", 30) or 30) - je)
     reste      = max(0.0, revenus - max(depenses, float(proj_v)))
-    ep_color   = T.PRIMARY if (epargne_total > 0 and show_epargne) else T.TEXT_LOW
-    ep_display = _fmt_dh(epargne_total) if show_epargne else "• • • •"
-    ep_unit    = '<span style="font-size:11px;font-weight:400"> DH</span>' if show_epargne else ""
+    ep_color   = T.SUCCESS if epargne_mois > 0 else T.TEXT_LOW
+    ep_sub     = "Ce mois" if epargne_mois > 0 else "Non renseignée"
     bg_style   = _sparkline_bg_style(sparkline or [])
 
     # Streak badge for hero top-right
@@ -410,10 +408,10 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
                f'<div style="color:{T.TEXT_HIGH};font-size:19px;font-weight:900">'
                f'{_fmt_dh(reste)} <span style="font-size:11px;font-weight:400">DH</span></div>',
                f'Proj. {_fmt_dh(proj_v)} DH dépensé')
-        + _kpi("Épargne Total",
+        + _kpi("Épargne du mois",
                f'<div style="color:{ep_color};font-size:19px;font-weight:900">'
-               f'{ep_display}{ep_unit}</div>',
-               "Cumulé historique", border=False)
+               f'{_fmt_dh(epargne_mois)} <span style="font-size:11px;font-weight:400">DH</span></div>',
+               ep_sub, border=False)
         + '</div>'
     )
 
@@ -1091,18 +1089,36 @@ def render(ctx: dict) -> None:
     except Exception:
         epargne_total = 0.0
 
-    show_ep = st.session_state.get("show_epargne_total", False)
-    _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_total,
-                      streak_jours, mois_verts, show_epargne=show_ep)
+    # Monthly savings for hero KPI
+    try:
+        _ep_rec = audit.db.get_epargne_mois(ctx["user_id"], ctx["mois_sel"])
+        epargne_mois = float(_ep_rec.get("Montant_Reel", 0) or 0) if _ep_rec else 0.0
+    except Exception:
+        epargne_mois = 0.0
 
-    # Eye toggle — right-aligned, minimal
+    _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_mois,
+                      streak_jours, mois_verts)
+
+    # Eye toggle — reveals Épargne Total (cumulative), hidden by default
+    show_ep = st.session_state.get("show_epargne_total", False)
     _c1, _c2 = st.columns([9, 1])
     with _c2:
-        eye_lbl = "👁" if not show_ep else "🙈"
-        if st.button(eye_lbl, key="toggle_epargne",
-                     help="Afficher / masquer l'épargne totale"):
+        if st.button("👁" if not show_ep else "🙈", key="toggle_epargne",
+                     help="Épargne totale cumulée"):
             st.session_state.show_epargne_total = not show_ep
             st.rerun()
+    if show_ep:
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:10px 16px;'
+            f'display:flex;justify-content:space-between;align-items:center">'
+            f'<span style="color:{T.TEXT_LOW};font-size:11px;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:1px">Épargne totale cumulée</span>'
+            f'<span style="color:{T.PRIMARY};font-size:16px;font-weight:900">'
+            f'{_fmt_dh(epargne_total)} DH</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
