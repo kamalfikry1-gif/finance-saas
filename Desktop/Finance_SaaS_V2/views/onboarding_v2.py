@@ -376,22 +376,30 @@ def _step3_estimation(audit) -> None:
         unsafe_allow_html=True,
     )
 
-    max_log    = int(max(revenu * 0.8, 5000))
-    max_vie    = int(max(revenu * 0.6, 4000))
-    max_envies = int(max(revenu * 0.5, 3000))
-    max_ep     = int(max(revenu * 0.5, 2000))
+    max_entr   = int(max(revenu * 0.30, 2000))
+    max_alim   = int(max(revenu * 0.40, 3000))
+    max_trans  = int(max(revenu * 0.30, 2000))
+    max_envies = int(max(revenu * 0.50, 3000))
+    max_ep     = int(max(revenu * 0.50, 2000))
 
-    logement = st.slider(
-        "🏠 Logement (loyer/crédit + charges)",
-        min_value=0, max_value=max_log,
-        value=int(d.get("est_logement", revenu * 0.30)),
-        step=100, format="%d DH", key="ob2_logement",
+    # Note: Logement (loyer/crédit) déjà capté en step 2 (récurrents) — pas redondant ici.
+    entretien = st.slider(
+        "🔧 Entretien (maison + voiture)",
+        min_value=0, max_value=max_entr,
+        value=int(d.get("est_entretien", revenu * 0.05)),
+        step=50, format="%d DH", key="ob2_entretien",
     )
-    vie = st.slider(
-        "🍽️ Vie quotidienne (alimentation, transport)",
-        min_value=0, max_value=max_vie,
-        value=int(d.get("est_vie", revenu * 0.25)),
-        step=100, format="%d DH", key="ob2_vie",
+    alimentation = st.slider(
+        "🛒 Alimentation / Courses",
+        min_value=0, max_value=max_alim,
+        value=int(d.get("est_alimentation", revenu * 0.20)),
+        step=100, format="%d DH", key="ob2_alimentation",
+    )
+    transport = st.slider(
+        "🚗 Transport (carburant, taxi, bus)",
+        min_value=0, max_value=max_trans,
+        value=int(d.get("est_transport", revenu * 0.10)),
+        step=50, format="%d DH", key="ob2_transport",
     )
     envies = st.slider(
         "🎁 Envies (loisirs, restos, shopping)",
@@ -406,7 +414,7 @@ def _step3_estimation(audit) -> None:
         step=100, format="%d DH", key="ob2_epargne",
     )
 
-    reste = revenu - logement - vie - envies - epargne
+    reste = revenu - entretien - alimentation - transport - envies - epargne
     reste_color = T.SUCCESS if reste >= 0 else T.DANGER
     reste_lbl   = "Marge" if reste >= 0 else "Dépassement"
     st.markdown(
@@ -428,10 +436,11 @@ def _step3_estimation(audit) -> None:
     with c2:
         if st.button("Suivant →", type="primary", use_container_width=True,
                      key="ob2_s3_next"):
-            d["est_logement"] = logement
-            d["est_vie"]      = vie
-            d["est_envies"]   = envies
-            d["est_epargne"]  = epargne
+            d["est_entretien"]    = entretien
+            d["est_alimentation"] = alimentation
+            d["est_transport"]    = transport
+            d["est_envies"]       = envies
+            d["est_epargne"]      = epargne
             _badges.award_badge(audit, "profil_depenses", "Profil dépenses", "📊")
             _set_step(4)
 
@@ -509,8 +518,22 @@ def _step4_form(audit, d: dict) -> None:
         key="ob2_epargne_actuelle",
     )
 
-    # Validation flag
+    # Validation feedback — tell the user WHY the button is disabled
     obj_valid = bool(obj_nom.strip()) and obj_montant > 0
+    if not obj_valid:
+        missing = []
+        if not obj_nom.strip(): missing.append("**nom de l'objectif**")
+        if obj_montant <= 0:    missing.append("**montant cible**")
+        st.markdown(
+            f'<div style="background:{T.WARNING_GLO};border-left:3px solid {T.WARNING};'
+            f'padding:10px 14px;border-radius:{T.RADIUS_SM};margin:14px 0">'
+            f'  <span style="color:{T.WARNING};font-size:12px;font-weight:600">⚠️ Champ requis : </span>'
+            f'  <span style="color:{T.TEXT_HIGH};font-size:12px">'
+            f"    {' et '.join(missing)} pour calculer ton score."
+            f'  </span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     c1, c2 = st.columns([1, 2])
     with c1:
@@ -677,10 +700,11 @@ def _finalize(audit) -> None:
     audit.db.set_preference("onboarding_done",       "1",                              audit.user_id)
     audit.db.set_preference("revenu_salaire",        str(d.get("salaire", 0)),         audit.user_id)
     audit.db.set_preference("revenu_total_attendu",  str(d.get("revenu_total", 0)),    audit.user_id)
-    audit.db.set_preference("est_logement",          str(d.get("est_logement", 0)),    audit.user_id)
-    audit.db.set_preference("est_vie",               str(d.get("est_vie", 0)),         audit.user_id)
-    audit.db.set_preference("est_envies",            str(d.get("est_envies", 0)),      audit.user_id)
-    audit.db.set_preference("est_epargne",           str(d.get("est_epargne", 0)),     audit.user_id)
+    audit.db.set_preference("est_entretien",         str(d.get("est_entretien", 0)),    audit.user_id)
+    audit.db.set_preference("est_alimentation",      str(d.get("est_alimentation", 0)), audit.user_id)
+    audit.db.set_preference("est_transport",         str(d.get("est_transport", 0)),    audit.user_id)
+    audit.db.set_preference("est_envies",            str(d.get("est_envies", 0)),       audit.user_id)
+    audit.db.set_preference("est_epargne",           str(d.get("est_epargne", 0)),      audit.user_id)
 
     _badges.award_badge(audit, "premier_objectif", "Premier objectif fixé", "🎯")
 

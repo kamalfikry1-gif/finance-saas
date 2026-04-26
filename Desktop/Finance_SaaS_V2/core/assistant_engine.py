@@ -904,11 +904,15 @@ def compute_score(audit, mois: Optional[str] = None) -> Dict[str, Any]:
             pts_ep_flow = min(SCORE_V2_POIDS_EPARGNE_FLOW + 5, pts_ep_flow + 5)
             pts_fonds   = min(SCORE_V2_POIDS_FONDS_URGENCE + 5, pts_fonds + 5)
 
-    # Engagement — streak / 7 = full
-    pts_engagement = min(
-        SCORE_V2_POIDS_ENGAGEMENT,
-        max(0.0, streak_jours / SCORE_V2_STREAK_DAYS_TARGET * SCORE_V2_POIDS_ENGAGEMENT),
-    )
+    # Engagement — first-week grace: new users get full marks until they have
+    # had 7 days to build a real streak. After day 7, normal calculation kicks in.
+    if jours_depuis_inscription < 7:
+        pts_engagement = SCORE_V2_POIDS_ENGAGEMENT
+    else:
+        pts_engagement = min(
+            SCORE_V2_POIDS_ENGAGEMENT,
+            max(0.0, streak_jours / SCORE_V2_STREAK_DAYS_TARGET * SCORE_V2_POIDS_ENGAGEMENT),
+        )
 
     # ── Total + edge cases ───────────────────────────────────────────────────
     score = pts_reste + pts_ep_flow + pts_fonds + pts_503020 + pts_engagement

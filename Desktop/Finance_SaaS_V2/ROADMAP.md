@@ -56,6 +56,7 @@ See "CURRENT SPRINT" above.
 - [ ] Customizable: 50/30/20 category overrides UI
 - [ ] Month visibility: monthly sparkline (replace 7-day flux)
 - [ ] Month visibility: monthly cashflow chart (revenus up / dépenses down)
+- [ ] **Categories restructure** — rename "Vie Quotidienne" → "Courses maison" + split subcats (Alimentation / Produits ménagers) + extract Transport as own category. Updates: CATEGORIES table, DICO_MATCHING, DEFAULT_503020_MAPPING in config.py, existing transactions migration.
 - [ ] **Daret Manager (solo, ~3 days)**:
   - [ ] Tirage au sort algorithm (random turn order, seed stored for proof)
   - [ ] Bloomberg-style status table (members × months grid: 🟢/🟡/🔴)
