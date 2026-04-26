@@ -48,7 +48,7 @@ See "CURRENT SPRINT" above.
 - [ ] Add "abonnement detection" popup on duplicate sub-categories
 - [ ] Build mini-onboarding catch-up flow (when `jours_inactif >= 7`)
 
-### Sprint 3 — Mon compte + month visibility lite
+### Sprint 3 — Mon compte + month visibility lite + Daret Manager
 - [ ] Mon compte: real name, email, change password (bcrypt-aware)
 - [ ] Mon compte: delete account flow (with confirmation)
 - [ ] Mon compte: data export button (trust signal)
@@ -56,6 +56,13 @@ See "CURRENT SPRINT" above.
 - [ ] Customizable: 50/30/20 category overrides UI
 - [ ] Month visibility: monthly sparkline (replace 7-day flux)
 - [ ] Month visibility: monthly cashflow chart (revenus up / dépenses down)
+- [ ] **Daret Manager (solo, ~3 days)**:
+  - [ ] Tirage au sort algorithm (random turn order, seed stored for proof)
+  - [ ] Bloomberg-style status table (members × months grid: 🟢/🟡/🔴)
+  - [ ] Manager log button (mark as paid / declared / pending)
+  - [ ] Timeline view (current month, next, total remaining, end date)
+  - [ ] Export récap to clipboard (paste into WhatsApp group)
+  - V2 multi-user version (invite links, real-time) → BACKLOG.md flagship v1.5
 
 ### Sprint 4 — Bug bash + 5 real users
 - [ ] Use the app yourself daily for 7 days, log everything

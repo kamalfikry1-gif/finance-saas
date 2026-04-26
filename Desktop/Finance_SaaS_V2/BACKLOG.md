@@ -40,6 +40,11 @@ The idea isn't to explain what a Daret is — it's to **fix how it's managed**.
 
 **Strategic positioning:** the v1.5 launch story. What you announce to drive press and signups after the private beta is stable.
 
+> **Note**: a simplified **v1 solo version** (manager-only, no real-time, no invite links)
+> ships in beta — see `ROADMAP.md` Sprint 3 "Daret Manager (solo)". That captures
+> ~80% of the user value with 20% of the technical complexity. The full V2 multi-user
+> version stays as the flagship v1.5 launch.
+
 ---
 
 ## 🚀 Post-beta v2 features
