@@ -433,66 +433,53 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
 
 
 def _render_categories(rept: list, ctx: dict) -> None:
-    st.markdown(
-        '<div class="v1-sec-head">Dépenses par catégorie</div>',
-        unsafe_allow_html=True,
-    )
     if not rept:
-        st.info("Aucune dépense ce mois.")
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_MD};padding:32px 16px;text-align:center;margin-top:18px">'
+            f'<div style="color:{T.TEXT_LOW};font-size:13px">Aucune dépense ce mois.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
         return
 
-    res_sous  = ctx["_q"]("detail_sous_categories", mois=ctx["mois_sel"])
-    sous_data = res_sous.get("resultat", []) if "resultat" in res_sous else []
-    sous_par_cat: dict = {}
-    for sc in sous_data:
-        sous_par_cat.setdefault(sc["Categorie"], []).append(sc)
+    total_dep = sum(float(r.get("Total_DH") or 0) for r in rept)
+    nb = len(rept)
 
+    st.markdown(
+        f'<div style="display:flex;justify-content:space-between;align-items:baseline;'
+        f'margin:18px 0 12px">'
+        f'<span class="v1-sec-head" style="margin:0">Dépenses par catégorie</span>'
+        f'<span style="color:{T.TEXT_LOW};font-size:11px">'
+        f'{nb} catégorie{"s" if nb != 1 else ""} · {_fmt_dh(total_dep)} DH</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Single markdown call = no per-row rerun overhead
+    html = '<div class="cat-list">'
     for i, row in enumerate(rept):
-        cat     = row["Categorie"] or "Non classé"
-        couleur = CAT_COLORS[i % len(CAT_COLORS)]
-        total   = float(row.get("Total_DH") or 0)
-        poids   = float(row.get("Poids_Pct") or 0)
-        bar_w   = min(poids, 100)
-        sous    = sous_par_cat.get(cat, [])
-
-        # Head row (always visible)
-        head = (
-            f'<div class="cat-row-head">'
-            f'  <span class="cat-swatch" style="background:{couleur}"></span>'
-            f'  <span class="cat-name">{cat}</span>'
-            f'  <span class="cat-amt">{_fmt_dh(total)} DH</span>'
-            f'  <span class="cat-pct">{poids:.1f}%</span>'
-            f'</div>'
-            f'<div class="cat-bar">'
-            f'  <div class="cat-bar-fill" '
-            f'       style="width:{bar_w:.1f}%;background:{couleur}"></div>'
+        cat   = row["Categorie"] or "Non classé"
+        color = CAT_COLORS[i % len(CAT_COLORS)]
+        total = float(row.get("Total_DH") or 0)
+        poids = float(row.get("Poids_Pct") or 0)
+        bar_w = min(poids, 100)
+        html += (
+            f'<div class="cat-card">'
+            f'  <div class="cat-card-main">'
+            f'    <span class="cat-swatch-v2" style="background:{color}"></span>'
+            f'    <span class="cat-card-name">{cat}</span>'
+            f'    <span class="cat-card-amt">{_fmt_dh(total)}'
+            f'      <span class="cat-card-unit">DH</span></span>'
+            f'    <span class="cat-card-pct">{poids:.1f}%</span>'
+            f'  </div>'
+            f'  <div class="cat-bar-v2">'
+            f'    <div class="cat-bar-fill-v2" style="width:{bar_w:.1f}%;background:{color}"></div>'
+            f'  </div>'
             f'</div>'
         )
-
-        with st.expander(f"**{cat}** · {_fmt_dh(total)} DH · {poids:.1f}%", expanded=False):
-            st.markdown(head, unsafe_allow_html=True)
-            if not sous:
-                st.markdown(
-                    f'<div style="color:{T.TEXT_LOW};font-size:12px;padding:4px 0">'
-                    f'Aucun détail disponible.</div>',
-                    unsafe_allow_html=True,
-                )
-                continue
-            total_cat = total or 1
-            for sc in sous:
-                sc_total = float(sc.get("Total_DH") or 0)
-                sc_pct   = sc_total / total_cat * 100
-                sc_bar   = min(sc_pct, 100)
-                st.markdown(
-                    f'<div class="cat-sub-row">'
-                    f'  <div class="n">{sc["Sous_Categorie"]}</div>'
-                    f'  <div class="b"><div class="bf" '
-                    f'       style="width:{sc_bar:.1f}%;background:{couleur}"></div></div>'
-                    f'  <div class="a" style="color:{couleur}">{_fmt_dh(sc_total)} DH</div>'
-                    f'  <div class="p">{sc_pct:.0f}%</div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def _render_coach(message: str, humeur: str, identite: str) -> None:

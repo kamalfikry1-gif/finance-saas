@@ -586,6 +586,77 @@ summary {{
 }}
 .goal-foot-v1 .cur {{ color: var(--text-high); font-weight: 600; font-variant-numeric: tabular-nums; }}
 
+/* ── Category cards — flat premium list ─────────────────────────────────── */
+.cat-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}}
+.cat-card {{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 13px 16px 10px;
+    transition: border-color 0.18s, box-shadow 0.18s;
+}}
+.cat-card:hover {{
+    border-color: var(--border-glow);
+    box-shadow: 0 2px 14px rgba(0,0,0,0.3);
+}}
+.cat-card-main {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}}
+.cat-swatch-v2 {{
+    width: 3px;
+    height: 28px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}}
+.cat-card-name {{
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-high);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}}
+.cat-card-amt {{
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-high);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}}
+.cat-card-unit {{
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-med);
+    margin-left: 2px;
+}}
+.cat-card-pct {{
+    font-size: 12px;
+    color: var(--text-med);
+    min-width: 38px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}}
+.cat-bar-v2 {{
+    height: 3px;
+    background: var(--bg-input);
+    border-radius: 99px;
+    overflow: hidden;
+}}
+.cat-bar-fill-v2 {{
+    height: 100%;
+    border-radius: 99px;
+    opacity: 0.8;
+}}
+
 /* ── FAB Coach — fixed bottom-right, every page ─────────────────────────── */
 /* Marker div injected by app.py via st.markdown; adjacent sibling = button  */
 .fab-anchor {{ display: none; }}
