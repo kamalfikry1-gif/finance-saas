@@ -1115,6 +1115,8 @@ class DatabaseManager:
     def reset_user_data(self, user_id: int) -> dict:
         """
         DESTRUCTIVE: deletes all user-scoped data, keeps the UTILISATEURS row.
+        Also resets date_creation = NOW() so the user appears truly fresh
+        (first-week engagement grace applies again, etc.).
         Returns a dict with delete counts per table.
 
         Used by the admin reset button to start fresh as a new user
@@ -1144,6 +1146,15 @@ class DatabaseManager:
                 except Exception as e:
                     # Table might not exist or have user_id column — skip silently
                     counts[table] = f"skipped ({type(e).__name__})"
+            # Reset signup date so user appears as fresh (re-enables first-week grace)
+            try:
+                conn.execute(
+                    "UPDATE UTILISATEURS SET date_creation = NOW() WHERE id = %s",
+                    (user_id,),
+                )
+                counts["_date_creation_reset"] = "ok"
+            except Exception as e:
+                counts["_date_creation_reset"] = f"skipped ({type(e).__name__})"
         return counts
 
     def get_user_date_creation(self, user_id: int):
