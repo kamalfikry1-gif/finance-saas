@@ -48,11 +48,43 @@ def _fmt_dh(n: float) -> str:
 
 
 def _score_color(score_val: float) -> str:
+    """Legacy 3-level color (kept for any old callers)."""
     if score_val >= 75:
         return T.SUCCESS
     if score_val >= SCORE_SEUIL_ORANGE:
         return T.WARNING
     return T.DANGER
+
+
+def _statut_color(statut: str) -> str:
+    """5-level color from v2 statut (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT)."""
+    return {
+        "EXCELLENT": T.SUCCESS,
+        "BON":       T.PRIMARY,
+        "MOYEN":     T.WARNING,
+        "FAIBLE":    T.DANGER,
+        "CRITIQUE":  T.DANGER,
+    }.get(statut, T.PRIMARY)
+
+
+def _statut_pill_class(statut: str) -> str:
+    """Map v2 statut to mood-pill CSS class."""
+    return {
+        "EXCELLENT": "cool",
+        "BON":       "bon",
+        "MOYEN":     "neutre",
+        "FAIBLE":    "faible",
+        "CRITIQUE":  "serieux",
+    }.get(statut, "neutre")
+
+
+_STATUT_FR = {
+    "EXCELLENT": "Excellent",
+    "BON":       "Bon",
+    "MOYEN":     "Moyen",
+    "FAIBLE":    "Faible",
+    "CRITIQUE":  "Critique",
+}
 
 
 def _mood_class(humeur: str) -> str:
@@ -351,7 +383,11 @@ def _render_hero_zone(bilan: dict, proj: dict, score: dict, mois_lbl: str,
     sign       = "+" if solde >= 0 else "−"
     sclass     = "pos" if solde >= 0 else "neg"
     proj_v     = proj.get("projection_fin_mois", 0) or 0
-    taux_ep    = float(score.get("taux_epargne_pct", 0) or 0)
+    # v1 had taux_epargne_pct (0–100), v2 has taux_epargne (0–1) — bridge both
+    taux_ep    = float(
+        score.get("taux_epargne_pct")
+        or (score.get("taux_epargne", 0) or 0) * 100
+    )
     revenus    = bilan["revenus"]
     depenses   = bilan["depenses"]
     je         = int(proj.get("jours_ecoules", 0) or 0)
@@ -891,14 +927,19 @@ def _render_coach_panel(
     score: dict, audit, user_id: int, mois_sel: str, proj: dict,
     epargne_total: float = 0.0,
 ) -> None:
-    """Unified coach panel — 5 sections in one card."""
+    """
+    Unified coach panel — 5 sections in one card.
+
+    `score` is the v2 ctx dict from compute_score() — uses 'statut' key
+    (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT). Falls back to legacy 'niveau'
+    for backward compat.
+    """
     score_val  = float(score.get("score", 0) or 0)
-    score_col  = _score_color(score_val)
-    niveau_fr  = {"EXCELLENT": "Excellent", "BON": "Bon",
-                  "MOYEN": "Moyen", "CRITIQUE": "Critique"}.get(
-                      score.get("niveau", ""), score.get("niveau", ""))
+    statut     = score.get("statut") or score.get("niveau") or "MOYEN"
+    score_col  = _statut_color(statut)
+    niveau_fr  = _STATUT_FR.get(statut, statut)
+    mood_cls   = _statut_pill_class(statut)
     initials   = (identite or "?")[:1].upper()
-    mood_cls   = _mood_class(humeur)
     suggested_ep = max(0.0, float(proj.get("solde_projete", 0) or 0))
 
     # Goals data
@@ -1018,7 +1059,7 @@ def _render_coach_panel(
         f'      <div class="name">Coach {identite}</div>'
         f'      <div class="role">Assistant financier</div>'
         f'    </div>'
-        f'    <span class="mood-pill-v1 {mood_cls}">{humeur}</span>'
+        f'    <span class="mood-pill-v1 {mood_cls}">{niveau_fr.upper()}</span>'
         f'    <span style="font-size:18px;margin-left:6px;opacity:0.55">💬</span>'
         f'  </div>'
         # 2 — Score bar (compact horizontal — no divider, merges with header)
@@ -1146,7 +1187,21 @@ def render(ctx: dict) -> None:
     except Exception:
         epargne_mois = 0.0
 
-    _render_hero_zone(bilan, proj, score, mois_lbl, sparkline_data, epargne_mois,
+    # Coach v2 — compute_score (5-factor) + select_message (priority-based)
+    try:
+        from core.assistant_engine import compute_score
+        from core.coach_messages import select_message, render_message
+        v2_score   = compute_score(audit, ctx["mois_sel"])
+        v2_msg_raw = select_message(v2_score)
+        v2_msg     = render_message(v2_msg_raw, v2_score)
+        score_for_panel   = v2_score          # has 'score' + 'statut'
+        message_for_panel = v2_msg["message"]
+    except Exception:
+        # Fallback to legacy if v2 fails (transition safety)
+        score_for_panel   = score
+        message_for_panel = message
+
+    _render_hero_zone(bilan, proj, score_for_panel, mois_lbl, sparkline_data, epargne_mois,
                       streak_jours, mois_verts)
 
     col_cats, col_right = st.columns([3, 2], gap="large")
@@ -1154,7 +1209,7 @@ def render(ctx: dict) -> None:
         _render_categories(rept, ctx)
     with col_right:
         _render_coach_panel(
-            message, humeur, identite, score, audit,
+            message_for_panel, humeur, identite, score_for_panel, audit,
             ctx["user_id"], ctx["mois_sel"], proj,
             epargne_total=epargne_total,
         )

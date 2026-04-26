@@ -106,16 +106,29 @@ Views never call `db_manager` directly.
 `ast_path`, `ast_inputs`, `ast_result`, `saisie_*`, `hist_*`, `j_del_id`,
 `oe_update_id`, `plafond_changes`
 
-**Coach system:**
+**Coach system (v2 — current):**
 - 4 identities: BATISSEUR · EQUILIBRE · STRATEGE · LIBERE
-- 3 humeurs: COOL · NEUTRE · SERIEUX (computed in `audit._calculer_humeur()`)
-- Messages generated in `audit._generer_message_coach()`
-- Humeur SERIEUX triggers if: solde < 0 OR score < 40 OR taux_ep < 5% OR savings_reel < 5%
+- 5 statuts: CRITIQUE · FAIBLE · MOYEN · BON · EXCELLENT (from score buckets)
+- Brain: `core/assistant_engine.py:compute_score(audit, mois)` — returns full ctx
+- Messages: `core/coach_messages.py` — 24-entry priority-based table + `select_message(ctx)`
+- Wired into UI in `views/accueil.py:render()` (replaces old `audit._generer_message_coach()`)
 
-**Scoring (0–100):**
-- 40 pts épargne — uses `epargne_reelle` if > 0, else falls back to `max(0, net_solde)`
-- 40 pts budgets — proportion of categories within ceilings
-- 20 pts diversification — no single category > 40% of spend
+**Coach system (v1 — legacy, still in audit.py for fallback):**
+- 3 humeurs: COOL · NEUTRE · SERIEUX (computed in `audit._calculer_humeur()`)
+- Used as transition fallback in `views/accueil.py` if v2 raises
+
+**Scoring v2 (0–100, current):**
+- 25 pts reste à vivre — `(revenus − dépenses − abonnements) / revenus`, target 30% ratio
+- 15 pts épargne du mois (flow) — `epargne_mois / revenus`, target 20%
+- 20 pts fonds d'urgence (stock) — `epargne_libre / depense_moy`, target = `target_mois_secu` (default 3, customizable)
+- 25 pts règle 50/30/20 — distance from ideal split, locked at 0 if categories unclassified or onboarding pas fait (redistributed in latter case)
+- 15 pts engagement — `streak_jours / 7 × 15`
+- Edge cases: reste négatif → cap at 40 (FAIBLE max), first-month grace → baseline 50, jours_inactif ≥ 5 → score_stale flag (UI warning, no penalty)
+- Constants in `config.py` (SCORE_V2_*)
+
+**Scoring v1 (legacy, still in `logic_sqlite.py:get_score_sante_financiere`):**
+- 40 pts épargne / 40 pts budgets / 20 pts diversification
+- Kept for backward compat — not displayed in coach panel anymore
 
 **Onboarding:** 3 steps — Revenus → Dépenses → Bilan de Départ.
 `_finaliser()` routes to step 3; `_conclu()` marks done and enters app.

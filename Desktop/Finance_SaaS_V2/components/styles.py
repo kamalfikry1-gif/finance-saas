@@ -521,7 +521,9 @@ summary {{
     text-transform: uppercase;
 }}
 .mood-pill-v1.cool    {{ background: var(--success-glo); color: var(--success); }}
+.mood-pill-v1.bon     {{ background: var(--primary-glo); color: var(--primary); }}
 .mood-pill-v1.neutre  {{ background: var(--warning-glo); color: var(--warning); }}
+.mood-pill-v1.faible  {{ background: var(--danger-glo);  color: var(--danger); opacity: 0.85; }}
 .mood-pill-v1.serieux {{ background: var(--danger-glo);  color: var(--danger); }}
 .coach-quote-v1 {{
     font-size: 14px;
