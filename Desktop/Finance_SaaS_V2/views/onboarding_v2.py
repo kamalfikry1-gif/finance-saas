@@ -551,6 +551,15 @@ def _step4_form(audit, d: dict) -> None:
             st.session_state["ob2_reveal"] = True
             st.rerun()
 
+    # Skip option — proceed to score reveal without objectif/épargne
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    if st.button("Passer cette étape — je le ferai plus tard",
+                 key="ob2_s4_skip", use_container_width=True, type="secondary"):
+        # Don't persist objectif/épargne — go straight to the reveal
+        st.session_state["ob2_reveal"]      = True
+        st.session_state["ob2_skipped_obj"] = True
+        st.rerun()
+
 
 def _persist_objectif_and_epargne(audit, d: dict) -> None:
     """Save objectif + initial épargne BEFORE compute_score so the score reflects them."""
@@ -650,11 +659,11 @@ def _step4_reveal(audit, d: dict) -> None:
     )
 
     rows = [
-        ("Reste à vivre",      details.get("pts_reste",      0), 25),
-        ("Épargne du mois",    details.get("pts_ep_flow",    0), 15),
-        ("Fonds d'urgence",    details.get("pts_fonds",      0), 20),
-        ("Règle 50/30/20",     details.get("pts_503020",     0), 25),
-        ("Engagement",         details.get("pts_engagement", 0), 15),
+        ("Reste à vivre",       details.get("pts_reste",      0), 25),
+        ("Épargne du mois",     details.get("pts_ep_flow",    0), 15),
+        ("Fonds d'urgence",     details.get("pts_fonds",      0), 20),
+        ("Dépenses équilibrées", details.get("pts_503020",    0), 25),
+        ("Engagement",          details.get("pts_engagement", 0), 15),
     ]
     rows_html = ""
     for label, pts, max_pts in rows:
