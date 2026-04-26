@@ -53,33 +53,22 @@ def render(audit) -> str:
             st.session_state.sb_expanded = True
         sb_exp = st.session_state.sb_expanded
 
-        # ── COLLAPSED state: thin strip with just the ☰ toggle ───────────────
-        if not sb_exp:
-            st.markdown("""<style>
-section[data-testid="stSidebar"] > div:first-child {
-    min-width: 68px !important;
-    max-width: 68px !important;
-    width: 68px !important;
-    overflow: hidden !important;
-}
-</style>""", unsafe_allow_html=True)
-            if st.button("☰", key="sb_toggle", use_container_width=True):
-                st.session_state.sb_expanded = True
-                st.rerun()
-            now = datetime.now()
-            return f"{now.month:02d}/{now.year}"
-
-        # ── EXPANDED state ───────────────────────────────────────────────────
-        # 1. Title bar: logo + toggle
+        # ── 1. Title bar: logo + toggle (always rendered) ────────────────────
         c_logo, c_toggle = st.columns([5, 1], gap="small")
         with c_logo:
             if st.button("💰  Finance SaaS", key="nav_logo", use_container_width=True):
                 st.session_state.page = "Accueil"
                 st.rerun()
         with c_toggle:
-            if st.button("✕", key="sb_toggle", use_container_width=True):
-                st.session_state.sb_expanded = False
+            if st.button("✕" if sb_exp else "☰", key="sb_toggle",
+                         use_container_width=True):
+                st.session_state.sb_expanded = not sb_exp
                 st.rerun()
+
+        # When collapsed, render only the title bar — skip the rest
+        if not sb_exp:
+            now = datetime.now()
+            return f"{now.month:02d}/{now.year}"
 
         # Username — centered under logo with rule lines: ─── Kamal ───
         if _username:
