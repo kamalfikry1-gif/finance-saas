@@ -28,22 +28,20 @@ div[data-testid="stToolbar"]  {{ display: none !important; }}
 #MainMenu {{ visibility: hidden !important; }}
 footer    {{ visibility: hidden !important; }}
 
-/* Keep native sidebar collapsed-control visible and styled */
-div[data-testid="stSidebarCollapsedControl"] {{
-    display: flex !important;
+/* Force sidebar always visible — native collapse disabled, topbar ☰ controls content */
+section[data-testid="stSidebar"] {{
+    transform: translateX(0) !important;
+    display: block !important;
     visibility: visible !important;
-    background: var(--bg-card) !important;
-    border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
-    border: 1px solid var(--border) !important;
-    border-left: none !important;
-    top: 12px !important;
-    width: 20px !important;
-    padding: 8px 4px !important;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.4) !important;
+    min-width: 244px !important;
+    width: 244px !important;
 }}
-div[data-testid="stSidebarCollapsedControl"] button {{
-    color: var(--primary) !important;
-    font-size: 14px !important;
+/* Hide native collapse arrow (our topbar handles toggling) */
+div[data-testid="stSidebarCollapsedControl"] {{
+    display: none !important;
+}}
+button[data-testid="baseButton-header"] {{
+    display: none !important;
 }}
 
 /* Reduce Streamlit default top padding */
