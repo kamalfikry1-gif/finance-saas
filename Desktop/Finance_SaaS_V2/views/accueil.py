@@ -952,6 +952,29 @@ def _render_coach_panel(
             f'Aucun objectif défini</div>'
         )
 
+    # ── Épargne breakdown (single source of truth model) ─────────────────────
+    epargne_allouee = sum(
+        float(g.get("montant_actuel") or g.get("Montant_Actuel") or 0)
+        for g in unique_goals
+    )
+    epargne_libre = max(0.0, epargne_total - epargne_allouee)
+    libre_color = (
+        T.SUCCESS if epargne_libre >= epargne_total * 0.5
+        else T.PRIMARY if epargne_libre > 0
+        else T.WARNING
+    )
+    # Pre-built HTML rows (avoids backslash-in-f-string issues)
+    ep_alloc_row = (
+        f'<div style="display:flex;justify-content:space-between;'
+        f'align-items:center;margin-bottom:10px">'
+        f'<span style="color:{T.TEXT_LOW};font-size:12px">→ Objectifs alloués</span>'
+        f'<span style="color:{T.WARNING};font-size:13px;font-weight:600">'
+        f'− {_fmt_dh(epargne_allouee)} DH</span></div>'
+    ) if epargne_allouee > 0 else ""
+    ep_sep = (
+        '<div style="height:1px;background:rgba(255,255,255,0.08);margin-bottom:10px"></div>'
+    ) if epargne_allouee > 0 else ""
+
     # ── Rappel HTML ───────────────────────────────────────────────────────────
     if ep is not None:
         reel = float(ep.get("Montant_Reel", 0) or 0)
@@ -1022,13 +1045,23 @@ def _render_coach_panel(
         f'    {extra_goals_lbl}'
         f'  </div>'
         f'{_div}'
-        # 5 — Épargne totale cumulée
+        # 5 — Épargne breakdown: totale → allouée → libre
         f'  <div class="cp-section">'
-        f'    <div class="cp-section-lbl">Épargne totale</div>'
+        f'    <div class="cp-section-lbl">Épargne</div>'
+        f'    <div style="display:flex;justify-content:space-between;'
+        f'      align-items:center;margin-bottom:6px">'
+        f'      <span style="color:{T.TEXT_LOW};font-size:12px">Totale</span>'
+        f'      <span style="color:{T.TEXT_MED};font-size:13px;font-weight:600">'
+        f'        {_fmt_dh(epargne_total)} DH</span>'
+        f'    </div>'
+        f'    {ep_alloc_row}'
+        f'    {ep_sep}'
         f'    <div style="display:flex;justify-content:space-between;align-items:center">'
-        f'      <span style="color:{T.TEXT_LOW};font-size:12px">Cumulé historique</span>'
-        f'      <span style="color:{T.PRIMARY};font-size:18px;font-weight:900">'
-        f'        {_fmt_dh(epargne_total)} <span style="font-size:11px;font-weight:400;color:{T.TEXT_MED}">DH</span>'
+        f'      <span style="color:{T.TEXT_MED};font-size:12px;font-weight:700;'
+        f'        text-transform:uppercase;letter-spacing:0.5px">Libre</span>'
+        f'      <span style="color:{libre_color};font-size:18px;font-weight:900">'
+        f'        {_fmt_dh(epargne_libre)}'
+        f'        <span style="font-size:11px;font-weight:400;color:{T.TEXT_LOW}"> DH</span>'
         f'      </span>'
         f'    </div>'
         f'  </div>'
