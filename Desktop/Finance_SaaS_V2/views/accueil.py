@@ -919,28 +919,33 @@ def _render_coach_panel(
     except Exception:
         ep = None
 
-    # ── Goal HTML ─────────────────────────────────────────────────────────────
-    if first_goal:
-        g_target  = float(first_goal.get("montant_cible") or first_goal.get("Montant_Cible") or 0)
-        g_current = float(first_goal.get("montant_actuel") or first_goal.get("Montant_Actuel") or 0)
-        g_pct     = min(100, round(g_current / g_target * 100)) if g_target > 0 else 0
-        g_nom     = first_goal.get("nom") or first_goal.get("Nom") or "Objectif"
-        g_date    = first_goal.get("date_cible") or first_goal.get("Date_Cible") or ""
-        goal_html = (
-            f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">'
-            f'  <span style="font-size:13px;font-weight:600;color:{T.TEXT_HIGH}">🎯 {g_nom}</span>'
-            f'  <span style="font-size:11px;color:{T.TEXT_LOW}">{g_date}</span>'
-            f'</div>'
-            f'<div class="cat-bar-v2" style="margin-bottom:8px">'
-            f'  <div class="cat-bar-fill-v2" style="width:{g_pct}%;'
-            f'    background:linear-gradient(90deg,{T.PRIMARY},{T.SUCCESS})"></div>'
-            f'</div>'
-            f'<div style="display:flex;justify-content:space-between;font-size:12px;color:{T.TEXT_MED}">'
-            f'  <span><span style="color:{T.TEXT_HIGH};font-weight:600">{_fmt_dh(g_current)}</span>'
-            f'  / {_fmt_dh(g_target)} DH</span>'
-            f'  <span>{g_pct}%</span>'
-            f'</div>'
-        )
+    # ── Goal HTML — up to 3 goals ─────────────────────────────────────────────
+    if unique_goals:
+        goal_html = ""
+        for idx, g in enumerate(unique_goals[:3]):
+            g_target  = float(g.get("montant_cible") or g.get("Montant_Cible") or 0)
+            g_current = float(g.get("montant_actuel") or g.get("Montant_Actuel") or 0)
+            g_pct     = min(100, round(g_current / g_target * 100)) if g_target > 0 else 0
+            g_nom     = g.get("nom") or g.get("Nom") or "Objectif"
+            g_date    = g.get("date_cible") or g.get("Date_Cible") or ""
+            sep       = ('<div style="height:1px;background:rgba(255,255,255,0.04);'
+                         'margin:10px 0"></div>') if idx > 0 else ""
+            goal_html += (
+                f'{sep}'
+                f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
+                f'  <span style="font-size:13px;font-weight:600;color:{T.TEXT_HIGH}">🎯 {g_nom}</span>'
+                f'  <span style="font-size:11px;color:{T.TEXT_LOW}">{g_date}</span>'
+                f'</div>'
+                f'<div class="cat-bar-v2" style="margin-bottom:5px">'
+                f'  <div class="cat-bar-fill-v2" style="width:{g_pct}%;'
+                f'    background:linear-gradient(90deg,{T.PRIMARY},{T.SUCCESS})"></div>'
+                f'</div>'
+                f'<div style="display:flex;justify-content:space-between;font-size:12px;color:{T.TEXT_MED}">'
+                f'  <span><span style="color:{T.TEXT_HIGH};font-weight:600">{_fmt_dh(g_current)}</span>'
+                f'  / {_fmt_dh(g_target)} DH</span>'
+                f'  <span>{g_pct}%</span>'
+                f'</div>'
+            )
     else:
         goal_html = (
             f'<div style="color:{T.TEXT_LOW};font-size:12px;text-align:center;padding:4px 0">'
@@ -978,8 +983,8 @@ def _render_coach_panel(
     # ── Full card ─────────────────────────────────────────────────────────────
     extra_goals_lbl = (
         f'<div style="color:{T.PRIMARY};font-size:11px;font-weight:600;margin-top:10px">'
-        f'Voir les {len(unique_goals)} objectifs ›</div>'
-    ) if first_goal and len(unique_goals) > 1 else ""
+        f'+{len(unique_goals) - 3} autres ›</div>'
+    ) if len(unique_goals) > 3 else ""
 
     st.markdown(
         f'<div class="coach-panel">'
@@ -1031,8 +1036,8 @@ def _render_coach_panel(
         unsafe_allow_html=True,
     )
 
-    # "Voir les X objectifs" — clickable, sits flush under the card
-    if first_goal and len(unique_goals) > 1:
+    # "Voir tous les objectifs" — only when overflow beyond 3
+    if len(unique_goals) > 3:
         if st.button(f"Voir les {len(unique_goals)} objectifs →", key="cp_more_goals",
                      use_container_width=True, type="secondary"):
             st.session_state.page = "Objectif"
@@ -1068,7 +1073,7 @@ def _render_coach_panel(
                         st.error("Enregistrement échoué.")
 
     # Goal CTA if none defined
-    if not first_goal:
+    if not unique_goals:
         if st.button("🎯 Créer un objectif →", key="cp_goal_cta",
                      use_container_width=True, type="secondary"):
             st.session_state.page = "Objectif"
