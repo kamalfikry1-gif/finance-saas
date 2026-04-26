@@ -682,11 +682,25 @@ summary {{
     height: 1px;
     background: rgba(255,255,255,0.05);
 }}
-.cp-score {{
-    padding: 10px 20px 14px;
+.cp-score-row {{
     display: flex;
-    flex-direction: column;
     align-items: center;
+    gap: 18px;
+    padding: 14px 20px 16px;
+}}
+.cp-score-num {{
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}}
+.cp-score-denom {{
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-low);
+    margin-left: 2px;
 }}
 .cp-message {{
     padding: 14px 20px;

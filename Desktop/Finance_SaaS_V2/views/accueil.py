@@ -897,7 +897,6 @@ def _render_coach_panel(
                       score.get("niveau", ""), score.get("niveau", ""))
     initials   = (identite or "?")[:1].upper()
     mood_cls   = _mood_class(humeur)
-    gauge      = _gauge_svg(score_val, score_col)
     suggested_ep = max(0.0, float(proj.get("solde_projete", 0) or 0))
 
     # Goals data
@@ -986,13 +985,17 @@ def _render_coach_panel(
         f'    </div>'
         f'    <span class="mood-pill-v1 {mood_cls}">{humeur}</span>'
         f'  </div>'
-        # 2 — Score (no divider — merges visually with header)
-        f'  <div class="cp-score">'
-        f'    {gauge}'
-        f'    <div style="text-align:center;margin-top:-10px">'
-        f'      <div class="gauge-num" style="color:{score_col}">{score_val:.0f}</div>'
-        f'      <div class="gauge-total">sur 100</div>'
-        f'      <div class="gauge-label" style="color:{score_col}">{niveau_fr}</div>'
+        # 2 — Score bar (compact horizontal — no divider, merges with header)
+        f'  <div class="cp-score-row">'
+        f'    <div class="cp-score-num" style="color:{score_col}">{score_val:.0f}'
+        f'      <span class="cp-score-denom">/100</span>'
+        f'    </div>'
+        f'    <div style="flex:1">'
+        f'      <div style="font-size:10px;font-weight:700;text-transform:uppercase;'
+        f'        letter-spacing:1.5px;color:{score_col};margin-bottom:8px">{niveau_fr}</div>'
+        f'      <div class="cat-bar-v2" style="height:5px">'
+        f'        <div class="cat-bar-fill-v2" style="width:{score_val:.0f}%;background:{score_col}"></div>'
+        f'      </div>'
         f'    </div>'
         f'  </div>'
         f'{_div}'
