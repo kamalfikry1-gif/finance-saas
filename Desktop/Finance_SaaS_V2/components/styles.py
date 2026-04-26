@@ -44,11 +44,14 @@ button[data-testid="baseButton-header"] {{
 
 /* Reduce Streamlit default padding — minimize gap between sidebar & content */
 .block-container {{
-    padding-top: 0.5rem !important;
-    padding-bottom: 1rem !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
-    max-width: 100% !important;
+    padding: 0.5rem 1rem 1rem 1rem !important;
+    max-width: none !important;
+    width: 100% !important;
+}}
+/* Override Streamlit's main content width constraints */
+.main .block-container,
+section.main > div {{
+    max-width: none !important;
 }}
 
 section[data-testid="stSidebar"] {{
