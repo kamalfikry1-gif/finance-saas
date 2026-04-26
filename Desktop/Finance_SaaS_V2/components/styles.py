@@ -28,6 +28,24 @@ div[data-testid="stToolbar"]  {{ display: none !important; }}
 #MainMenu {{ visibility: hidden !important; }}
 footer    {{ visibility: hidden !important; }}
 
+/* Keep native sidebar collapsed-control visible and styled */
+div[data-testid="stSidebarCollapsedControl"] {{
+    display: flex !important;
+    visibility: visible !important;
+    background: {T.BG_CARD} !important;
+    border-radius: 0 {T.RADIUS_MD} {T.RADIUS_MD} 0 !important;
+    border: 1px solid {T.BORDER} !important;
+    border-left: none !important;
+    top: 12px !important;
+    width: 20px !important;
+    padding: 8px 4px !important;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.4) !important;
+}}
+div[data-testid="stSidebarCollapsedControl"] button {{
+    color: {T.PRIMARY} !important;
+    font-size: 14px !important;
+}}
+
 /* Reduce Streamlit default top padding */
 .block-container {{
     padding-top: 0.5rem !important;
