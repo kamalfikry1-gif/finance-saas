@@ -33,10 +33,15 @@ section[data-testid="stSidebar"] {{
     transform: translateX(0) !important;
     display: block !important;
     visibility: visible !important;
-    min-width: 244px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+    width: 200px !important;
 }}
 section[data-testid="stSidebar"] > div {{
     visibility: visible !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+    width: 200px !important;
 }}
 
 /* Reduce Streamlit default padding — minimize gap between sidebar & content */
