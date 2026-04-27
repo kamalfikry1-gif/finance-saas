@@ -413,23 +413,31 @@ class AuditMiddleware:
 
     def creer_daret(self, nom: str, montant_mensuel: float, membres: list,
                     date_debut: str, notes: str = "",
-                    tirage_seed: Optional[int] = None) -> None:
+                    tirage_seed: Optional[int] = None) -> Dict[str, Any]:
         """Create a daret. If tirage_seed is provided, the (already-shuffled)
         members order is recorded with the seed so anyone can verify fairness:
             random.Random(seed).shuffle(original_list) → recorded order.
+
+        Returns: {"id": int, "invite_token": str} of the created daret.
         """
         import json, secrets
         invite_token = secrets.token_urlsafe(12)
+        new_id = None
         with self.db.connexion() as conn:
-            conn.execute(
+            cur = conn.execute(
                 """INSERT INTO DARETS
                    (Nom, Montant_Mensuel, Nb_Membres, Membres_JSON, Tour_Actuel,
                     Date_Debut, Statut, Notes, invite_token, Tirage_Seed, user_id)
-                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s,%s,%s)""",
+                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s,%s,%s)
+                   RETURNING id""",
                 (nom.strip(), montant_mensuel, len(membres),
                  json.dumps(membres, ensure_ascii=False),
                  date_debut, notes.strip(), invite_token, tirage_seed, self.user_id),
             )
+            row = cur.fetchone() if cur else None
+            if row:
+                new_id = row[0] if not hasattr(row, "keys") else row["id"]
+        return {"id": new_id, "invite_token": invite_token}
 
     def avancer_tour_daret(self, daret_id: int) -> None:
         with self.db.connexion() as conn:
