@@ -560,6 +560,7 @@ class DatabaseManager:
         self.ensure_regles_sous_categorie()
         self._ensure_admin_column()
         self._ensure_profile_columns()
+        self._ensure_daret_v2_columns()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
 
@@ -1424,6 +1425,70 @@ class DatabaseManager:
                 )
         except Exception:
             logger.exception("_ensure_profile_columns failed")
+
+    def _ensure_daret_v2_columns(self) -> None:
+        """Add Statuts_JSON + Tirage_Seed to DARETS for the manager dashboard.
+
+        Statuts_JSON stores per-month per-member payment status:
+            {"04/2026": {"Karim": "PAID", "Sara": "DECLARED", "Ali": "PENDING"}}
+        Tirage_Seed records the random seed used for fair member ordering
+        (audit trail — any member can verify the order wasn't manipulated).
+        """
+        try:
+            with self.connexion() as conn:
+                conn.execute(
+                    "ALTER TABLE DARETS"
+                    " ADD COLUMN IF NOT EXISTS Statuts_JSON TEXT DEFAULT '{}',"
+                    " ADD COLUMN IF NOT EXISTS Tirage_Seed BIGINT DEFAULT NULL"
+                )
+        except Exception:
+            logger.exception("_ensure_daret_v2_columns failed")
+
+    def update_daret_statut(self, daret_id: int, mois: str, membre: str, statut: str) -> bool:
+        """Update one cell of the Bloomberg-style status table.
+
+        statut ∈ {'PAID', 'DECLARED', 'PENDING'} (or anything — caller validates).
+        """
+        import json
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT Statuts_JSON FROM DARETS WHERE id = %s",
+                    (daret_id,),
+                ).fetchone()
+                if not row:
+                    return False
+                raw = (row["Statuts_JSON"] if "Statuts_JSON" in row else row[0]) or "{}"
+                try:
+                    statuts = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    statuts = {}
+                statuts.setdefault(mois, {})[membre] = statut
+                conn.execute(
+                    "UPDATE DARETS SET Statuts_JSON = %s WHERE id = %s",
+                    (json.dumps(statuts), daret_id),
+                )
+            return True
+        except Exception:
+            logger.exception("update_daret_statut failed")
+            return False
+
+    def get_daret_statuts(self, daret_id: int) -> dict:
+        """Returns the per-month per-member status dict (or {} if none)."""
+        import json
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT Statuts_JSON FROM DARETS WHERE id = %s",
+                    (daret_id,),
+                ).fetchone()
+            if not row:
+                return {}
+            raw = (row["Statuts_JSON"] if "Statuts_JSON" in row else row[0]) or "{}"
+            data = json.loads(raw)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
 
     def get_user_profile(self, user_id: int) -> dict:
         """Returns {username, nom, email} or empty dict if not found."""
