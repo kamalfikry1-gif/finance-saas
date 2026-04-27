@@ -54,9 +54,9 @@ See "CURRENT SPRINT" above.
 - [ ] **Reference points on estimation sliders** — "Moyenne MA pour ce revenu = X DH" hints to help users who don't know their numbers
 
 ### Sprint 3 — Mon compte + month visibility lite + Daret Manager
-- [ ] Mon compte: real name, email, change password (bcrypt-aware)
-- [ ] Mon compte: delete account flow (with confirmation)
-- [ ] Mon compte: data export button (trust signal)
+- [x] Mon compte: real name, email, change password (bcrypt-aware) — commit A1
+- [x] Mon compte: data export button (JSON download) — commit A2
+- [x] Mon compte: delete account flow (type-SUPPRIMER confirmation) — commit A3
 - [ ] Customizable: fonds d'urgence target (default 3 mois)
 - [ ] Customizable: 50/30/20 category overrides UI
 - [x] **Block C — Tendances page** (Month visibility, shipped):

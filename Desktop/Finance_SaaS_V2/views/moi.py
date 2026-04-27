@@ -224,6 +224,77 @@ def render(ctx: dict) -> None:
     if st.button("🚪 Se déconnecter", key="moi_logout_btn", type="secondary"):
         _logout_dialog()
 
+    # ── Zone dangereuse : suppression définitive du compte ───────────────────
+    _render_delete_account_section(audit)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Section: Suppression définitive du compte
+# ════════════════════════════════════════════════════════════════════════════
+def _render_delete_account_section(audit) -> None:
+    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="border-top:1px solid {T.DANGER}30;padding-top:18px">'
+        f'  <div style="color:{T.DANGER};font-size:11px;font-weight:700;'
+        f'    text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">'
+        f'    ⚠️ Zone dangereuse</div>'
+        f'  <div style="color:{T.TEXT_MED};font-size:12px;line-height:1.5;margin-bottom:12px">'
+        f"    Supprimer définitivement ton compte efface toutes tes données :"
+        f"    transactions, objectifs, épargne, daret, préférences, historique."
+        f"    <b style='color:{T.DANGER}'> Cette action est irréversible.</b>"
+        f'  </div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    @st.dialog("Supprimer mon compte définitivement")
+    def _delete_dialog():
+        st.markdown(
+            f'<div style="background:{T.DANGER_GLO};border-left:3px solid {T.DANGER};'
+            f'padding:14px 18px;border-radius:{T.RADIUS_MD};margin-bottom:14px">'
+            f'  <div style="color:{T.DANGER};font-size:13px;font-weight:700;margin-bottom:6px">'
+            f'    🚨 Action irréversible</div>'
+            f'  <div style="color:{T.TEXT_HIGH};font-size:12px;line-height:1.55">'
+            f"    Toutes tes données seront effacées de manière permanente."
+            f"    Tu seras déconnecté immédiatement et tu ne pourras pas récupérer ton compte."
+            f'  </div>'
+            f'</div>'
+            f'<div style="color:{T.TEXT_LOW};font-size:12px;margin-bottom:6px">'
+            f"  💡 Avant de supprimer, pense à <b style='color:{T.PRIMARY}'>exporter tes données</b>"
+            f"  (bouton 📥 dans la section Profil)."
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        confirm = st.text_input(
+            "Pour confirmer, tape SUPPRIMER ci-dessous",
+            key="moi_delete_confirm_input",
+            placeholder="SUPPRIMER",
+        )
+        enabled = confirm.strip() == "SUPPRIMER"
+
+        c_a, c_b = st.columns(2)
+        with c_a:
+            if st.button("Annuler", key="moi_delete_cancel", use_container_width=True):
+                st.rerun()
+        with c_b:
+            if st.button("🗑️ Supprimer définitivement",
+                         key="moi_delete_confirm",
+                         type="primary",
+                         use_container_width=True,
+                         disabled=not enabled):
+                ok = audit.db.delete_user_account(audit.user_id)
+                if ok:
+                    _invalider_cache()
+                    st.session_state.clear()
+                    st.success("Compte supprimé. À bientôt 👋")
+                    st.rerun()
+                else:
+                    st.error("Erreur lors de la suppression — réessaye ou contacte le support.")
+
+    if st.button("🗑️ Supprimer mon compte", key="moi_delete_btn", type="secondary"):
+        _delete_dialog()
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # Section: Profil (Name + Email + Change password)

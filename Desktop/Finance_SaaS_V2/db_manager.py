@@ -1325,6 +1325,32 @@ class DatabaseManager:
                 counts["_date_creation_reset"] = f"skipped ({type(e).__name__})"
         return counts
 
+    def delete_user_account(self, user_id: int) -> bool:
+        """
+        DESTRUCTIVE & IRREVERSIBLE: wipes all user data + deletes the UTILISATEURS row.
+        Returns True if the account row was actually removed.
+
+        Used by the 'Supprimer mon compte' flow in Mon compte. Caller is responsible
+        for clearing session state and redirecting to login afterwards.
+        """
+        # First wipe all user-scoped tables (reuses reset_user_data, but skip
+        # the date_creation reset since the row will be deleted anyway).
+        try:
+            self.reset_user_data(user_id)
+        except Exception:
+            logger.exception("delete_user_account: reset_user_data step failed")
+
+        # Then delete the UTILISATEURS row itself.
+        try:
+            with self.connexion() as conn:
+                cur = conn.execute(
+                    "DELETE FROM UTILISATEURS WHERE id = %s", (user_id,)
+                )
+                return (cur.rowcount or 0) > 0
+        except Exception:
+            logger.exception("delete_user_account: UTILISATEURS delete failed")
+            return False
+
     def get_user_date_creation(self, user_id: int):
         """Signup date of the user (returns date or None)."""
         try:
