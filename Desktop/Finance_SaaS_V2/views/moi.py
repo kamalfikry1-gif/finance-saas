@@ -294,6 +294,145 @@ def _render_personnalisation_section(audit) -> None:
             st.success(f"✅ Objectif mis à jour : {target} mois")
             st.rerun()
 
+    # ── 50/30/20 category classification ────────────────────────────────────
+    _render_503020_overrides(audit)
+
+
+def _render_503020_overrides(audit) -> None:
+    """Per-category Besoin/Envie/Épargne classification UI.
+    Unlocks the 25-pt 'Dépenses équilibrées' factor in the score."""
+    from config import (
+        DEFAULT_503020_MAPPING, CAT_TYPE_BESOIN, CAT_TYPE_ENVIE, CAT_TYPE_EPARGNE,
+    )
+
+    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="color:{T.TEXT_HIGH};font-size:13px;font-weight:600;margin-bottom:4px">'
+        f'⚖️ Classification 50/30/20</div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-bottom:10px">'
+        f"Pour chaque catégorie : Besoin, Envie ou Épargne. "
+        f"Les catégories non classées bloquent ton score Dépenses équilibrées (25 pts)."
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Get user's distinct categories (from transactions over all time)
+    try:
+        with audit.db.connexion() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT Categorie FROM TRANSACTIONS "
+                "WHERE user_id = %s AND Categorie IS NOT NULL AND Categorie != '' "
+                "AND Sens = 'OUT' "
+                "ORDER BY Categorie",
+                (audit.user_id,),
+            ).fetchall()
+        user_cats = [r["Categorie"] if "Categorie" in r else r[0] for r in rows]
+    except Exception:
+        user_cats = []
+
+    if not user_cats:
+        st.info("Tu n'as pas encore de catégories utilisées. Logue quelques dépenses puis reviens ici.")
+        return
+
+    # Load existing overrides
+    overrides = _load_503020_overrides(audit)
+
+    # Show stats: how many classified / unclassified
+    classified_count = 0
+    unclassified_cats = []
+    for cat in user_cats:
+        if overrides.get(cat) or DEFAULT_503020_MAPPING.get(cat):
+            classified_count += 1
+        else:
+            unclassified_cats.append(cat)
+
+    nb_unclassified = len(unclassified_cats)
+    total = len(user_cats)
+    st.markdown(
+        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+        f'border-radius:{T.RADIUS_SM};padding:10px 14px;margin-bottom:14px;'
+        f'display:flex;justify-content:space-between;align-items:center">'
+        f'  <span style="color:{T.TEXT_MED};font-size:12px">'
+        f'    {classified_count}/{total} catégories classées'
+        f'  </span>'
+        f'  <span style="color:{T.WARNING if nb_unclassified > 0 else T.SUCCESS};'
+        f'    font-size:12px;font-weight:600">'
+        f'    {nb_unclassified} non classée(s)' if nb_unclassified > 0 else "Toutes classées ✓"
+        f'  </span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Render: for each category, a selectbox
+    type_labels = {
+        CAT_TYPE_BESOIN:  "🏠 Besoin",
+        CAT_TYPE_ENVIE:   "🎁 Envie",
+        CAT_TYPE_EPARGNE: "💰 Épargne",
+    }
+    options = ["— Non classé —", type_labels[CAT_TYPE_BESOIN], type_labels[CAT_TYPE_ENVIE], type_labels[CAT_TYPE_EPARGNE]]
+    label_to_type = {v: k for k, v in type_labels.items()}
+
+    new_overrides = dict(overrides)  # copy
+    changed = False
+
+    with st.expander(f"Voir et classer ({total} catégories)", expanded=(nb_unclassified > 0)):
+        for cat in user_cats:
+            current_type = overrides.get(cat) or DEFAULT_503020_MAPPING.get(cat)
+            current_label = type_labels.get(current_type, options[0])
+            try:
+                current_idx = options.index(current_label)
+            except ValueError:
+                current_idx = 0
+
+            c1, c2 = st.columns([2, 3])
+            with c1:
+                st.markdown(
+                    f'<div style="color:{T.TEXT_HIGH};font-size:13px;'
+                    f'padding:8px 0">{cat}</div>',
+                    unsafe_allow_html=True,
+                )
+            with c2:
+                selected = st.selectbox(
+                    f"Type {cat}",
+                    options=options,
+                    index=current_idx,
+                    key=f"moi_503020_{cat}",
+                    label_visibility="collapsed",
+                )
+                new_type = label_to_type.get(selected)
+                # Only persist user-set overrides (not defaults)
+                if new_type != overrides.get(cat):
+                    if new_type is None:
+                        new_overrides.pop(cat, None)
+                    else:
+                        new_overrides[cat] = new_type
+                    changed = True
+
+    if changed:
+        if st.button("💾 Sauvegarder les classifications",
+                     key="moi_save_503020", type="primary"):
+            import json
+            audit.db.set_preference(
+                "cat_503020_overrides_json",
+                json.dumps(new_overrides),
+                audit.user_id,
+            )
+            _invalider_cache()
+            st.success(f"✅ Classifications sauvegardées ({len(new_overrides)} override(s))")
+            st.rerun()
+
+
+def _load_503020_overrides(audit) -> dict:
+    import json
+    raw = audit.db.get_preference("cat_503020_overrides_json", audit.user_id, "{}")
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # Section: Suppression définitive du compte

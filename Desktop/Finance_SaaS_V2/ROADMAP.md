@@ -57,8 +57,8 @@ See "CURRENT SPRINT" above.
 - [x] Mon compte: real name, email, change password (bcrypt-aware) — commit A1
 - [x] Mon compte: data export button (JSON download) — commit A2
 - [x] Mon compte: delete account flow (type-SUPPRIMER confirmation) — commit A3
-- [ ] Customizable: fonds d'urgence target (default 3 mois)
-- [ ] Customizable: 50/30/20 category overrides UI
+- [x] Customizable: fonds d'urgence target (default 3 mois) — commit B1
+- [x] Customizable: 50/30/20 category overrides UI + compute_score integration — commit B2
 - [x] **Block C — Tendances page** (Month visibility, shipped):
   - [x] db_manager: `get_solde_mensuel_histo()` + `get_cashflow_mensuel()` (~6 mois)
   - [x] Hero monthly sparkline upgraded to monthly data (replaces 7-day flux)

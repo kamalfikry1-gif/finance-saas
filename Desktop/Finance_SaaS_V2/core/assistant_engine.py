@@ -728,16 +728,29 @@ def _jours_depuis_iso(iso_date_str: Optional[str]) -> int:
         return 999
 
 
+def _load_503020_overrides(audit) -> dict:
+    """User-defined per-category 50/30/20 overrides from PREFERENCES."""
+    import json
+    raw = audit.db.get_preference("cat_503020_overrides_json", audit.user_id, "{}")
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
 def _compute_503020_split(audit, mois: str) -> tuple:
     """
     Compute (pct_besoins, pct_envies, pct_epargne_split, nb_unclassified, top_dep_cat).
 
     Algo:
       - For each category in this month's spending:
-        - If in DEFAULT_503020_MAPPING (or override): bucket the amount
+        - User override (PREFERENCES.cat_503020_overrides_json) takes precedence
+        - Else fall back to DEFAULT_503020_MAPPING
         - Else: count as unclassified (do NOT include in pct calc)
       - Pct computed only over classified amounts.
-      - Returns the most-spending category (for advice tailoring).
     """
     try:
         repart = audit.moteur.get_repartition_par_categorie(mois)
@@ -747,14 +760,16 @@ def _compute_503020_split(audit, mois: str) -> tuple:
     if repart.empty:
         return (0.0, 0.0, 0.0, 0, "")
 
+    overrides = _load_503020_overrides(audit)
     sums = {CAT_TYPE_BESOIN: 0.0, CAT_TYPE_ENVIE: 0.0, CAT_TYPE_EPARGNE: 0.0}
     nb_unclassified = 0
 
     for _, row in repart.iterrows():
         cat = row.get("Categorie") or ""
         amt = float(row.get("Total_DH") or 0)
-        cat_type = DEFAULT_503020_MAPPING.get(cat)
-        if cat_type is None:
+        # Override wins over default mapping
+        cat_type = overrides.get(cat) or DEFAULT_503020_MAPPING.get(cat)
+        if cat_type is None or cat_type not in sums:
             nb_unclassified += 1
             continue
         sums[cat_type] += amt
