@@ -257,12 +257,32 @@ def _render_profile_section(audit) -> None:
         unsafe_allow_html=True,
     )
 
-    if st.button("💾 Sauvegarder le profil", key="moi_save_profile", type="primary"):
-        ok = audit.db.update_user_profile(audit.user_id, nom, email)
-        if ok:
-            st.success("✅ Profil mis à jour")
-        else:
-            st.error("Erreur lors de la sauvegarde — réessaye.")
+    c_save, c_export = st.columns([1, 1])
+    with c_save:
+        if st.button("💾 Sauvegarder le profil", key="moi_save_profile",
+                     type="primary", use_container_width=True):
+            ok = audit.db.update_user_profile(audit.user_id, nom, email)
+            if ok:
+                st.success("✅ Profil mis à jour")
+            else:
+                st.error("Erreur lors de la sauvegarde — réessaye.")
+    with c_export:
+        # Build export on-demand (avoid heavy work on every render)
+        from datetime import date as _date
+        try:
+            export = audit.db.export_user_data(audit.user_id)
+            payload = json.dumps(export, ensure_ascii=False, indent=2)
+            st.download_button(
+                "📥 Exporter mes données (JSON)",
+                data=payload,
+                file_name=f"finance_saas_export_{_date.today().isoformat()}.json",
+                mime="application/json",
+                key="moi_export_json",
+                use_container_width=True,
+                help="Télécharge toutes tes données personnelles — transactions, objectifs, épargne, préférences.",
+            )
+        except Exception:
+            st.error("Erreur lors de la préparation de l'export.")
 
     # ── Change password ─────────────────────────────────────────────────────
     with st.expander("🔒 Changer mon mot de passe", expanded=False):

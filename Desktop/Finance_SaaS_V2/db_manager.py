@@ -1198,6 +1198,88 @@ class DatabaseManager:
         except Exception:
             return 0.0
 
+    def export_user_data(self, user_id: int) -> dict:
+        """
+        Build a complete export of all user-scoped data as a serializable dict.
+        Used for the data-export trust signal in Mon compte.
+
+        Returns: {
+            "exported_at": ISO timestamp,
+            "user": {username, nom, email, member_since},
+            "transactions": [...],
+            "objectifs": [...],
+            "epargne_histo": [...],
+            "darets": [...],
+            "preferences": {key: value},
+            "budgets_mensuels": [...],
+            "journal_humeur": [...],
+        }
+        """
+        from datetime import datetime as _dt
+
+        def _rows(table: str) -> list:
+            try:
+                with self.connexion() as conn:
+                    rows = conn.execute(
+                        f"SELECT * FROM {table} WHERE user_id = %s", (user_id,)
+                    ).fetchall()
+                return [dict(r) if hasattr(r, "keys") else dict(zip(r._fields, r)) for r in rows]
+            except Exception:
+                return []
+
+        # Stringify dates / datetimes / Decimals for JSON-safety
+        def _serialize(obj):
+            if isinstance(obj, list):
+                return [_serialize(x) for x in obj]
+            if isinstance(obj, dict):
+                return {k: _serialize(v) for k, v in obj.items()}
+            if hasattr(obj, "isoformat"):
+                return obj.isoformat()
+            try:
+                from decimal import Decimal
+                if isinstance(obj, Decimal):
+                    return float(obj)
+            except ImportError:
+                pass
+            return obj
+
+        profile = self.get_user_profile(user_id)
+        date_creation = self.get_user_date_creation(user_id)
+
+        # Preferences as a flat key→value dict
+        try:
+            with self.connexion() as conn:
+                pref_rows = conn.execute(
+                    "SELECT Cle, Valeur FROM PREFERENCES WHERE user_id = %s",
+                    (user_id,),
+                ).fetchall()
+            prefs = {
+                (r["Cle"] if "Cle" in r else r[0]): (r["Valeur"] if "Valeur" in r else r[1])
+                for r in pref_rows
+            }
+        except Exception:
+            prefs = {}
+
+        export = {
+            "exported_at":      _dt.now().isoformat(timespec="seconds"),
+            "schema_version":   1,
+            "user": {
+                "username":     profile.get("username", ""),
+                "nom":          profile.get("nom", ""),
+                "email":        profile.get("email", ""),
+                "member_since": date_creation.isoformat() if date_creation else None,
+            },
+            "transactions":     _rows("TRANSACTIONS"),
+            "objectifs":        _rows("OBJECTIFS"),
+            "epargne_histo":    _rows("EPARGNE_HISTO"),
+            "darets":           _rows("DARETS"),
+            "preferences":      prefs,
+            "budgets_mensuels": _rows("BUDGETS_MENSUELS"),
+            "journal_humeur":   _rows("JOURNAL_HUMEUR"),
+        }
+
+        return _serialize(export)
+
     def reset_user_data(self, user_id: int) -> dict:
         """
         DESTRUCTIVE: deletes all user-scoped data, keeps the UTILISATEURS row.
