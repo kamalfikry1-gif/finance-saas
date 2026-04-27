@@ -71,6 +71,7 @@ def render_public(db, token: str) -> None:
     date_debut  = (daret.get("Date_Debut") or "")[:10]
     cagnotte    = montant * nb
     notes       = daret.get("Notes") or ""
+    seed        = daret.get("Tirage_Seed")
 
     try:
         membres = json.loads(daret.get("Membres_JSON") or "[]")
@@ -95,6 +96,9 @@ def render_public(db, token: str) -> None:
         f'    {nom}</div>'
         f'  <div style="color:{T.TEXT_MED};font-size:13px">'
         f'    {len(membres)} membres · {_dh(montant)} DH/mois · début {date_debut}'
+        + (f' · <span style="color:{T.PRIMARY}" '
+           f'title="Vérifiable: random.Random({seed}).shuffle(membres) reproduit cet ordre">'
+           f'🎲 tirage seed {seed}</span>' if seed else "") +
         f'  </div>'
         f'  <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap">'
         f'    <div>'

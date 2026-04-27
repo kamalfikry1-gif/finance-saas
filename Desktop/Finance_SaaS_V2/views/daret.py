@@ -101,6 +101,15 @@ def _render_form_creation(audit) -> None:
             unsafe_allow_html=True,
         )
 
+    # Tirage au sort — fair random ordering with audit-trail seed
+    tirage = st.checkbox(
+        "🎲 Tirage au sort (ordre aléatoire des bénéficiaires)",
+        value=True,
+        key="dr_tirage",
+        help="L'app mélange l'ordre de passage avec un seed que tout le groupe peut vérifier. "
+             "Décoche si tu as un ordre précis à respecter.",
+    )
+
     if st.button("Créer le daret", key="dr_save", type="primary"):
         if not nom.strip():
             st.warning("Nom requis.")
@@ -109,14 +118,28 @@ def _render_form_creation(audit) -> None:
         elif len(membres) < 2:
             st.warning("Au moins 2 membres requis.")
         else:
+            import random, secrets
+            final_membres = list(membres)
+            seed = None
+            if tirage:
+                seed = secrets.randbits(31)  # fits BIGINT, share-safe int
+                random.Random(seed).shuffle(final_membres)
+
             audit.creer_daret(
                 nom=nom.strip(),
                 montant_mensuel=float(montant),
-                membres=membres,
+                membres=final_membres,
                 date_debut=str(date_debut),
                 notes=notes.strip(),
+                tirage_seed=seed,
             )
-            st.success(f"✅ Daret « {nom.strip()} » créé avec {len(membres)} membres.")
+            if seed:
+                st.success(
+                    f"✅ Daret « {nom.strip()} » créé · {len(final_membres)} membres · "
+                    f"ordre tiré au sort (seed `{seed}`)."
+                )
+            else:
+                st.success(f"✅ Daret « {nom.strip()} » créé avec {len(final_membres)} membres.")
             st.rerun()
 
 
@@ -162,11 +185,17 @@ def _render_daret_card(audit, d: dict) -> None:
     # Header
     h1, h2 = st.columns([3, 1])
     with h1:
+        seed = d.get("Tirage_Seed")
+        seed_html = (
+            f' · <span style="color:{T.PRIMARY}" '
+            f'title="Vérifiable: random.Random({seed}).shuffle(membres) reproduit cet ordre">'
+            f'🎲 tirage seed {seed}</span>'
+        ) if seed else ""
         st.markdown(
             f'<div style="color:{T.TEXT_HIGH};font-weight:800;font-size:16px">'
             f'🔄 {nom}</div>'
             f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:2px">'
-            f'{nb} membres · {_dh(montant)} DH/mois · début {date_debut}</div>',
+            f'{nb} membres · {_dh(montant)} DH/mois · début {date_debut}{seed_html}</div>',
             unsafe_allow_html=True,
         )
     with h2:

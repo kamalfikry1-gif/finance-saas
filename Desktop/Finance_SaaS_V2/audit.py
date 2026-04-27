@@ -412,18 +412,23 @@ class AuditMiddleware:
         return [_canon_dict(r) for r in rows]
 
     def creer_daret(self, nom: str, montant_mensuel: float, membres: list,
-                    date_debut: str, notes: str = "") -> None:
+                    date_debut: str, notes: str = "",
+                    tirage_seed: Optional[int] = None) -> None:
+        """Create a daret. If tirage_seed is provided, the (already-shuffled)
+        members order is recorded with the seed so anyone can verify fairness:
+            random.Random(seed).shuffle(original_list) → recorded order.
+        """
         import json, secrets
         invite_token = secrets.token_urlsafe(12)
         with self.db.connexion() as conn:
             conn.execute(
                 """INSERT INTO DARETS
                    (Nom, Montant_Mensuel, Nb_Membres, Membres_JSON, Tour_Actuel,
-                    Date_Debut, Statut, Notes, invite_token, user_id)
-                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s,%s)""",
+                    Date_Debut, Statut, Notes, invite_token, Tirage_Seed, user_id)
+                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s,%s,%s)""",
                 (nom.strip(), montant_mensuel, len(membres),
                  json.dumps(membres, ensure_ascii=False),
-                 date_debut, notes.strip(), invite_token, self.user_id),
+                 date_debut, notes.strip(), invite_token, tirage_seed, self.user_id),
             )
 
     def avancer_tour_daret(self, daret_id: int) -> None:
