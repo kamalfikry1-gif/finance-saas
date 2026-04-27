@@ -287,33 +287,47 @@ def _wiz_success(audit) -> None:
         unsafe_allow_html=True,
     )
 
-    if seed:
-        st.markdown(
-            f'<div style="background:{T.PRIMARY_GLO};border-left:3px solid {T.PRIMARY};'
-            f'padding:10px 14px;border-radius:{T.RADIUS_SM};margin-bottom:14px">'
-            f'  <div style="color:{T.TEXT_HIGH};font-size:12px;margin-bottom:4px">'
-            f"    🎲 Ordre tiré au sort (seed <code>{seed}</code>)"
-            f'  </div>'
-            f'  <div style="color:{T.TEXT_MED};font-size:11px">'
-            f"    {' → '.join(membres)}"
-            f'  </div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
+    # ① Invite link FIRST — the action to take before peeking at results.
+    # Sharing the link before revealing the order signals fairness:
+    # everyone discovers the tirage at the same time (via the public view).
     if token:
         st.markdown(
-            f'<div style="color:{T.TEXT_HIGH};font-size:13px;font-weight:600;margin-bottom:6px">'
-            f"📋 Lien d'invitation à partager :"
+            f'<div style="color:{T.TEXT_HIGH};font-size:13px;font-weight:600;margin-bottom:4px">'
+            f"📋 Étape 1 — partage le lien d'invitation"
+            f"</div>"
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-bottom:6px">'
+            f"Envoie-le dans ton groupe WhatsApp <b>avant</b> de regarder "
+            f"l'ordre du tirage — comme ça, vous découvrez le résultat ensemble."
             f"</div>",
             unsafe_allow_html=True,
         )
         st.code(f"?daret={token}", language=None)
         st.markdown(
-            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-bottom:14px">'
-            f"Ajoute ce paramètre à l'URL de l'app puis partage le lien complet "
-            f"dans ton groupe WhatsApp. Toi seul peux marquer les paiements."
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-bottom:18px">'
+            f"Ajoute ce paramètre à l'URL de l'app, puis partage le lien complet. "
+            f"Toi seul pourras marquer les paiements ; tout le monde verra le tableau."
             f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    # ② Tirage order — secondary info, framed as a shared discovery.
+    if seed:
+        st.markdown(
+            f'<div style="color:{T.TEXT_HIGH};font-size:13px;font-weight:600;margin-bottom:4px">'
+            f"🎲 Étape 2 — l'ordre tiré au sort"
+            f"</div>"
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-bottom:8px">'
+            f"Identique pour tous (lien partagé + seed vérifiable). Personne n'a triché."
+            f"</div>"
+            f'<div style="background:{T.PRIMARY_GLO};border-left:3px solid {T.PRIMARY};'
+            f'padding:10px 14px;border-radius:{T.RADIUS_SM};margin-bottom:14px">'
+            f'  <div style="color:{T.TEXT_HIGH};font-size:12px;margin-bottom:4px">'
+            f"    Seed <code>{seed}</code> — vérifiable par n'importe quel membre :"
+            f'  </div>'
+            f'  <div style="color:{T.TEXT_MED};font-size:12px;font-family:monospace">'
+            f"    {' → '.join(membres)}"
+            f'  </div>'
+            f'</div>',
             unsafe_allow_html=True,
         )
 
