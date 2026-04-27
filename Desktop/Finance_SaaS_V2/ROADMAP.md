@@ -59,16 +59,16 @@ See "CURRENT SPRINT" above.
 - [ ] Mon compte: data export button (trust signal)
 - [ ] Customizable: fonds d'urgence target (default 3 mois)
 - [ ] Customizable: 50/30/20 category overrides UI
-- [ ] **Block C — Tendances page** (Month visibility, ~2 commits):
-  - [ ] db_manager: `get_solde_mensuel_histo()` + `get_cashflow_mensuel()` (~6 mois)
-  - [ ] Hero monthly sparkline upgraded to monthly data (replaces 7-day flux)
-  - [ ] New page `views/tendances.py` with sections:
-    - [ ] Up/down monthly bars chart (revenus green up, dépenses red down)
-    - [ ] **Velocity card**: "Daily Avg Spend = X DH/jour · Safe-to-Spend = Y DH/jour reste du mois"
-    - [ ] **Subscription leakage card**: detect récurrents via `get_charges_fixes`, surface total + suggest review
-    - [ ] **Top 3 lists**: catégories les plus chères / merchants fréquents / plus grosses transactions
-    - [ ] 6-month KPI strip (total revenus / dépenses / solde cumulé)
-  - [ ] Add to sidebar nav + first-visit hint
+- [x] **Block C — Tendances page** (Month visibility, shipped):
+  - [x] db_manager: `get_solde_mensuel_histo()` + `get_cashflow_mensuel()` (~6 mois)
+  - [x] Hero monthly sparkline upgraded to monthly data (replaces 7-day flux)
+  - [x] New page `views/tendances.py` with 5 sections:
+    - [x] Up/down monthly bars chart (revenus green up, dépenses red down)
+    - [x] **Velocity card**: Daily Avg + Safe-to-Spend
+    - [x] **Subscription leakage card**: récurrents via `get_charges_fixes` + total + count
+    - [x] **Top 3 lists**: top catégories ce mois + top 3 plus grosses transactions 6m
+    - [x] N-month KPI strip with 3/6/12 selector
+  - [x] Added to sidebar nav (📈 Tendances) + first-visit hint
 - [ ] **Bonus polish**: enrich the 5 status coach messages with 3-part structure (Diagnostic / Plan d'Action / Vision) — ~30 min, big quality jump
 - [ ] **Categories restructure** — rename "Vie Quotidienne" → "Courses maison" + split subcats (Alimentation / Produits ménagers) + extract Transport as own category. Updates: CATEGORIES table, DICO_MATCHING, DEFAULT_503020_MAPPING in config.py, existing transactions migration.
 - [ ] **Daret Manager (solo, ~3 days)**:

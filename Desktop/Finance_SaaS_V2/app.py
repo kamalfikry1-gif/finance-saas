@@ -30,6 +30,7 @@ import views.journal    as page_journal
 import views.plafond    as page_plafond
 import views.objectif   as page_objectif
 import views.epargne    as page_epargne
+import views.tendances  as page_tendances
 import views.daret      as page_daret
 
 from core.data_input import est_onboarding_fait
@@ -252,6 +253,7 @@ elif page == "Journal":    page_journal.render(ctx)
 elif page == "Plafond":    page_plafond.render(ctx)
 elif page == "Objectif":   page_objectif.render(ctx)
 elif page == "Epargne":    page_epargne.render(ctx)
+elif page == "Tendances":  page_tendances.render(ctx)
 elif page == "Daret":      page_daret.render(ctx)
 elif page == "Admin":      page_admin.render(ctx)
 

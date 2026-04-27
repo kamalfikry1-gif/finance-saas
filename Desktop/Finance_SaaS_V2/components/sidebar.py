@@ -22,6 +22,7 @@ from core.cache import invalider as _invalider_cache
 NAV_ITEMS = [
     {"id": "Moi",        "icon": "👤", "label": "Mon compte"},
     {"id": "Historique", "icon": "📋", "label": "Historique"},
+    {"id": "Tendances",  "icon": "📈", "label": "Tendances"},
     {"id": "Journal",    "icon": "📔", "label": "Journal"},
     {"id": "Objectif",   "icon": "🎯", "label": "Objectif"},
     {"id": "Epargne",    "icon": "💰", "label": "Épargne"},
