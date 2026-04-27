@@ -8,6 +8,68 @@ else lives here so nothing is forgotten — but nothing is in the way either.
 
 ---
 
+## 🇲🇦 Flagship v1.5 — Moroccan Cultural Adaptations
+
+> The real wedge. No Western finance app does these. Each one is a product
+> moment Moroccan users will recognize as "wow, this app was made for me".
+
+### 🕌 Cagnottes / Sinking Funds (Projets & Événements)
+The biggest budget destroyers in MA aren't daily coffees — they're **seasonal events**:
+Aïd El Kebir, Ramadan, La Rentrée Scolaire, Vacances d'été.
+- New page "Cagnottes" with visual jars per event
+- Pre-filled MA templates: Mouton de l'Aïd, Ramadan, Rentrée, Vacances, Frais Médicaux, Assurance Voiture
+- App divides target by months remaining ("Mettre 250 DH/mois pour l'Aïd")
+- When the event fires, spending the money doesn't tank the score — coach knows it was planned
+- Forces sinking-fund discipline that solves the "Aïd ruined my month" problem
+
+### 🛒 Le Carnet (Moul Lhanout Tracker)
+Many Moroccans buy on credit at the local épicier and pay end-of-month. Western apps treat as "debt" = negative.
+- New mini-feature: "Ajouter au Carnet" checkbox on transactions
+- Coach reminder at month-end: "Tu dois 450 DH à l'épicier — marquer comme payé ?"
+- Treats the carnet as a tracked short-term debt, not failure
+
+### 🤝 Famille & Solidarité category
+Sadaqa, helping parents/siblings, gifts to family — these are mandatory budget lines in MA culture, not "Divers" or "Loisirs".
+- Add `Famille` and `Solidarité (Sadaqa)` as first-class categories
+- Coach treats them with respect, not as discretionary
+- Could even gamify: "Tu as donné 500 DH ce mois — Sadaqa enregistrée 🤲"
+
+### 🎉 Salary Day Choreography (Le Jour de Paie)
+Most emotional day of the month. App should make a moment of it.
+- Detect salary input → confetti animation 🎉
+- Coach immediately: "Salaire de 6 000 DH arrivé ! Alignons nos troupes — combien on met de côté ?"
+- Force zero-based budget distribution on Day 1 (Mette en cagnotte / Épargne / Reste)
+
+### 🎮 Mini-Défis / Challenges (7-day)
+- "Défi Semaine sans Livraison" (no Glovo/Wolt → +10 pts + badge)
+- "Défi Zéro Espèce" (carte uniquement pour suivi auto)
+- "Défi 50 DH par jour" (vivre avec un budget serré, mode coup-de-main)
+- Optional, gamified, badge reward
+
+### 🇲🇦 Darija expressions in coach
+Even in French interface, weave Darija for warmth:
+- "Bsa7a la sortie, mais attention au budget !"
+- "Koulchi meziane pour l'instant."
+- "Lkher d'che'har approche…"
+- Breaks the cold banking atmosphere
+
+### 🛡️ Essential Mode v2 (auto-detect)
+Today: cap score at FAIBLE (40) when reste is negative. **v2**: full mode switch when income < 4 000 DH OR fixed charges > 60% of income:
+- Score weights swap: 60% Engagement + 30% No-overdraft + 10% Micro-savings
+- Coach vocabulary shifts from "wealth building" to "résilience & protection"
+- Celebrates micro-wins (zero-spend day, 50 DH first savings = 95/100)
+- "Score plus haut" for surviving on tight budget than for someone wealthy who barely tries
+- Build effort vs. income metric ("Effort Score") — recognizes hard work, not raw amounts
+
+### 🆘 Mode Pause (life happens)
+Sometimes life hits hard (medical emergency, job loss, Ramadan splurge). Users feel ashamed to open the app.
+- "Mettre mon budget en pause" button in Mon compte
+- 30 days no negative score, no alerts
+- Coach message: "Mode Pause activé. Prenez soin de vous, on reprendra quand vous serez prêt 💙"
+- **Why genius**: prevents shame-driven uninstall = massive retention lift
+
+---
+
 ## ⭐ Flagship v1.5 launch — Daret Command Center
 
 > The killer differentiator. No MA fintech does this. Solves the universal
@@ -72,13 +134,37 @@ The idea isn't to explain what a Daret is — it's to **fix how it's managed**.
 - [ ] Drillable Plotly sunburst donut (category → sub-category) on month visibility page
 - [ ] Multi-month trend chart (12 months scrollable)
 - [ ] Sankey diagram (where does my money flow)
+- [ ] **Cashflow waterfall chart** (Monarch-style — income cascades into savings + categories)
+- [ ] **Spending Ring** (Revolut-style — fills as month progresses, turns red if over)
+- [ ] **Ghost line overlay** (last month's pace vs current as solid line)
 - [ ] Heatmap calendar (spending intensity per day)
+- [ ] **Net Worth / Asset growth chart** (year-over-year)
+
+### Mon compte enrichments (deferred from Block A)
+- [ ] **Discrete mode** toggle — blur all big numbers (solde, salaire) until user taps eye 👁
+- [ ] **Pride badge** in profile hero ("🏆 Guerrier du Budget — 14 jours de suite")
+- [ ] **Profile picture / avatar** upload
+- [ ] **Type de Revenus**: Fixed vs Variables (Freelance/Commerce/Gig)
+- [ ] **Charges Fixes Incontournables** input (rent + utilities = survival number)
+- [ ] **Taille du Foyer** input (changes coach interpretation of grocery, healthcare spending)
+- [ ] **Mode Standard vs Mode Essentiel** toggle (manual override of auto-detection)
+- [ ] **Connexion Biométrique** toggle (FaceID / Fingerprint — post-mobile)
+- [ ] **Auto-save** on every field change (no Save button, show ✅ Enregistré)
 
 ### Smarter coaching
 - [ ] LLM-generated personalized advice (vs the static message table)
 - [ ] What-if simulator ("Si j'épargne 200 DH/mois de plus, mon score atteint X")
+- [ ] **"Can I afford it?" calculator** — user types "Puis-je me payer X DH ?", coach checks reste à vivre + objectifs and replies with tradeoff
 - [ ] Anomaly detection + push alert (unusual spending pattern)
-- [ ] Year-end recap (Spotify Wrapped style)
+- [ ] **Behavioral alerts** ("Tu as pris 4 Ubers cette semaine — il pleut, prends le bus pour rester sous le plafond transport")
+- [ ] **Subscription audit** ("Tu paies Adobe depuis 4 mois sans l'utiliser — annuler ?")
+- [ ] **"Wasted Money" calculator** — late fees, ATM fees, unused subs over a year
+- [ ] **Lifestyle creep alert** ("Tes charges fixes ont augmenté de 8% vs l'an dernier")
+- [ ] **Bill & cashflow forecasting** ("Ta facture de 120 DH passe demain mais ton solde est de 90 DH")
+- [ ] **Year-end recap "Spotify Wrapped" style** — fun shareable slideshow ("Tu étais un Foodie cette année — 30% en restos")
+- [ ] **Salary increase popup** ("Félicitations ! +1 000 DH — allouer à l'épargne pour éviter l'inflation du style de vie ?")
+- [ ] **Salary decrease popup** ("Mode Essentiel activé automatiquement — on est ensemble 🤝")
+- [ ] **Family change popup** ("Mabrouk ! 🍼 Coach a ajusté tes seuils supermarché et santé")
 
 ### Premium tier features
 - [ ] Multi-account aggregation (link multiple bank cards)
