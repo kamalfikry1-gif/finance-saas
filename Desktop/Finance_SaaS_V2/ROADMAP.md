@@ -76,13 +76,14 @@ See "CURRENT SPRINT" above.
   - Quick-pick component appears after grocery transaction — 3 emoji buttons + Skip
   - Wired into topbar Dépense form + sidebar + Transaction form
   - No migration of existing data needed (gradual classification at point-of-entry)
-- [ ] **Daret Manager (solo, ~3 days)**:
-  - [ ] Tirage au sort algorithm (random turn order, seed stored for proof)
-  - [ ] Bloomberg-style status table (members × months grid: 🟢/🟡/🔴)
-  - [ ] Manager log button (mark as paid / declared / pending)
-  - [ ] Timeline view (current month, next, total remaining, end date)
-  - [ ] Export récap to clipboard (paste into WhatsApp group)
-  - V2 multi-user version (invite links, real-time) → BACKLOG.md flagship v1.5
+- [x] **Daret Manager v1.5** (solo + invite link — better than original v1 plan):
+  - [x] DB layer: Statuts_JSON + Tirage_Seed + invite_token columns + helpers
+  - [x] Bloomberg-style status table (members × N months, click to cycle 🔴→🟡→🟢)
+  - [x] Invite token generation per daret + copyable URL parameter
+  - [x] Public read-only view at `/?daret=TOKEN` — anyone with link can view, manager-only edit
+  - [ ] Tirage au sort algorithm (deferred — current order = creation order is acceptable for v1)
+  - [ ] Export récap to clipboard (deferred — invite link replaces it)
+  - Full V2 (real-time, RBAC, notifications) → BACKLOG.md flagship v1.5
 
 ### Sprint 4 — Bug bash + 5 real users
 - [ ] Use the app yourself daily for 7 days, log everything

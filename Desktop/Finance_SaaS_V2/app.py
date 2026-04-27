@@ -67,6 +67,17 @@ db = get_db()
 inject_css()
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 2.5. PUBLIC ROUTE — Daret read-only view (?daret=TOKEN)
+#      Short-circuits before auth so anyone with the link can view.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_daret_token = st.query_params.get("daret")
+if _daret_token:
+    from views.daret_public import render_public as _render_daret_public
+    _render_daret_public(db, _daret_token)
+    st.stop()
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 3. SESSION STATE — AUTH
 # ─────────────────────────────────────────────────────────────────────────────
 
