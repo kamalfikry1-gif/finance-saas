@@ -343,4 +343,122 @@ def _render_daret_card(audit, d: dict) -> None:
                 st.session_state[f"dr_confirm_close_{daret_id}"] = True
                 st.rerun()
 
+    # ── Bloomberg-style status table + invite link ──────────────────────────
+    _render_bloomberg_table(audit, d, membres)
+    _render_invite_link(d)
+
+
+# ── Bloomberg per-month-per-member status table ─────────────────────────────
+STATUS_CYCLE = {None: "DECLARED", "PENDING": "DECLARED", "DECLARED": "PAID", "PAID": "PENDING"}
+STATUS_EMOJI = {None: "🔴", "PENDING": "🔴", "DECLARED": "🟡", "PAID": "🟢"}
+STATUS_LABEL = {None: "En attente", "PENDING": "En attente",
+                "DECLARED": "Déclaré", "PAID": "Payé"}
+
+
+def _generate_months(date_debut_str: str, nb_mois: int) -> list:
+    """Generate `nb_mois` consecutive 'MM/YYYY' strings starting from date_debut."""
+    try:
+        d = datetime.strptime(date_debut_str[:10], "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        d = date.today()
+    out = []
+    yr, mo = d.year, d.month
+    for _ in range(nb_mois):
+        out.append(f"{mo:02d}/{yr}")
+        mo += 1
+        if mo > 12:
+            mo = 1
+            yr += 1
+    return out
+
+
+def _render_bloomberg_table(audit, d: dict, membres: list, editable: bool = True) -> None:
+    """Members × months payment status grid. Manager (editable=True) clicks
+    cells to cycle through PENDING → DECLARED → PAID → PENDING."""
+    daret_id = d.get("id")
+    if not daret_id or not membres:
+        return
+
+    months = _generate_months(d.get("Date_Debut", "") or "", len(membres))
+    statuts = audit.db.get_daret_statuts(daret_id)
+
+    st.markdown(
+        f'<div style="margin-top:14px;color:{T.TEXT_LOW};font-size:10px;'
+        f'font-weight:700;text-transform:uppercase;letter-spacing:1.2px;'
+        f'margin-bottom:8px">📊 Tableau de paiements'
+        f'  <span style="color:{T.TEXT_MED};font-weight:400;text-transform:none;'
+        f'    margin-left:8px">🟢 payé · 🟡 déclaré · 🔴 en attente</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Header row: Membre + months
+    h_cols = st.columns([2] + [1] * len(months))
+    with h_cols[0]:
+        st.markdown(
+            f'<div style="color:{T.TEXT_MED};font-size:11px;font-weight:600;'
+            f'padding:6px 0">Membre</div>',
+            unsafe_allow_html=True,
+        )
+    for i, m in enumerate(months):
+        with h_cols[i + 1]:
+            st.markdown(
+                f'<div style="text-align:center;color:{T.TEXT_MED};font-size:10px;'
+                f'font-weight:600;padding:6px 0">{m}</div>',
+                unsafe_allow_html=True,
+            )
+
+    # Row per member
+    for membre in membres:
+        cols = st.columns([2] + [1] * len(months))
+        with cols[0]:
+            st.markdown(
+                f'<div style="color:{T.TEXT_HIGH};font-size:13px;'
+                f'padding:8px 0">{membre}</div>',
+                unsafe_allow_html=True,
+            )
+        for i, mois in enumerate(months):
+            current = statuts.get(mois, {}).get(membre)
+            emoji   = STATUS_EMOJI.get(current, "🔴")
+            with cols[i + 1]:
+                if editable:
+                    if st.button(
+                        emoji,
+                        key=f"dr_cell_{daret_id}_{i}_{membre}",
+                        help=f"{membre} · {mois} : {STATUS_LABEL.get(current)} (clic pour changer)",
+                        use_container_width=True,
+                    ):
+                        new = STATUS_CYCLE.get(current, "DECLARED")
+                        audit.db.update_daret_statut(daret_id, mois, membre, new)
+                        st.rerun()
+                else:
+                    st.markdown(
+                        f'<div style="text-align:center;font-size:18px;padding:6px 0">'
+                        f'{emoji}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+
+def _render_invite_link(d: dict) -> None:
+    """Display the public invite token + URL helper."""
+    token = d.get("invite_token") or ""
+    if not token:
+        return
+    with st.expander("📋 Lien d'invitation pour le groupe", expanded=False):
+        st.markdown(
+            f'<div style="color:{T.TEXT_MED};font-size:12px;line-height:1.5;margin-bottom:10px">'
+            f"Partage ce lien dans ton groupe WhatsApp. Toute personne avec le lien "
+            f"verra la table en lecture seule. Toi seul peux marquer les paiements."
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.code(f"?daret={token}", language=None)
+        st.markdown(
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:6px">'
+            f"💡 Ajoute ce paramètre à l'URL de l'app puis copie le lien complet "
+            f"(ex: <code>https://ton-app.streamlit.app/?daret={token[:6]}…</code>)."
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
     st.markdown("</div>", unsafe_allow_html=True)

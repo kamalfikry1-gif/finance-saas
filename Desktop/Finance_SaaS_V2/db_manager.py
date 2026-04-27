@@ -1484,22 +1484,54 @@ class DatabaseManager:
             return False
 
     def _ensure_daret_v2_columns(self) -> None:
-        """Add Statuts_JSON + Tirage_Seed to DARETS for the manager dashboard.
+        """Add Statuts_JSON + Tirage_Seed + invite_token to DARETS.
 
-        Statuts_JSON stores per-month per-member payment status:
+        Statuts_JSON: per-month per-member payment status
             {"04/2026": {"Karim": "PAID", "Sara": "DECLARED", "Ali": "PENDING"}}
-        Tirage_Seed records the random seed used for fair member ordering
-        (audit trail — any member can verify the order wasn't manipulated).
+        Tirage_Seed: random seed for fair member ordering (audit trail)
+        invite_token: unique token for the public read-only daret view
+            (anyone with ?daret=TOKEN can view the table)
         """
         try:
+            import secrets
             with self.connexion() as conn:
                 conn.execute(
                     "ALTER TABLE DARETS"
                     " ADD COLUMN IF NOT EXISTS Statuts_JSON TEXT DEFAULT '{}',"
-                    " ADD COLUMN IF NOT EXISTS Tirage_Seed BIGINT DEFAULT NULL"
+                    " ADD COLUMN IF NOT EXISTS Tirage_Seed BIGINT DEFAULT NULL,"
+                    " ADD COLUMN IF NOT EXISTS invite_token TEXT DEFAULT NULL"
                 )
+                conn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_darets_invite_token"
+                    " ON DARETS(invite_token) WHERE invite_token IS NOT NULL"
+                )
+                # Backfill any existing daret without a token
+                rows = conn.execute(
+                    "SELECT id FROM DARETS WHERE invite_token IS NULL"
+                ).fetchall()
+                for r in rows:
+                    rid = r["id"] if hasattr(r, "keys") and "id" in r else r[0]
+                    conn.execute(
+                        "UPDATE DARETS SET invite_token = %s WHERE id = %s",
+                        (secrets.token_urlsafe(12), rid),
+                    )
         except Exception:
             logger.exception("_ensure_daret_v2_columns failed")
+
+    def get_daret_by_token(self, token: str) -> Optional[Dict]:
+        """Look up a daret by its public invite token. Used by the public view."""
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT * FROM DARETS WHERE invite_token = %s LIMIT 1",
+                    (token,),
+                ).fetchone()
+            if not row:
+                return None
+            return _canon_dict(row)
+        except Exception:
+            logger.exception("get_daret_by_token failed")
+            return None
 
     def update_daret_statut(self, daret_id: int, mois: str, membre: str, statut: str) -> bool:
         """Update one cell of the Bloomberg-style status table.

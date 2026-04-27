@@ -413,16 +413,17 @@ class AuditMiddleware:
 
     def creer_daret(self, nom: str, montant_mensuel: float, membres: list,
                     date_debut: str, notes: str = "") -> None:
-        import json
+        import json, secrets
+        invite_token = secrets.token_urlsafe(12)
         with self.db.connexion() as conn:
             conn.execute(
                 """INSERT INTO DARETS
-                   (Nom, Montant_Mensuel, Nb_Membres, Membres_JSON,
-                    Tour_Actuel, Date_Debut, Statut, Notes, user_id)
-                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s)""",
+                   (Nom, Montant_Mensuel, Nb_Membres, Membres_JSON, Tour_Actuel,
+                    Date_Debut, Statut, Notes, invite_token, user_id)
+                   VALUES (%s,%s,%s,%s,0,%s,'ACTIF',%s,%s,%s)""",
                 (nom.strip(), montant_mensuel, len(membres),
                  json.dumps(membres, ensure_ascii=False),
-                 date_debut, notes.strip(), self.user_id),
+                 date_debut, notes.strip(), invite_token, self.user_id),
             )
 
     def avancer_tour_daret(self, daret_id: int) -> None:
