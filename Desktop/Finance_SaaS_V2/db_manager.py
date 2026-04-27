@@ -561,6 +561,7 @@ class DatabaseManager:
         self._ensure_admin_column()
         self._ensure_profile_columns()
         self._ensure_daret_v2_columns()
+        self._ensure_grocery_v2()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
 
@@ -1425,6 +1426,62 @@ class DatabaseManager:
                 )
         except Exception:
             logger.exception("_ensure_profile_columns failed")
+
+    def _ensure_grocery_v2(self) -> None:
+        """Add 3 grocery sub-categories under 'Courses maison' parent + DICO entries
+        for common MA grocery merchants (BIM, Marjane, Carrefour…).
+        Idempotent: ON CONFLICT DO NOTHING — safe to run on every boot.
+
+        Existing transactions stay untouched. The new sub-cats become available
+        as quick-pick options after a transaction is logged at a grocery merchant."""
+        try:
+            with self.connexion() as conn:
+                # Find which Categorie owns 'Courses maison' (could be 'Vie Quotidienne'
+                # or 'Courses maison' itself, depending on the user's seed data).
+                row = conn.execute(
+                    "SELECT Categorie FROM CATEGORIES WHERE Sous_Categorie = 'Courses maison' LIMIT 1"
+                ).fetchone()
+                parent = row[0] if row else "Vie Quotidienne"
+
+                # 3 new sub-categories under the same parent
+                for new_subcat in ("Alimentation", "Produits ménagers", "Snacks & Boissons"):
+                    conn.execute(
+                        "INSERT INTO CATEGORIES (Categorie, Sous_Categorie) "
+                        "VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                        (parent, new_subcat),
+                    )
+
+                # MA grocery merchants → defaults to (parent, 'Courses maison')
+                # so the picker can offer to refine after the fact.
+                grocery_merchants = [
+                    "BIM", "MARJANE", "CARREFOUR", "ACIMA",
+                    "ASWAK ASSALAM", "ASWAK", "ATACADAO", "LABEL'VIE",
+                    "METRO", "HANOUT",
+                ]
+                for kw in grocery_merchants:
+                    conn.execute(
+                        "INSERT INTO DICO_MATCHING "
+                        "(Sens, Mot_Cle, Categorie_Cible, Sous_Categorie_Cible) "
+                        "VALUES ('OUT', %s, %s, 'Courses maison') "
+                        "ON CONFLICT DO NOTHING",
+                        (kw, parent),
+                    )
+        except Exception:
+            logger.exception("_ensure_grocery_v2 failed")
+
+    def update_transaction_subcat(self, tx_id: str, new_subcat: str, user_id: int) -> bool:
+        """Update one transaction's Sous_Categorie. Used by the post-entry picker."""
+        try:
+            with self.connexion() as conn:
+                cur = conn.execute(
+                    "UPDATE TRANSACTIONS SET Sous_Categorie = %s "
+                    "WHERE ID_Unique = %s AND user_id = %s",
+                    (new_subcat, tx_id, user_id),
+                )
+                return (cur.rowcount or 0) > 0
+        except Exception:
+            logger.exception("update_transaction_subcat failed")
+            return False
 
     def _ensure_daret_v2_columns(self) -> None:
         """Add Statuts_JSON + Tirage_Seed to DARETS for the manager dashboard.

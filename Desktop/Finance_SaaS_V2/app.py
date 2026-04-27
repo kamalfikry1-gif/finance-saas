@@ -197,6 +197,10 @@ ctx: Dict = {
 
 _render_topbar(ctx)
 
+# Subcat picker — appears after a grocery transaction, then auto-clears
+from components.subcat_picker import render_picker as _render_subcat_picker
+_render_subcat_picker(audit)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. FAB COACH DIALOG — defined here, triggered after page render
 # ─────────────────────────────────────────────────────────────────────────────

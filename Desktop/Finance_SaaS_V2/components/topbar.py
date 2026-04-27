@@ -113,12 +113,27 @@ def _form_transaction(ctx: dict, sens: str) -> None:
                 if res.get("action") == "OK":
                     st.session_state[f"tb_{k_pfix}_ctr"] = k + 1
                     _invalider_cache()
+                    # Queue grocery sub-cat picker (only fires for grocery merchants)
+                    if sens == "OUT":
+                        from components.subcat_picker import queue_picker
+                        queue_picker(
+                            tx_id=res.get("id_unique"),
+                            libelle=libelle.strip(),
+                            current_subcat=res.get("sous_categorie", ""),
+                        )
                     st.toast(f"✅ {libelle.strip()} — {montant:,.0f} DH")
                     st.rerun()
                 elif res.get("action") == "CONFIRMER":
                     st.warning(res.get("message", "Doublon possible — confirmez."))
                     if st.button("Confirmer quand même", key=f"tb_{k_pfix}_force_{k}"):
-                        audit.recevoir(libelle.strip(), float(montant), sens, jour, forcer=True)
+                        res2 = audit.recevoir(libelle.strip(), float(montant), sens, jour, forcer=True)
+                        if sens == "OUT" and res2.get("action") == "OK":
+                            from components.subcat_picker import queue_picker
+                            queue_picker(
+                                tx_id=res2.get("id_unique"),
+                                libelle=libelle.strip(),
+                                current_subcat=res2.get("sous_categorie", ""),
+                            )
                         st.session_state[f"tb_{k_pfix}_ctr"] = k + 1
                         _invalider_cache()
                         st.rerun()

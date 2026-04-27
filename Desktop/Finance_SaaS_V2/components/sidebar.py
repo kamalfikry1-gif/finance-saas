@@ -238,6 +238,14 @@ def render(audit) -> str:
                     tx_id = res.get("id_unique")
                     if tx_id and (saisie_tags.strip() or saisie_contact.strip()):
                         audit.update_tags_contact(tx_id, saisie_tags, saisie_contact)
+                    # Queue grocery sub-cat picker (only fires for grocery merchants on OUT)
+                    if st.session_state.saisie_sens == "OUT":
+                        from components.subcat_picker import queue_picker
+                        queue_picker(
+                            tx_id=tx_id,
+                            libelle=libelle_final,
+                            current_subcat=res.get("sous_categorie", ""),
+                        )
                     st.success(
                         f"✅ **{res.get('categorie')}**  \n"
                         f"{res.get('sous_categorie')} · {res.get('methode')} "
@@ -268,6 +276,13 @@ def render(audit) -> str:
                     tx_id = res2.get("id_unique")
                     if tx_id and (p.get("tags", "").strip() or p.get("contact", "").strip()):
                         audit.update_tags_contact(tx_id, p.get("tags", ""), p.get("contact", ""))
+                    if p.get("sens") == "OUT":
+                        from components.subcat_picker import queue_picker
+                        queue_picker(
+                            tx_id=tx_id,
+                            libelle=p.get("libelle", ""),
+                            current_subcat=res2.get("sous_categorie", ""),
+                        )
                 st.session_state.saisie_confirmer = None
                 st.session_state.saisie_ctr += 1
                 _invalider_cache()

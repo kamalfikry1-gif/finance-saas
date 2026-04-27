@@ -70,7 +70,12 @@ See "CURRENT SPRINT" above.
     - [x] N-month KPI strip with 3/6/12 selector
   - [x] Added to sidebar nav (📈 Tendances) + first-visit hint
 - [ ] **Bonus polish**: enrich the 5 status coach messages with 3-part structure (Diagnostic / Plan d'Action / Vision) — ~30 min, big quality jump
-- [ ] **Categories restructure** — rename "Vie Quotidienne" → "Courses maison" + split subcats (Alimentation / Produits ménagers) + extract Transport as own category. Updates: CATEGORIES table, DICO_MATCHING, DEFAULT_503020_MAPPING in config.py, existing transactions migration.
+- [x] **Categories — grocery quick-pick** (replaces the original migration plan):
+  - 3 new sub-cats added under existing 'Courses maison' parent: Alimentation / Produits ménagers / Snacks & Boissons
+  - DICO seeded with 10 MA grocery merchants (BIM, Marjane, Carrefour, Acima, Aswak, Atacadao, Label'Vie, Metro, Hanout)
+  - Quick-pick component appears after grocery transaction — 3 emoji buttons + Skip
+  - Wired into topbar Dépense form + sidebar + Transaction form
+  - No migration of existing data needed (gradual classification at point-of-entry)
 - [ ] **Daret Manager (solo, ~3 days)**:
   - [ ] Tirage au sort algorithm (random turn order, seed stored for proof)
   - [ ] Bloomberg-style status table (members × months grid: 🟢/🟡/🔴)
