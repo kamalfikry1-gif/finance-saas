@@ -224,8 +224,75 @@ def render(ctx: dict) -> None:
     if st.button("🚪 Se déconnecter", key="moi_logout_btn", type="secondary"):
         _logout_dialog()
 
+    # ── Personnalisation (fonds d'urgence target + 50/30/20 overrides) ──────
+    _render_personnalisation_section(audit)
+
     # ── Zone dangereuse : suppression définitive du compte ───────────────────
     _render_delete_account_section(audit)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Section: Personnalisation (fonds d'urgence target, 50/30/20 overrides)
+# ════════════════════════════════════════════════════════════════════════════
+def _render_personnalisation_section(audit) -> None:
+    from config import DEFAULT_TARGET_MOIS_SECURITE
+
+    _section("Personnalisation")
+
+    # ── Fonds d'urgence target ──────────────────────────────────────────────
+    st.markdown(
+        f'<div style="color:{T.TEXT_HIGH};font-size:13px;font-weight:600;margin-bottom:4px">'
+        f'🛡️ Objectif fonds d\'urgence</div>'
+        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-bottom:8px">'
+        f'Combien de mois de dépenses veux-tu avoir en réserve ? '
+        f'Standard : 3 mois. Conservateur : 6 mois.'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    current = float(
+        audit.get_preference("fonds_urgence_target_mois", str(DEFAULT_TARGET_MOIS_SECURITE))
+        or DEFAULT_TARGET_MOIS_SECURITE
+    )
+    target = st.slider(
+        "Objectif (mois de dépenses)",
+        min_value=1, max_value=12,
+        value=int(current),
+        step=1,
+        format="%d mois",
+        key="moi_target_mois_secu",
+        label_visibility="collapsed",
+    )
+
+    # Live calc using the user's avg monthly expenses
+    try:
+        depense_moy = float(audit.moteur._depenses_mensuelles_moyennes(nb_mois=3))
+    except Exception:
+        depense_moy = 0.0
+
+    if depense_moy > 0:
+        target_dh = target * depense_moy
+        st.markdown(
+            f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+            f'border-radius:{T.RADIUS_SM};padding:10px 14px;margin:10px 0">'
+            f'  <div style="display:flex;justify-content:space-between">'
+            f'    <span style="color:{T.TEXT_LOW};font-size:11px">'
+            f'      {target} mois × {depense_moy:,.0f} DH/mois (moyenne 3m)'
+            f'    </span>'
+            f'    <span style="color:{T.PRIMARY};font-size:14px;font-weight:700">'
+            f'      = {target_dh:,.0f} DH cible'
+            f'    </span>'
+            f'  </div>'
+            f'</div>'.replace(",", " "),
+            unsafe_allow_html=True,
+        )
+
+    if int(current) != target:
+        if st.button("💾 Sauvegarder l'objectif", key="moi_save_target_secu", type="primary"):
+            audit.set_preference("fonds_urgence_target_mois", str(target))
+            _invalider_cache()
+            st.success(f"✅ Objectif mis à jour : {target} mois")
+            st.rerun()
 
 
 # ════════════════════════════════════════════════════════════════════════════
