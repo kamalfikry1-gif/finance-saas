@@ -44,8 +44,8 @@ See "CURRENT SPRINT" above.
 - [x] Wizard v2 shell + badges/hints foundations (commit 1)
 - [x] Wizard v2 full content: 4 steps, real récurrents form, 4 sliders, score reveal (commit 2)
 - [x] Step 2 utilities (Électricité + Eau) + step 3 live donut (commit 2.1)
-- [ ] **Write the 5 status-level coach messages first** (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT) — replaces `[À écrire]` at the score reveal climax
-- [ ] Replace remaining 19 `[À écrire]` in `core/coach_messages.py`
+- [x] **Write the 5 status-level coach messages first** (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT)
+- [x] Replace remaining 19 `[À écrire]` in `core/coach_messages.py` — ALL 24 messages now real copy
 - [x] Sprinkle 6 contextual hints throughout app (commit 3a)
 - [ ] Delete legacy `views/onboarding.py` once v2 confirmed stable (commit 3b)
 - [ ] Add "abonnement detection" popup on duplicate sub-categories

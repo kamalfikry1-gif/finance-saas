@@ -78,8 +78,11 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["reste_a_vivre"] < 0,
         "category": "factor",
         "priority": 1,
-        "message":  "[À écrire — reste à vivre négatif, urgence]",
-        "advice":   "[À écrire — action immédiate]",
+        "message":  "Tes dépenses dépassent tes revenus ce mois. "
+                    "Pas de panique, mais à corriger vite — "
+                    "sinon les fins de mois deviennent un cauchemar.",
+        "advice":   "Liste tes 3 plus grosses dépenses récentes. "
+                    "Une seule à réduire de 200 DH change déjà l'équation.",
     },
 
     {
@@ -88,8 +91,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: not c["onboarding_done"] and c["jours_depuis_inscription"] < 30,
         "category": "behavior",
         "priority": 2,
-        "message":  "[À écrire — onboarding pas fini, score limité]",
-        "advice":   "[À écrire — termine l'onboarding pour score précis]",
+        "message":  "L'onboarding n'est pas terminé — sans tes infos de base "
+                    "je ne peux pas calculer un score précis.",
+        "advice":   "5 minutes pour finir l'onboarding, et le coach "
+                    "commence vraiment à t'aider.",
     },
 
     # Score peut-être obsolète (3–6 jours inactif)
@@ -98,8 +103,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: 3 <= c["jours_inactif"] < 7,
         "category": "behavior",
         "priority": 3,
-        "message":  "[À écrire — score peut être obsolète, {jours_inactif}j sans log]",
-        "advice":   "[À écrire — log tes dépenses récentes pour fiabilité]",
+        "message":  "{jours_inactif}j sans nouvelles dépenses logées — "
+                    "ton score est peut-être un peu décalé.",
+        "advice":   "Ouvre l'app 1 minute pour rattraper ce que "
+                    "tu as dépensé récemment.",
     },
 
     # Mini-onboarding catch-up offer (>= 7 jours inactif)
@@ -108,8 +115,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["jours_inactif"] >= 7,
         "category": "behavior",
         "priority": 3,
-        "message":  "[À écrire — long silence ({jours_inactif}j), faisons un point rapide]",
-        "advice":   "[À écrire — bouton: démarrer mini-onboarding catch-up]",
+        "message":  "{jours_inactif}j sans te voir — pas grave, "
+                    "la vie c'est la vie.",
+        "advice":   "On fait un point rapide ? 1 minute pour "
+                    "mettre à jour tes dépenses récentes.",
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -122,8 +131,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: 0 <= c["reste_ratio"] < 0.10,
         "category": "factor",
         "priority": 5,
-        "message":  "[À écrire — peu de marge cette fin de mois]",
-        "advice":   "[À écrire — réduire {categorie_top_dep}]",
+        "message":  "Tu termines le mois avec peu de marge — "
+                    "ça passe, mais sans filet pour les imprévus.",
+        "advice":   "Vise 10% de reste à vivre. Pour ça : "
+                    "commence par voir où tu peux gratter sur {categorie_top_dep}.",
     },
 
     # Pas d'épargne du tout
@@ -132,8 +143,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["epargne_mois"] == 0,
         "category": "factor",
         "priority": 5,
-        "message":  "[À écrire — aucune épargne ce mois]",
-        "advice":   "[À écrire — vise 10% du revenu]",
+        "message":  "Pas d'épargne ce mois. C'est OK ponctuellement, "
+                    "pas en habitude.",
+        "advice":   "100 DH la semaine prochaine. Petit, mais "
+                    "c'est l'habitude qui compte.",
     },
 
     # Taux d'épargne trop faible
@@ -142,8 +155,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: 0 < c["taux_epargne"] < 0.10,
         "category": "factor",
         "priority": 6,
-        "message":  "[À écrire — taux d'épargne sous 10%]",
-        "advice":   "[À écrire — augmenter à 10–20%]",
+        "message":  "Tu épargnes — c'est déjà bien. Sous 10% de tes revenus, "
+                    "c'est lent à construire un coussin.",
+        "advice":   "Vise 10% minimum. Pour 10 000 DH/mois, c'est 1 000 DH — "
+                    "réaliste avec un peu d'ajustement.",
     },
 
     # 50/30/20 verrouillé — catégories non classifiées (gamification: 1–5 pts par classification)
@@ -152,8 +167,11 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c.get("nb_unclassified_cats", 0) > 0,
         "category": "factor",
         "priority": 6,
-        "message":  "[À écrire — {nb_unclassified_cats} catégories à classer en Besoin/Envie/Épargne]",
-        "advice":   "[À écrire — classe-les pour débloquer 25 pts du score 50/30/20]",
+        "message":  "{nb_unclassified_cats} catégories ne sont pas classées "
+                    "en Besoin / Envie / Épargne — ton score Dépenses équilibrées "
+                    "est verrouillé à 0.",
+        "advice":   "Va dans Paramètres → Personnalisation → Classification 50/30/20. "
+                    "30 secondes pour débloquer 25 pts.",
     },
 
     # 50/30/20 — Besoins trop élevés
@@ -162,8 +180,11 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["onboarding_done"] and c.get("nb_unclassified_cats", 0) == 0 and c["pct_besoins"] > 0.55,
         "category": "factor",
         "priority": 7,
-        "message":  "[À écrire — besoins dépassent 50%]",
-        "advice":   "[À écrire — voir où réduire]",
+        "message":  "Tes besoins essentiels prennent {pct_besoins:.0%} "
+                    "de tes dépenses — la règle vise 50%.",
+        "advice":   "Loyer + factures sont durs à bouger. L'astuce : "
+                    "négocier les charges fixes (assurance, internet) "
+                    "ou augmenter le revenu.",
     },
 
     # 50/30/20 — Envies trop élevées
@@ -172,8 +193,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["onboarding_done"] and c.get("nb_unclassified_cats", 0) == 0 and c["pct_envies"] > 0.35,
         "category": "factor",
         "priority": 7,
-        "message":  "[À écrire — envies dépassent 30%]",
-        "advice":   "[À écrire — refais le point sur tes envies]",
+        "message":  "Tes envies (loisirs, restos, shopping) sont à "
+                    "{pct_envies:.0%} — la règle vise 30%.",
+        "advice":   "Pas besoin de tout couper. 1 ou 2 sorties de moins "
+                    "ce mois, et l'équilibre revient.",
     },
 
     # 50/30/20 — Épargne split sous 15%
@@ -182,8 +205,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["onboarding_done"] and c.get("nb_unclassified_cats", 0) == 0 and c["pct_epargne_split"] < 0.15,
         "category": "factor",
         "priority": 7,
-        "message":  "[À écrire — épargne sous 20% (cible 50/30/20)]",
-        "advice":   "[À écrire — automatise un virement mensuel]",
+        "message":  "Sur ce qui sort, seulement {pct_epargne_split:.0%} "
+                    "part en épargne — la règle vise 20%.",
+        "advice":   "Automatise : dès la paie, vire 200 DH en épargne "
+                    "avant de dépenser. Le seul truc qui marche.",
     },
 
     # Fonds d'urgence — inexistant (< 17% du target)
@@ -192,8 +217,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["ratio_target"] < 0.17,
         "category": "factor",
         "priority": 4,
-        "message":  "[À écrire — aucune réserve, vise 1 mois d'abord]",
-        "advice":   "[À écrire — premier palier: 1 mois de dépenses]",
+        "message":  "Tu n'as pas encore de fonds d'urgence — c'est le filet "
+                    "pour les coups durs (panne voiture, frais médicaux, mois vide).",
+        "advice":   "Vise 1 mois de dépenses pour commencer. 200 DH ce mois, "
+                    "on bâtit pierre par pierre.",
     },
 
     # Fonds d'urgence — faible (17%–66% du target, donc 0.5–2 mois si target=3)
@@ -202,8 +229,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: 0.17 <= c["ratio_target"] < 0.66,
         "category": "factor",
         "priority": 6,
-        "message":  "[À écrire — réserve insuffisante, {mois_securite:.1f} mois sur {target_mois_secu:.0f}]",
-        "advice":   "[À écrire — continue, vise {target_mois_secu:.0f} mois]",
+        "message":  "{mois_securite:.1f} mois de réserve sur "
+                    "{target_mois_secu:.0f} visés — tu progresses, c'est solide.",
+        "advice":   "Continue d'épargner régulièrement. Chaque 100 DH "
+                    "te rapproche du confort total.",
     },
 
     # Engagement faible — pas connecté
@@ -212,8 +241,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["jours_inactif"] >= 3,
         "category": "factor",
         "priority": 8,
-        "message":  "[À écrire — pas connecté depuis {jours_inactif}j]",
-        "advice":   "[À écrire — ouvre l'app chaque jour pour suivre]",
+        "message":  "Pas de log depuis {jours_inactif}j — tes données refroidissent "
+                    "et mes conseils deviennent moins précis.",
+        "advice":   "1 minute par jour pour log tes dépenses. "
+                    "Le seul effort qui compte vraiment.",
     },
 
     {
@@ -221,8 +252,10 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: 0 < c["streak_jours"] < 3 and c["jours_inactif"] == 0,
         "category": "factor",
         "priority": 9,
-        "message":  "[À écrire — encourage à tenir le streak]",
-        "advice":   "[À écrire — viser 7 jours consécutifs]",
+        "message":  "Tu démarres un streak — encore quelques jours et "
+                    "l'habitude se construit toute seule.",
+        "advice":   "Reviens demain. 7 jours d'affilée et tu débloques "
+                    "l'engagement max (15/15).",
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -291,32 +324,40 @@ COACH_MESSAGES: List[Dict[str, Any]] = [
         "when":     lambda c: c["ratio_target"] >= 1.0,
         "category": "positive",
         "priority": 12,
-        "message":  "[À écrire — objectif fonds d'urgence atteint, {mois_securite:.1f} mois couverts]",
-        "advice":   "[À écrire — tu peux dormir tranquille, prochain défi: investir]",
+        "message":  "Objectif fonds d'urgence atteint — {mois_securite:.1f} mois "
+                    "de couverture. Tu peux dormir tranquille.",
+        "advice":   "Maintenant, fais bosser cet argent : compte épargne rémunéré, "
+                    "ou vise plus loin (6 mois, 12 mois).",
     },
     {
         "id":       "positive_streak_milestone",
         "when":     lambda c: c["streak_jours"] in (7, 14, 30, 60, 100),
         "category": "positive",
         "priority": 14,
-        "message":  "[À écrire — palier streak {streak_jours}j]",
-        "advice":   "[À écrire — prochain palier]",
+        "message":  "Streak de {streak_jours} jours d'affilée — "
+                    "tu construis une vraie habitude.",
+        "advice":   "Continue. À 30 jours c'est automatique, "
+                    "à 100 c'est dans ton ADN.",
     },
     {
         "id":       "positive_mois_vert_premier",
         "when":     lambda c: c["mois_verts"] == 1 and c["score"] >= 60,
         "category": "positive",
         "priority": 14,
-        "message":  "[À écrire — premier mois vert]",
-        "advice":   "[À écrire — enchaîne]",
+        "message":  "Premier mois vert — solde positif et score solide. "
+                    "Tu prouves que ça marche.",
+        "advice":   "Le 2e mois est plus facile que le 1er. "
+                    "Refais pareil le mois prochain.",
     },
     {
         "id":       "positive_mois_verts_consecutifs",
         "when":     lambda c: c["mois_verts"] >= 3,
         "category": "positive",
         "priority": 13,
-        "message":  "[À écrire — {mois_verts} mois verts d'affilée]",
-        "advice":   "[À écrire — tu vis sur tes intérêts]",
+        "message":  "{mois_verts} mois verts d'affilée — "
+                    "tu vis sur tes intérêts financiers.",
+        "advice":   "Tu es prêt pour le palier suivant : investissement "
+                    "long terme ou objectif ambitieux.",
     },
 ]
 
