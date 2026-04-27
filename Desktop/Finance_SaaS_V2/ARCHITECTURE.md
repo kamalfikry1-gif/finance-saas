@@ -1,7 +1,46 @@
 # ARCHITECTURE — Finance SaaS
 
 > Document rédigé pour le CEO Produit — sans jargon technique inutile.  
-> Dernière mise à jour : Avril 2026 (v5 — Assistant Financier Interactif, Design Tokens, suppression Coach/Inspecteur/Simulateur)
+> Dernière mise à jour : Avril 2026 (v6 — Scoring v2, Onboarding wizard v2, Tendances, Daret v1.5, Mon compte, Modest Mode prêt, 24 messages coach, badges & hints)
+
+> 📌 **Source de vérité au quotidien** : `CLAUDE.md` (instructions actives + conventions actuelles).
+> Ce document est le panorama lisible — il peut accuser un léger retard sur le code détail.
+
+---
+
+## ⚡ Changements clés depuis v5 (avril 2026)
+
+**Stack & déploiement**
+- Base : **PostgreSQL hébergé sur Supabase** (plus SQLite — la `db_manager` reste le gardien)
+- **15 tables** au lieu de 7 (auth multi-tenant, daret, journal, badges/hints en JSON, etc.)
+- Déploiement : **Streamlit Cloud** auto-deploy sur push `main`
+- Auth : bcrypt + comptes admin (`UTILISATEURS.is_admin`)
+
+**Brain v2 (scoring + coach)**
+- `core/assistant_engine.py:compute_score(audit, mois)` — 5 facteurs / 100 pts :
+  - Reste à vivre (25) · Épargne du mois (15) · Fonds d'urgence (20) ·
+    Dépenses équilibrées 50/30/20 (25) · Engagement streak (15)
+- 5 statuts : CRITIQUE / FAIBLE / MOYEN / BON / EXCELLENT
+- Edge cases : reste négatif → cap 40 · first-month grace → 50 · stale data flag (5j+)
+- Modèle d'épargne single source of truth : `épargne_totale − allouée objectifs = libre`
+- Coach messages : `core/coach_messages.py` (24 entrées priorisées, 100% rédigées)
+- Modest Mode prêt à exécuter (spec dans `BACKLOG.md`)
+
+**Nouvelles pages & composants**
+- `views/onboarding_v2.py` — wizard 4 étapes (welcome+revenu / récurrents / estimation / objectif+score)
+- `views/tendances.py` — KPI strip, cashflow chart, velocity, subscription leakage, top 3
+- `views/daret.py` + `views/daret_public.py` — Daret v1.5 (Bloomberg table + invite link `?daret=TOKEN`)
+- `components/subcat_picker.py` — quick-pick après transactions épicerie
+- `components/hints.py` — `show_hint()` UI dismissible
+- `core/badges.py` — `award_badge()` / `has_badge()` via `PREFERENCES.badges_json`
+- `core/hints.py` — `mark_hint_seen()` via `PREFERENCES.hints_seen_json`
+
+**Mon compte**
+- Profil (nom · email · changement de mot de passe bcrypt)
+- Export JSON complet · suppression définitive du compte (type-SUPPRIMER)
+- Personnalisation : objectif fonds d'urgence + classification 50/30/20
+
+---
 
 ---
 
@@ -124,7 +163,12 @@ Finance_SaaS_V2/
 
 ## 2. Le Modèle de Données (Schéma de la Base de Données)
 
-La base de données est un fichier SQLite (`finance_saas.db`). Elle contient 7 tables.
+La base est **PostgreSQL hébergée sur Supabase** (depuis v6 — auparavant SQLite local).
+Elle contient **15 tables**, toutes scopées par `user_id` sauf les référentiels partagés
+(`CATEGORIES`, `DICO_MATCHING`, `REFERENTIEL`).
+
+> Détails colonnes par colonne : voir directement `db_manager.py:initialiser_schema()`
+> et `_ensure_*` (auto-migrations idempotentes au boot).
 
 ### Table TRANSACTIONS — la table centrale
 Chaque ligne = une transaction financière.

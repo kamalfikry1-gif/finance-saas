@@ -1,91 +1,33 @@
-# Roadmap — Finance SaaS V2
+# Roadmap — Path to 85% beta
 
-**Status**: 75% → target **85% (private beta-ready)**
+**Status**: ~85% in code · target = **shipping private beta**
 **Project started**: 2026-04-06
-**Target beta launch**: ~2026-05-24 (4 sprints)
+**Realistic beta date**: ~2 weeks if Sprint 4 (testing) starts soon
 
 ---
 
-## 📍 Definition of "85%"
+## 📍 Definition of beta-ready
 
-Private beta-ready means:
 - Every user flow works end-to-end without `[À écrire]` placeholders or known bugs
 - 5 real users (friends/family) can sign up, onboard, log a week of expenses, and understand their score **without you guiding them**
-- All 9 pages have consistent UX (typography, spacing, colors)
+- All pages have consistent UX (typography, spacing, colors)
 - No TODO left in the critical user path
 
 Anything beyond is **post-beta v2** → goes to `BACKLOG.md`.
 
 ---
 
-## 🔄 CURRENT SPRINT: 1 — Wire the brain + clean up
+## 🔄 What's left to ship beta
 
-**Started**: _(set when you start)_
-**Target end**: 1 week from start
+### A. Sprint 2 polish remaining (small, ~1 session)
+- [ ] Onboarding "abonnement detection" popup (when user adds a duplicate sub-cat)
+- [ ] Mini-onboarding catch-up flow (when `jours_inactif ≥ 7`)
+- [ ] Dashboard preview screen before "Découvrir l'app" in onboarding
+- [ ] Reference points on estimation sliders ("Moyenne MA pour ce revenu = X DH")
+- [ ] Delete legacy `views/onboarding.py` (kept as `?onboarding=v1` fallback for now)
+- [ ] Bonus: enrich the 5 status messages with 3-part structure (Diagnostic / Plan / Vision)
 
-- [x] Built scoring engine v2 (`core/assistant_engine.py:compute_score`)
-- [x] Created `coach_messages.py` table (24 entries)
-- [x] Created `BACKLOG.md`
-- [x] Created `ROADMAP.md`
-- [x] Wire `compute_score()` into accueil coach panel (replace v1)
-- [x] Display 5 statuts (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT) with proper colors
-- [x] Show factor breakdown on score click (transparency = trust)
-- [x] **Consolidate Objectif Dépense → Plafond** (delete duplicate tab)
-- [ ] End-of-sprint review Friday (no code)
-
----
-
-## 📅 4-sprint plan
-
-### Sprint 1 — Wire the brain + clean up _(current)_
-See "CURRENT SPRINT" above.
-
-### Sprint 2 — Onboarding wizard v2 + coach copy
-- [x] Wizard v2 shell + badges/hints foundations (commit 1)
-- [x] Wizard v2 full content: 4 steps, real récurrents form, 4 sliders, score reveal (commit 2)
-- [x] Step 2 utilities (Électricité + Eau) + step 3 live donut (commit 2.1)
-- [x] **Write the 5 status-level coach messages first** (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT)
-- [x] Replace remaining 19 `[À écrire]` in `core/coach_messages.py` — ALL 24 messages now real copy
-- [x] Sprinkle 6 contextual hints throughout app (commit 3a)
-- [ ] Delete legacy `views/onboarding.py` once v2 confirmed stable (commit 3b)
-- [ ] Add "abonnement detection" popup on duplicate sub-categories
-- [ ] Build mini-onboarding catch-up flow (when `jours_inactif >= 7`)
-- [ ] **Dashboard preview screen before "Découvrir l'app"** — small mockup of Accueil with their data ("voici ce qui t'attend") to reduce post-onboarding shock
-- [ ] **Reference points on estimation sliders** — "Moyenne MA pour ce revenu = X DH" hints to help users who don't know their numbers
-
-### Sprint 3 — Mon compte + month visibility lite + Daret Manager
-- [x] Mon compte: real name, email, change password (bcrypt-aware) — commit A1
-- [x] Mon compte: data export button (JSON download) — commit A2
-- [x] Mon compte: delete account flow (type-SUPPRIMER confirmation) — commit A3
-- [x] Customizable: fonds d'urgence target (default 3 mois) — commit B1
-- [x] Customizable: 50/30/20 category overrides UI + compute_score integration — commit B2
-- [x] **Block C — Tendances page** (Month visibility, shipped):
-  - [x] db_manager: `get_solde_mensuel_histo()` + `get_cashflow_mensuel()` (~6 mois)
-  - [x] Hero monthly sparkline upgraded to monthly data (replaces 7-day flux)
-  - [x] New page `views/tendances.py` with 5 sections:
-    - [x] Up/down monthly bars chart (revenus green up, dépenses red down)
-    - [x] **Velocity card**: Daily Avg + Safe-to-Spend
-    - [x] **Subscription leakage card**: récurrents via `get_charges_fixes` + total + count
-    - [x] **Top 3 lists**: top catégories ce mois + top 3 plus grosses transactions 6m
-    - [x] N-month KPI strip with 3/6/12 selector
-  - [x] Added to sidebar nav (📈 Tendances) + first-visit hint
-- [ ] **Bonus polish**: enrich the 5 status coach messages with 3-part structure (Diagnostic / Plan d'Action / Vision) — ~30 min, big quality jump
-- [x] **Categories — grocery quick-pick** (replaces the original migration plan):
-  - 3 new sub-cats added under existing 'Courses maison' parent: Alimentation / Produits ménagers / Snacks & Boissons
-  - DICO seeded with 10 MA grocery merchants (BIM, Marjane, Carrefour, Acima, Aswak, Atacadao, Label'Vie, Metro, Hanout)
-  - Quick-pick component appears after grocery transaction — 3 emoji buttons + Skip
-  - Wired into topbar Dépense form + sidebar + Transaction form
-  - No migration of existing data needed (gradual classification at point-of-entry)
-- [x] **Daret Manager v1.5** (solo + invite link — better than original v1 plan):
-  - [x] DB layer: Statuts_JSON + Tirage_Seed + invite_token columns + helpers
-  - [x] Bloomberg-style status table (members × N months, click to cycle 🔴→🟡→🟢)
-  - [x] Invite token generation per daret + copyable URL parameter
-  - [x] Public read-only view at `/?daret=TOKEN` — anyone with link can view, manager-only edit
-  - [ ] Tirage au sort algorithm (deferred — current order = creation order is acceptable for v1)
-  - [ ] Export récap to clipboard (deferred — invite link replaces it)
-  - Full V2 (real-time, RBAC, notifications) → BACKLOG.md flagship v1.5
-
-### Sprint 4 — Bug bash + 5 real users
+### B. Sprint 4 — Bug bash + 5 real users (the real work, ~1 week)
 - [ ] Use the app yourself daily for 7 days, log everything
 - [ ] Recruit 5 beta users (friends, family)
 - [ ] Watch each one onboard (no guidance) — note every friction point
@@ -95,28 +37,35 @@ See "CURRENT SPRINT" above.
 
 ---
 
-## ✅ Already shipped (3 weeks, 2026-04-06 → 2026-04-26)
+## ✅ Already shipped (24 days, 2026-04-06 → today)
 
 **Foundation**
-- PostgreSQL multi-tenant (15 tables), bcrypt auth, deployed on Streamlit Cloud
+- PostgreSQL multi-tenant (15 tables), bcrypt auth, Streamlit Cloud deploy
 - Custom design system (T tokens, dark theme, 5 color zones)
-- Audit middleware (gateway, validator, anomaly detector, snapshot, query, anticipation)
+- Audit middleware (gateway, validator, anomaly, snapshot, query, anticipation)
+- 5-factor scoring engine (`core/assistant_engine.compute_score`)
+- Coach message library — **24/24 messages written**, light + honest + encouraging
+- Badges + hints persistence (`core/badges.py`, `core/hints.py`)
 
 **UX system**
-- Topbar (Dépense / Revenu / Moi / Historique / Mois / Année + 🏠)
-- Sidebar (logo + Paramètres + nav + + Transaction form)
-- Hero + KPI strip (1 unified card with sparkline bg)
-- Categories drill-down (flat cards + expandable sub-categories)
-- Coach panel (5 sections: header / score / message / objectif / épargne)
+- Topbar (🏠 Dépense · Revenu · Moi · Historique · Mois · Année)
+- Sidebar (logo + Paramètres + 8 nav items + + Transaction form)
+- Hero + KPI strip with monthly sparkline
+- Categories drill-down (expandable + grocery sub-cat quick-pick after merchant transactions)
+- Coach panel (5 sections: header / score / message / objectif / épargne libre breakdown)
 
-**Brain**
-- 5-factor scoring engine (`compute_score`) with edge cases (reste négatif cap, first-month grace, stale flag)
-- 50/30/20 default category mapping in `config.py`
-- Coach message table (24 entries, priority-based selector)
-- Single-source-of-truth épargne model (totale − allouée = libre)
+**Pages built (10)**
+Accueil · Historique · **Tendances** · Journal · Objectif · Épargne · Plafond · **Daret (+public read-only view)** · Mon compte · Assistant · Onboarding v2
 
-**Pages built**
-- Accueil, Historique, Journal, Objectif, Épargne, Plafond, Daret, Moi, Assistant, Onboarding, Admin
+**Mon compte** — name/email/password change · data export (JSON) · delete account · fonds d'urgence target customization · 50/30/20 category overrides
+
+**Tendances** — KPI strip · cashflow up/down monthly bars · velocity (daily avg + safe-to-spend) · subscription leakage · top 3 lists · 3/6/12 month selector
+
+**Daret v1.5** — 2-step creation wizard · tirage au sort with verifiable seed · Bloomberg-style status table · invite token + public read-only view at `?daret=TOKEN`
+
+**6 contextual hints** sprinkled across the app (Accueil welcome / coach panel / categories / topbar / Plafond / Daret)
+
+**Admin** — DICO CRUD · Référentiel · A_Classifier · Audit Log · 🚨 Reset (test) tab
 
 ---
 

@@ -53,13 +53,50 @@ Even in French interface, weave Darija for warmth:
 - "Lkher d'che'har approche…"
 - Breaks the cold banking atmosphere
 
-### 🛡️ Essential Mode v2 (auto-detect)
-Today: cap score at FAIBLE (40) when reste is negative. **v2**: full mode switch when income < 4 000 DH OR fixed charges > 60% of income:
-- Score weights swap: 60% Engagement + 30% No-overdraft + 10% Micro-savings
-- Coach vocabulary shifts from "wealth building" to "résilience & protection"
-- Celebrates micro-wins (zero-spend day, 50 DH first savings = 95/100)
-- "Score plus haut" for surviving on tight budget than for someone wealthy who barely tries
-- Build effort vs. income metric ("Effort Score") — recognizes hard work, not raw amounts
+### 🛡️ Modest Mode (Essential Mode v2) — IMPLEMENTATION READY
+
+Spec is complete — when picking this up next, just answer the 3 questions
+below and execute. ~30 min implementation in 1 commit.
+
+**Detection trigger** (auto-switch to Modest mode when):
+- `revenu_total ≤ 4 000 DH/mois` (low income), OR
+- `charges_fixes / revenu > 60%` (heavy burden)
+- PLUS manual override toggle in Paramètres → Personnalisation
+
+**Score weight changes**:
+
+| Factor | Standard | Modest | Why |
+|---|---|---|---|
+| Reste à vivre | 25 pts | **35 pts** | Survival > optimization |
+| Épargne du mois | 15 pts | **5 pts** | Small wins matter, not big targets |
+| Fonds d'urgence | 20 pts | **5 pts** | Survival comes before reserve |
+| Dépenses équilibrées (50/30/20) | 25 pts | **0 pts** | Rule doesn't apply at survival income |
+| Engagement | 15 pts | **35 pts** | Tracking IS the win at low income |
+| Pas de découvert (NEW factor) | — | **20 pts** | `reste_a_vivre ≥ 0` = full marks |
+| **Total** | 100 | 100 | |
+
+**UI signal**: small badge "🛡️ Mode Essentiel" next to the score in coach panel
+(transparency without shame — user knows the calculation is adapted to their context).
+
+**3 implementation questions to confirm before coding**:
+- **Q1**: Auto-detection thresholds — `4 000 DH` and `60% charges fixes` look right
+  for MA market? Or different numbers?
+- **Q2**: Manual toggle in Paramètres? My recommendation: yes — auto-detect but
+  let user override (some students with rich parents technically have low income
+  but aren't in survival mode; some 8K earners with 4 kids ARE).
+- **Q3**: Implementation scope:
+  - **(a) Just scoring** — same messages, different score weights *(RECOMMENDED for v1)*
+  - **(b) Scoring + Modest-specific messages** (celebrating mois-sans-découvert,
+    50 DH first savings = "Alerte Héroïsme 👑") *(better but bigger — post-beta polish)*
+
+**Files to touch when implementing**:
+- `core/assistant_engine.py:compute_score()` — add Modest mode branch
+- `config.py` — add SCORE_V2_MODEST_* weight constants + thresholds
+- `views/moi.py` — add Standard/Modest toggle in Personnalisation section
+- `views/accueil.py:_render_coach_panel()` — display "🛡️ Mode Essentiel" badge if active
+- `core/coach_messages.py` — only if Q3=(b), add Modest-specific messages
+
+**Effort estimate**: ~30 min for Q3=(a), ~2 hours for Q3=(b).
 
 ### 🆘 Mode Pause (life happens)
 Sometimes life hits hard (medical emergency, job loss, Ramadan splurge). Users feel ashamed to open the app.
