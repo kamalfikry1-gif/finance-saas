@@ -1076,6 +1076,91 @@ class DatabaseManager:
         except Exception:
             return []
 
+    def get_solde_mensuel_histo(self, user_id: int, nb_mois: int = 6) -> list:
+        """
+        Return monthly net flux (revenus - dépenses) for last N months.
+        Used to upgrade hero sparkline from 7-day to monthly view.
+        Always returns nb_mois entries (0 for empty months), oldest first.
+        """
+        from datetime import date
+        sql = """
+            SELECT DATE_TRUNC('month', Date)::date AS mois,
+                   SUM(CASE WHEN Sens='IN' THEN Montant ELSE -Montant END) AS flux
+            FROM TRANSACTIONS
+            WHERE user_id = %s
+              AND Date >= (CURRENT_DATE - INTERVAL '%s months')
+            GROUP BY DATE_TRUNC('month', Date)
+            ORDER BY mois ASC
+        """
+        try:
+            with self.connexion() as conn:
+                rows = conn.execute(sql, (user_id, nb_mois)).fetchall()
+            flux_by_month = {}
+            for r in rows:
+                m = r["mois"] if isinstance(r["mois"], date) else date.fromisoformat(str(r["mois"])[:10])
+                flux_by_month[(m.year, m.month)] = float(r["flux"] or 0)
+            today = date.today()
+            result = []
+            for i in range(nb_mois):
+                offset = nb_mois - 1 - i
+                yr = today.year
+                mo = today.month - offset
+                while mo <= 0:
+                    mo += 12
+                    yr -= 1
+                result.append(flux_by_month.get((yr, mo), 0.0))
+            return result
+        except Exception:
+            return []
+
+    def get_cashflow_mensuel(self, user_id: int, nb_mois: int = 6) -> list:
+        """
+        Return per-month {mois, revenus, depenses, solde_net} for last N months.
+        Used by Tendances page (up/down monthly bars chart + KPI strip).
+        Always returns nb_mois entries (0 for empty months), oldest first.
+        """
+        from datetime import date
+        sql = """
+            SELECT DATE_TRUNC('month', Date)::date AS mois,
+                   SUM(CASE WHEN Sens='IN'  THEN Montant ELSE 0 END) AS revenus,
+                   SUM(CASE WHEN Sens='OUT' THEN Montant ELSE 0 END) AS depenses
+            FROM TRANSACTIONS
+            WHERE user_id = %s
+              AND Date >= (CURRENT_DATE - INTERVAL '%s months')
+            GROUP BY DATE_TRUNC('month', Date)
+            ORDER BY mois ASC
+        """
+        try:
+            with self.connexion() as conn:
+                rows = conn.execute(sql, (user_id, nb_mois)).fetchall()
+            data_by_month = {}
+            for r in rows:
+                m = r["mois"] if isinstance(r["mois"], date) else date.fromisoformat(str(r["mois"])[:10])
+                rv = float(r["revenus"] or 0)
+                dp = float(r["depenses"] or 0)
+                data_by_month[(m.year, m.month)] = (rv, dp)
+            today = date.today()
+            result = []
+            for i in range(nb_mois):
+                offset = nb_mois - 1 - i
+                yr = today.year
+                mo = today.month - offset
+                while mo <= 0:
+                    mo += 12
+                    yr -= 1
+                rv, dp = data_by_month.get((yr, mo), (0.0, 0.0))
+                result.append({
+                    "mois":      f"{mo:02d}/{yr}",
+                    "year":      yr,
+                    "month":     mo,
+                    "revenus":   rv,
+                    "depenses":  dp,
+                    "solde_net": rv - dp,
+                })
+            return result
+        except Exception:
+            return []
+
     # EPARGNE_HISTO — user savings register
     # ─────────────────────────────────────────────────────────────────────────
 

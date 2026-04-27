@@ -1237,8 +1237,9 @@ def render(ctx: dict) -> None:
         icon="💸",
     )
 
+    # Hero sparkline: 6-month monthly net flux (replaces 7-day daily flux)
     try:
-        sparkline_data = audit.db.get_solde_7j(ctx["user_id"])
+        sparkline_data = audit.db.get_solde_mensuel_histo(ctx["user_id"], nb_mois=6)
     except Exception:
         sparkline_data = []
 
