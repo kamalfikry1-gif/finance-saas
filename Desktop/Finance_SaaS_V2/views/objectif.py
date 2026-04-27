@@ -423,14 +423,15 @@ def render(ctx: dict) -> None:
     mois_sel = ctx["mois_sel"]
     mois_lbl = ctx["mois_lbl"]
 
-    render_page_header("🎯", "Objectifs", "Réduction des dépenses et constitution d'épargne")
+    render_page_header("🎯", "Objectifs", "Constitution d'épargne et historique")
 
-    tab_dep, tab_ep, tab_histo = st.tabs([
-        "💸 Objectif Dépense", "💰 Objectif Épargne", "📈 Historique Épargne"
+    # NOTE: "Objectif Dépense" tab removed — it duplicated the Plafond page.
+    # The _tab_depense() function below stays defined for backward compat
+    # but is no longer reachable from the UI. Delete in cleanup pass.
+
+    tab_ep, tab_histo = st.tabs([
+        "💰 Objectif Épargne", "📈 Historique Épargne"
     ])
-
-    with tab_dep:
-        _tab_depense(audit, mois_sel, mois_lbl)
 
     with tab_ep:
         _tab_epargne(audit)

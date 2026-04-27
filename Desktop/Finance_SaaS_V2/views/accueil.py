@@ -1129,6 +1129,37 @@ def _render_coach_panel(
         unsafe_allow_html=True,
     )
 
+    # Factor breakdown — expandable, transparency on the score
+    details = score.get("details_score", {}) or {}
+    if details:
+        with st.expander("📊 Détail du score (5 facteurs)", expanded=False):
+            rows = [
+                ("Reste à vivre",        details.get("pts_reste",      0), 25),
+                ("Épargne du mois",      details.get("pts_ep_flow",    0), 15),
+                ("Fonds d'urgence",      details.get("pts_fonds",      0), 20),
+                ("Dépenses équilibrées", details.get("pts_503020",     0), 25),
+                ("Engagement",           details.get("pts_engagement", 0), 15),
+            ]
+            html = ''
+            for label, pts, max_pts in rows:
+                pct = (pts / max_pts * 100) if max_pts > 0 else 0
+                bar_c = (T.SUCCESS if pct >= 70 else T.PRIMARY if pct >= 40
+                         else T.WARNING if pct >= 20 else T.DANGER)
+                html += (
+                    f'<div style="margin-bottom:10px">'
+                    f'  <div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+                    f'    <span style="color:{T.TEXT_MED};font-size:12px">{label}</span>'
+                    f'    <span style="color:{T.TEXT_HIGH};font-size:12px;font-weight:600;'
+                    f'      font-variant-numeric:tabular-nums">{pts:.1f}/{max_pts}</span>'
+                    f'  </div>'
+                    f'  <div style="height:4px;background:{T.BG_INPUT};border-radius:99px;overflow:hidden">'
+                    f'    <div style="width:{pct:.1f}%;height:100%;background:{bar_c};'
+                    f'      border-radius:99px"></div>'
+                    f'  </div>'
+                    f'</div>'
+                )
+            st.markdown(html, unsafe_allow_html=True)
+
     # "Voir tous les objectifs" — only when overflow beyond 3
     if len(unique_goals) > 3:
         if st.button(f"Voir les {len(unique_goals)} objectifs →", key="cp_more_goals",

@@ -29,8 +29,8 @@ Anything beyond is **post-beta v2** → goes to `BACKLOG.md`.
 - [x] Created `ROADMAP.md`
 - [x] Wire `compute_score()` into accueil coach panel (replace v1)
 - [x] Display 5 statuts (CRITIQUE/FAIBLE/MOYEN/BON/EXCELLENT) with proper colors
-- [ ] Show factor breakdown on score click (transparency = trust)
-- [ ] **Consolidate Objectif Dépense → Plafond** (delete duplicate page)
+- [x] Show factor breakdown on score click (transparency = trust)
+- [x] **Consolidate Objectif Dépense → Plafond** (delete duplicate tab)
 - [ ] End-of-sprint review Friday (no code)
 
 ---
