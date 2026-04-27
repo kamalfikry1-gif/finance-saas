@@ -559,6 +559,7 @@ class DatabaseManager:
         self._ensure_transaction_columns()
         self.ensure_regles_sous_categorie()
         self._ensure_admin_column()
+        self._ensure_profile_columns()
         self._auto_seed_dico()
         self._purger_referentiel_obsolete()
 
@@ -1303,6 +1304,80 @@ class DatabaseManager:
                 )
         except Exception:
             logger.exception("_ensure_admin_column failed")
+
+    def _ensure_profile_columns(self) -> None:
+        """Add nom + email to UTILISATEURS for DBs created before these existed."""
+        try:
+            with self.connexion() as conn:
+                conn.execute(
+                    "ALTER TABLE UTILISATEURS"
+                    " ADD COLUMN IF NOT EXISTS nom TEXT DEFAULT '',"
+                    " ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''"
+                )
+        except Exception:
+            logger.exception("_ensure_profile_columns failed")
+
+    def get_user_profile(self, user_id: int) -> dict:
+        """Returns {username, nom, email} or empty dict if not found."""
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT username, nom, email FROM UTILISATEURS WHERE id = %s",
+                    (user_id,),
+                ).fetchone()
+            if not row:
+                return {}
+            return {
+                "username": row["username"] if "username" in row else row[0],
+                "nom":      (row["nom"] if "nom" in row else row[1]) or "",
+                "email":    (row["email"] if "email" in row else row[2]) or "",
+            }
+        except Exception:
+            return {}
+
+    def update_user_profile(self, user_id: int, nom: str, email: str) -> bool:
+        try:
+            with self.connexion() as conn:
+                conn.execute(
+                    "UPDATE UTILISATEURS SET nom = %s, email = %s WHERE id = %s",
+                    (nom.strip(), email.strip().lower(), user_id),
+                )
+            return True
+        except Exception:
+            logger.exception("update_user_profile failed")
+            return False
+
+    def verify_password(self, user_id: int, password: str) -> bool:
+        """Check that `password` matches the bcrypt hash stored for this user."""
+        import bcrypt
+        try:
+            with self.connexion() as conn:
+                row = conn.execute(
+                    "SELECT password_hash FROM UTILISATEURS WHERE id = %s",
+                    (user_id,),
+                ).fetchone()
+            if not row:
+                return False
+            stored = row["password_hash"] if "password_hash" in row else row[0]
+            return bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8"))
+        except Exception:
+            logger.exception("verify_password failed")
+            return False
+
+    def set_password(self, user_id: int, new_password: str) -> bool:
+        """Hash + persist a new password (no current-password check — caller verifies)."""
+        import bcrypt
+        try:
+            new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+            with self.connexion() as conn:
+                conn.execute(
+                    "UPDATE UTILISATEURS SET password_hash = %s WHERE id = %s",
+                    (new_hash, user_id),
+                )
+            return True
+        except Exception:
+            logger.exception("set_password failed")
+            return False
 
     def is_admin(self, user_id: int) -> bool:
         with self.connexion() as conn:

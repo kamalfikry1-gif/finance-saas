@@ -19,6 +19,9 @@ def render(ctx: dict) -> None:
 
     render_page_header("👤", "Paramètres", "Informations personnelles et préférences")
 
+    # ── Section 0 : Profil (name, email, password) ──────────────────────────
+    _render_profile_section(audit)
+
     # ── Section 1 : Revenus ──────────────────────────────────────────────────
     _section("Revenus")
 
@@ -220,3 +223,93 @@ def render(ctx: dict) -> None:
 
     if st.button("🚪 Se déconnecter", key="moi_logout_btn", type="secondary"):
         _logout_dialog()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Section: Profil (Name + Email + Change password)
+# ════════════════════════════════════════════════════════════════════════════
+def _render_profile_section(audit) -> None:
+    _section("Profil")
+
+    profile = audit.db.get_user_profile(audit.user_id)
+    username = profile.get("username", "—")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        nom = st.text_input(
+            "Nom complet",
+            value=profile.get("nom", ""),
+            placeholder="Ex: Kamal Fikry",
+            key="moi_nom",
+        )
+    with c2:
+        email = st.text_input(
+            "Email",
+            value=profile.get("email", ""),
+            placeholder="kamal@exemple.ma",
+            key="moi_email",
+        )
+
+    st.markdown(
+        f'<div style="color:{T.TEXT_LOW};font-size:11px;margin-top:-8px;margin-bottom:10px">'
+        f"Identifiant de connexion : <b style='color:{T.TEXT_MED}'>{username}</b>"
+        f' (non modifiable)</div>',
+        unsafe_allow_html=True,
+    )
+
+    if st.button("💾 Sauvegarder le profil", key="moi_save_profile", type="primary"):
+        ok = audit.db.update_user_profile(audit.user_id, nom, email)
+        if ok:
+            st.success("✅ Profil mis à jour")
+        else:
+            st.error("Erreur lors de la sauvegarde — réessaye.")
+
+    # ── Change password ─────────────────────────────────────────────────────
+    with st.expander("🔒 Changer mon mot de passe", expanded=False):
+        cur_pw = st.text_input(
+            "Mot de passe actuel",
+            type="password",
+            key="moi_pw_current",
+        )
+        c_a, c_b = st.columns(2)
+        with c_a:
+            new_pw = st.text_input(
+                "Nouveau mot de passe",
+                type="password",
+                key="moi_pw_new",
+                help="Minimum 6 caractères",
+            )
+        with c_b:
+            new_pw2 = st.text_input(
+                "Confirmer le nouveau",
+                type="password",
+                key="moi_pw_new2",
+            )
+
+        # Validation feedback
+        msgs = []
+        if new_pw and len(new_pw) < 6:
+            msgs.append("Le nouveau mot de passe doit faire au moins 6 caractères.")
+        if new_pw and new_pw2 and new_pw != new_pw2:
+            msgs.append("Les deux nouveaux mots de passe ne correspondent pas.")
+        for m in msgs:
+            st.warning(f"⚠️ {m}")
+
+        valid = (
+            cur_pw and new_pw and new_pw2
+            and len(new_pw) >= 6
+            and new_pw == new_pw2
+        )
+
+        if st.button("Changer mon mot de passe", key="moi_pw_change",
+                     type="primary", disabled=not valid):
+            if not audit.db.verify_password(audit.user_id, cur_pw):
+                st.error("❌ Mot de passe actuel incorrect.")
+            elif audit.db.set_password(audit.user_id, new_pw):
+                st.success("✅ Mot de passe modifié.")
+                # Clear the form fields
+                for k in ("moi_pw_current", "moi_pw_new", "moi_pw_new2"):
+                    st.session_state.pop(k, None)
+                st.rerun()
+            else:
+                st.error("Erreur lors de la mise à jour — réessaye.")
