@@ -775,6 +775,34 @@ def _step4_reveal(audit, d: dict) -> None:
         unsafe_allow_html=True,
     )
 
+    # "What's next" preview — orients the user before they land on Accueil
+    st.markdown(
+        f'<div style="color:{T.TEXT_LOW};font-size:10px;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:1.5px;margin:18px 0 8px">'
+        f'Sur ton accueil tu verras</div>',
+        unsafe_allow_html=True,
+    )
+    preview_items = (
+        ("💰", "Ton solde net du mois et tes 4 chiffres clés"),
+        ("📊", "Toutes tes catégories — où ton argent part vraiment"),
+        ("🎯", "Ton coach qui se met à jour à chaque dépense"),
+    )
+    preview_rows = "".join(
+        f'<div style="display:flex;gap:12px;align-items:flex-start;'
+        f'padding:8px 0;{("border-bottom:1px solid " + T.BORDER) if i < len(preview_items) - 1 else ""}">'
+        f'  <span style="font-size:18px;line-height:1.2;flex-shrink:0">{icon}</span>'
+        f'  <span style="color:{T.TEXT_MED};font-size:13px;line-height:1.5">{text}</span>'
+        f'</div>'
+        for i, (icon, text) in enumerate(preview_items)
+    )
+    st.markdown(
+        f'<div style="background:{T.BG_CARD};border:1px solid {T.BORDER};'
+        f'border-radius:{T.RADIUS_MD};padding:6px 18px">'
+        f'  {preview_rows}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
     # Final CTA
     st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
     if st.button("Découvrir l'app →", type="primary",
