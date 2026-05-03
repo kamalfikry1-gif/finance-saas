@@ -25,6 +25,13 @@ from components.design_tokens import T
 from components.helpers import dh as _dh
 from core import badges as _badges
 from core.cache import invalider as _invalider_cache
+from config import (
+    MA_REF_ENTRETIEN_PCT,
+    MA_REF_ALIMENTATION_PCT,
+    MA_REF_TRANSPORT_PCT,
+    MA_REF_ENVIES_PCT,
+    MA_REF_EPARGNE_PCT,
+)
 
 
 # ── Session state keys ──────────────────────────────────────────────────────
@@ -431,43 +438,59 @@ def _step3_estimation(audit) -> None:
         unsafe_allow_html=True,
     )
 
-    max_entr   = int(max(revenu * 0.30, 2000))
-    max_alim   = int(max(revenu * 0.40, 3000))
-    max_trans  = int(max(revenu * 0.30, 2000))
-    max_envies = int(max(revenu * 0.50, 3000))
-    max_ep     = int(max(revenu * 0.50, 2000))
+    slider_max = int(revenu)
+
+    def _ref(pct: float) -> None:
+        if revenu <= 0:
+            return
+        st.markdown(
+            f'<div style="color:{T.TEXT_LOW};font-size:11px;'
+            f'margin-top:-6px;margin-bottom:14px">'
+            f'Moyenne MA pour ce revenu ≈ {int(revenu * pct)} DH'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     # Note: Logement (loyer/crédit) déjà capté en step 2 (récurrents) — pas redondant ici.
     entretien = st.slider(
         "🔧 Entretien (maison + voiture)",
-        min_value=0, max_value=max_entr,
-        value=int(d.get("est_entretien", revenu * 0.05)),
+        min_value=0, max_value=slider_max,
+        value=int(d.get("est_entretien", revenu * MA_REF_ENTRETIEN_PCT)),
         step=50, format="%d DH", key="ob2_entretien",
     )
+    _ref(MA_REF_ENTRETIEN_PCT)
+
     alimentation = st.slider(
         "🛒 Alimentation / Courses",
-        min_value=0, max_value=max_alim,
-        value=int(d.get("est_alimentation", revenu * 0.20)),
+        min_value=0, max_value=slider_max,
+        value=int(d.get("est_alimentation", revenu * MA_REF_ALIMENTATION_PCT)),
         step=100, format="%d DH", key="ob2_alimentation",
     )
+    _ref(MA_REF_ALIMENTATION_PCT)
+
     transport = st.slider(
         "🚗 Transport (carburant, taxi, bus)",
-        min_value=0, max_value=max_trans,
-        value=int(d.get("est_transport", revenu * 0.10)),
+        min_value=0, max_value=slider_max,
+        value=int(d.get("est_transport", revenu * MA_REF_TRANSPORT_PCT)),
         step=50, format="%d DH", key="ob2_transport",
     )
+    _ref(MA_REF_TRANSPORT_PCT)
+
     envies = st.slider(
         "🎁 Envies (loisirs, restos, shopping)",
-        min_value=0, max_value=max_envies,
-        value=int(d.get("est_envies", revenu * 0.10)),
+        min_value=0, max_value=slider_max,
+        value=int(d.get("est_envies", revenu * MA_REF_ENVIES_PCT)),
         step=100, format="%d DH", key="ob2_envies",
     )
+    _ref(MA_REF_ENVIES_PCT)
+
     epargne = st.slider(
         "💰 Épargne mensuelle visée",
-        min_value=0, max_value=max_ep,
-        value=int(d.get("est_epargne", revenu * 0.10)),
+        min_value=0, max_value=slider_max,
+        value=int(d.get("est_epargne", revenu * MA_REF_EPARGNE_PCT)),
         step=100, format="%d DH", key="ob2_epargne",
     )
+    _ref(MA_REF_EPARGNE_PCT)
 
     reste = revenu - entretien - alimentation - transport - envies - epargne
     reste_color = T.SUCCESS if reste >= 0 else T.DANGER

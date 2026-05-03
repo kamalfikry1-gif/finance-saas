@@ -124,6 +124,20 @@ MOT_CLE_MIN_LEN: int = 2
 MOT_CLE_MAX_LEN: int = 100
 
 # ==============================================================================
+# ONBOARDING — RÉFÉRENCES MA (% du revenu mensuel)
+# ==============================================================================
+# Baselines affichés sous chaque slider du step 3 d'onboarding_v2
+# ("Moyenne MA pour ce revenu ≈ X DH"). Servent aussi de valeurs initiales.
+# Sources : moyennes pragmatiques basées sur observations marché MA —
+# à raffiner après la phase beta avec les données réelles utilisateurs.
+
+MA_REF_ENTRETIEN_PCT:    float = 0.05   # entretien maison + voiture
+MA_REF_ALIMENTATION_PCT: float = 0.20   # courses, supermarché
+MA_REF_TRANSPORT_PCT:    float = 0.10   # carburant, taxi, bus
+MA_REF_ENVIES_PCT:       float = 0.10   # loisirs, restos, shopping
+MA_REF_EPARGNE_PCT:      float = 0.10   # épargne mensuelle visée
+
+# ==============================================================================
 # ANALYSE — PARAMÈTRES PAR DÉFAUT
 # ==============================================================================
 
