@@ -162,6 +162,10 @@ The idea isn't to explain what a Daret is — it's to **fix how it's managed**.
 - [ ] Native iOS/Android app (after Next.js migration)
 - [ ] PWA (faster path — install Streamlit page as PWA)
 
+### Daily Mode — 2-tap predictive logging (Next.js cut)
+- [ ] Predictive amount pills + category icons UI (time-of-day aware, hides numpad by default, "Custom" button + delayed-undo toast)
+- [ ] Engine prototyped 2026-05-03: `core/predictor.py` (time-bucket frequency, 5 buckets, 90d window, round-to-5 DH, cold-start fallback) + `scripts/eval_predictor.py` walk-forward backtest. Uncommitted local draft, not benchmarked. Decision gate: ship UI only if amount hit@6 ≥ 70% on real data.
+
 ### Localization
 - [ ] Darija (Latin script: "Slm a sahbi") translation
 - [ ] Arabic (RTL layout — significant CSS work)
