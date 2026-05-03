@@ -12,8 +12,6 @@ Steps:
                                      → shows compute_score() result with full breakdown
 
 Mini-académie removed from wizard — concepts taught via core/hints.py contextually.
-
-Old onboarding (3-step, views/onboarding.py) kept as legacy fallback via ?onboarding=v1.
 """
 
 from __future__ import annotations

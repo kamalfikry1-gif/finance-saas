@@ -137,12 +137,10 @@ Finance_SaaS_V2/
 └── views/
     ├── __init__.py         ← Marqueur de dossier Python (ne pas modifier)
     │
-    ├── onboarding.py       ← Écran de première configuration (affiché 1 seule fois).
-    │                         2 étapes : revenus → dépenses du mois en cours par catégorie.
-    │                         Étape 1 crée aussi une transaction IN pour le salaire.
-    │                         Étape 2 : formulaire par sous-catégorie (catégorie connue →
-    │                           bypass classifier via enregistrer_transaction_categorisee).
-    │                         Toutes les transactions sont taguées Source=ONBOARDING.
+    ├── onboarding_v2.py    ← Wizard de première configuration (affiché 1 seule fois).
+    │                         4 étapes : welcome+revenu → récurrents déjà payés →
+    │                         estimation rapide (5 sliders) → objectif + score reveal.
+    │                         Crée des transactions Source=ONBOARDING pour les récurrents.
     │
     ├── accueil.py          ← Page "Accueil" : solde hero, 4 KPIs, répartition
     │                         des dépenses par catégorie (expanders cliquables →

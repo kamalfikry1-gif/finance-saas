@@ -56,7 +56,7 @@ components/
 views/                  One file per page — pure rendering, no direct DB calls
   accueil.py            Dashboard (hero, KPIs, categories, coach, score, goals)
   assistant.py          Interactive advisor (decision tree UI + 12 render types)
-  onboarding.py         2-step setup + step 3 Bilan de Départ
+  onboarding_v2.py      4-step wizard (welcome+revenu / récurrents / estimation / objectif+score)
   historique.py         Transaction list (filter, edit, delete, tags/contact)
   journal.py            Mood journal
   objectif.py           Savings goals

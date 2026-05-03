@@ -21,7 +21,6 @@ from core import cache as ui_cache
 import views.accueil   as page_accueil
 import views.admin     as page_admin
 import views.assistant as page_assistant
-import views.onboarding    as page_onboarding
 import views.onboarding_v2 as page_onboarding_v2
 import views.login      as page_login
 import views.moi        as page_moi
@@ -153,12 +152,7 @@ if "plafond_changes" not in st.session_state: st.session_state.plafond_changes =
 # ─────────────────────────────────────────────────────────────────────────────
 
 if not est_onboarding_fait(audit):
-    # New v2 wizard by default; legacy v1 still accessible via ?onboarding=v1
-    use_v1 = st.query_params.get("onboarding") == "v1"
-    if use_v1:
-        page_onboarding.render(audit)
-    else:
-        page_onboarding_v2.render(audit)
+    page_onboarding_v2.render(audit)
     st.stop()
 
 # ─────────────────────────────────────────────────────────────────────────────
