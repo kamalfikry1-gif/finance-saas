@@ -28,20 +28,24 @@ div[data-testid="stToolbar"]  {{ display: none !important; }}
 #MainMenu {{ visibility: hidden !important; }}
 footer    {{ visibility: hidden !important; }}
 
-/* Force sidebar always visible — prevent native collapse from hiding it */
-section[data-testid="stSidebar"] {{
-    transform: translateX(0) !important;
-    display: block !important;
-    visibility: visible !important;
-    min-width: 280px !important;
-    max-width: 280px !important;
-    width: 280px !important;
-}}
-section[data-testid="stSidebar"] > div {{
-    visibility: visible !important;
-    min-width: 280px !important;
-    max-width: 280px !important;
-    width: 280px !important;
+/* Force sidebar always visible on desktop — prevent native collapse from hiding it.
+   Mobile (≤768px) keeps Streamlit's native drawer behavior: hamburger opens,
+   backdrop tap closes. Locking 280px on a 375px phone leaves no room for content. */
+@media (min-width: 769px) {{
+    section[data-testid="stSidebar"] {{
+        transform: translateX(0) !important;
+        display: block !important;
+        visibility: visible !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
+        width: 280px !important;
+    }}
+    section[data-testid="stSidebar"] > div {{
+        visibility: visible !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
+        width: 280px !important;
+    }}
 }}
 
 /* Reduce Streamlit default padding — minimize gap between sidebar & content */
