@@ -185,6 +185,7 @@ The idea isn't to explain what a Daret is — it's to **fix how it's managed**.
 - [ ] **Discrete mode** toggle — blur all big numbers (solde, salaire) until user taps eye 👁
 - [ ] **Pride badge** in profile hero ("🏆 Guerrier du Budget — 14 jours de suite")
 - [ ] **Profile picture / avatar** upload
+- [ ] **Light/dark theme toggle** — second palette in design_tokens, CSS-var swap, persisted in PREFERENCES. Proper 1-day job (audit every hardcoded color across 9 pages)
 - [ ] **Type de Revenus**: Fixed vs Variables (Freelance/Commerce/Gig)
 - [ ] **Charges Fixes Incontournables** input (rent + utilities = survival number)
 - [ ] **Taille du Foyer** input (changes coach interpretation of grocery, healthcare spending)
